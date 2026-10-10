@@ -51,7 +51,11 @@ def main() -> int:
     if not args.audio or not args.side:
         parser.error("audio and --side are required")
 
-    report = grade(args.audio, args.topic, args.side, config_dir=args.config, cache_dir=args.cache)
+    try:
+        report = grade(args.audio, args.topic, args.side, config_dir=args.config, cache_dir=args.cache)
+    except (RuntimeError, FileNotFoundError) as error:
+        print(f"\nCould not grade this recording.\n{error}", file=sys.stderr)
+        return 1
     print_report(report)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as handle:

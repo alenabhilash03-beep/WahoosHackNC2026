@@ -4,8 +4,11 @@ No model is involved here. The same audio bytes always give the same numbers.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
+import tempfile
 import warnings
 from dataclasses import dataclass
 
@@ -27,25 +30,60 @@ class VoiceTrack:
     duration: float
 
 
-def decode(path: str) -> np.ndarray:
-    """Any browser/phone recording -> mono 16 kHz float samples."""
-    if shutil.which("ffmpeg"):
-        cmd = ["ffmpeg", "-v", "error", "-nostdin", "-i", str(path),
-               "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"]
-        raw = subprocess.run(cmd, capture_output=True, check=True).stdout
-        return np.frombuffer(raw, dtype=np.float32).astype(np.float64)
-    # Fallback without ffmpeg: WAV files only.
+NO_DECODER = (
+    "Cannot read this recording: it is not a WAV file and ffmpeg is not installed.\n"
+    "Install ffmpeg, then run the command again:\n"
+    "    conda install -c conda-forge ffmpeg     (if you use Anaconda)\n"
+    "    brew install ffmpeg                     (if you use Homebrew)\n"
+    "Or convert the recording to WAV first and grade the WAV."
+)
+
+
+def _read_wav(path: str) -> np.ndarray:
     from scipy.io import wavfile
     from scipy.signal import resample_poly
     sr, data = wavfile.read(path)
-    data = data.astype(np.float64)
+    if np.issubdtype(data.dtype, np.integer):
+        scale = 128.0 if data.dtype == np.uint8 else float(np.iinfo(data.dtype).max) + 1.0
+        data = (data.astype(np.float64) - (128.0 if data.dtype == np.uint8 else 0.0)) / scale
+    else:
+        data = data.astype(np.float64)
     if data.ndim > 1:
         data = data.mean(axis=1)
-    peak = np.abs(data).max() or 1.0
-    data = data / (32768.0 if peak > 1.5 else 1.0)
     if sr != SAMPLE_RATE:
         data = resample_poly(data, SAMPLE_RATE, sr)
     return data
+
+
+def _is_wav(path: str) -> bool:
+    with open(path, "rb") as handle:
+        return handle.read(4) in (b"RIFF", b"RIFX", b"RF64")
+
+
+def decode(path: str) -> np.ndarray:
+    """Any browser/phone recording -> mono 16 kHz float samples."""
+    path = str(path)
+    if shutil.which("ffmpeg"):
+        cmd = ["ffmpeg", "-v", "error", "-nostdin", "-i", path,
+               "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"]
+        done = subprocess.run(cmd, capture_output=True)
+        if done.returncode != 0 or not done.stdout:
+            detail = done.stderr.decode(errors="replace").strip()[-400:]
+            raise RuntimeError(f"ffmpeg could not read {path}: {detail or 'no audio found'}")
+        return np.frombuffer(done.stdout, dtype=np.float32).astype(np.float64)
+
+    if _is_wav(path):
+        return _read_wav(path)
+
+    # No ffmpeg. macOS ships its own converter, which reads m4a, mp3, aiff and caf.
+    if sys.platform == "darwin" and shutil.which("afconvert"):
+        with tempfile.TemporaryDirectory() as folder:
+            converted = os.path.join(folder, "converted.wav")
+            done = subprocess.run(["afconvert", "-f", "WAVE", "-d", f"LEI16@{SAMPLE_RATE}",
+                                   "-c", "1", path, converted], capture_output=True)
+            if done.returncode == 0 and os.path.exists(converted):
+                return _read_wav(converted)
+    raise RuntimeError(NO_DECODER)
 
 
 def track_voice(samples: np.ndarray, floor_hz: float = 70, ceiling_hz: float = 400) -> VoiceTrack:
