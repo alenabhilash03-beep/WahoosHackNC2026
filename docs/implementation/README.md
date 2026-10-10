@@ -1,158 +1,68 @@
-# NetworkMaxx implementation guide
+# Debate Arena implementation guide
 
-This folder turns the [NetworkMaxx Build Plan](../../NetworkMaxx%20Build%20Plan.md) into work a
-team can execute phase by phase. Each phase file lists the files to create, the exact contracts
-between pieces, the commands to run, and an acceptance checklist. A phase is done when every box in
-its **Done when** list is ticked, not when the code is written.
+The [Build Plan](../../Build%20Plan.md) is the source of truth: match format, scoring, routes, a
+server sketch, screens and the schedule. This page is the short checklist for building it.
 
-## What already exists in this repo
+## Phases
 
-| Path | What it is | Tests |
-| --- | --- | --- |
-| `softskills-grader/` | Grades a one-minute spoken argument: `grade(audio, topic, side) -> report` | `python softskills-grader/tests/test_pipeline.py` (23) |
-| `conversation/netmaxx_scoring.py` | Measures a conversation: pace, delivery, confidence, listening, flow | `python conversation/test_netmaxx_scoring.py` (16) |
-| `Arena/arena_ratings.py` | Turns community votes into logos, pathos, ethos, persuasion and Elo | `python Arena/test_arena_ratings.py` (13) |
-| `Arena/match_judge.py` | Picks winners of duels, team matches and free-for-alls from grader reports | `python Arena/test_match_judge.py` (27) |
-| `supabase/migrations/0001_init.sql` | Every table for every phase | parsed with the Postgres parser |
-| `docs/implementation/tests/` | Ready-made server tests for Phases 2 and 6; copy into `server/tests/` | 5 + 5, run against this guide's code |
-| `docs/implementation/tests/web/` | Persona timeline tests for Phase 1; copy into `web/test/` | 7 (vitest) |
-| `tools/checks/` | First-hour checks for Supabase and ElevenLabs ([README](../../tools/checks/README.md)) | run against the live services |
+| Phase | Builds | Lane | Hours | Needs |
+| --- | --- | --- | --- | --- |
+| 0. Foundations | `server/` FastAPI scaffold, `.env`, `.gitignore`, ffmpeg | B | 0-2 | - |
+| 1. Rate one speech | Recorder, `POST /api/speeches`, polling, speech card | A + B | 2-8 | 0 |
+| 2. Two-player match | Setup, turns, handoffs, prep with claims, reply toggle, `POST /api/verdict` | A + B | 8-16 | 1 |
+| 3. Verdict and rematch | Verdict screen, card detail, swapped rematch, `POST /api/series` | A | 16-24 | 2 |
+| 4. Calibrate | Team recordings, tune `standards.yaml`, check clash | C | 8-28 | 1 |
+| 5. Demo | Podium animation, rehearsal, backup video | All | 28-36 | all |
 
-**How this guide was checked.** Every Python block in it parses. The server files it defines were
-assembled from the blocks exactly as written: all 23 modules import against the real libraries, and
-the Phase 2 rapport tests and Phase 6 match-runner tests in `tests/` pass. What could not be
-checked offline is listed under "First-hour checks", each with a tool that tests it.
-
-## What the phases build
-
-| Phase | File | Builds | Lane | Hours | Needs |
-| --- | --- | --- | --- | --- | --- |
-| 0 | [phase-0-foundations.md](phase-0-foundations.md) | Accounts, keys, repo layout, database, deploys, auth | All | 0-2 | - |
-| 1 | [phase-1-voice-loop.md](phase-1-voice-loop.md) | Talk to a Gemini persona through ElevenLabs; record your mic | A + B | 2-6 | 0 |
-| 2 | [phase-2-rapport.md](phase-2-rapport.md) | Scenarios, rapport judge, eval bar, move badges, win and lose | B + A | 6-12 | 1 |
-| 3 | [phase-3-merged-grader.md](phase-3-merged-grader.md) | Conversation metrics inside the grader, one rubric per mode | C | 2-12 | 0 |
-| 4 | [phase-4-card-and-replay.md](phase-4-card-and-replay.md) | Post-call grading, player card, replay timeline | C + A | 12-20 | 2, 3 |
-| 5 | [phase-5-debate-solo.md](phase-5-debate-solo.md) | Motions, 60 s recording, debate grade, publishing | D | 12-18 | 0 |
-| 6 | [phase-6-arena-matches.md](phase-6-arena-matches.md) | Live duels, team matches, free-for-all, machine verdict, ratings | B + A | 18-26 | 5 |
-| 7 | [phase-7-community-judging.md](phase-7-community-judging.md) | Head-to-head judging, crowd scores, gold pairs | D + C | 20-28 | 5 |
-| 8 | [phase-8-game-layer.md](phase-8-game-layer.md) | Ranks, XP, rematch deltas, daily challenges, share image | A | 26-31 | 4, 6 |
-| 9 | [phase-9-calibrate-and-demo.md](phase-9-calibrate-and-demo.md) | Calibration, seeding, rehearsal, backup video, submission | All | 28-36 | all |
-
-Lanes: **A** frontend, **B** live loop and matches, **C** grading, **D** debate, community and demo.
-Feature freeze at hour 33. If hour 6 slips, cut in this order: Phase 8, then team mode in Phase 6,
-then the rebuttal round. Never cut Phase 9.
+Lanes: **A** frontend, **B** server and judge, **C** grader and calibration. Feature freeze at
+hour 33. Each phase's "Done when" list is in the Build Plan's schedule table.
 
 ## Target layout
 
 ```
 WahoosHackNC2026/
-  softskills-grader/            exists - speech grader package (Phase 3 extends it)
-  conversation/                 exists - conversation scorer (Phase 3 ports it into the grader)
-  Arena/                        exists - crowd aggregation + match judge
-  supabase/migrations/          exists - schema
-  tools/checks/                 exists - first-hour checks (Supabase, Speech Engine, voice check page)
-  server/                       Phase 0 - FastAPI game server (Python 3.11+)
-    app/
-      main.py                   FastAPI app, routers, CORS, health
-      settings.py               environment variables
-      auth.py                   verifies the Supabase access token on every request
-      db.py                     Supabase client with the service-role key
-      realtime.py               broadcast(topic, event, payload) over the REST API
-      storage.py                upload/download/sign recordings
-      grading.py                imports softskills-grader and Arena modules
-      speech_engine.py          Phase 1 - ElevenLabs Speech Engine handlers
-      persona.py                Phase 1-2 - system prompt per rapport band
-      rapport.py                Phase 2 - judge, nudges, badges
-      scenarios.py              Phase 2 - YAML loader
-      routes/                   sessions.py, speeches.py, matches.py, judgments.py, me.py
-      workers/                  postcall.py, debate.py, match_runner.py, aggregate.py
-    scenarios/*.yaml
-    tests/
-    requirements.txt
-    run.py                      starts FastAPI and the Speech Engine together
-    Dockerfile
-  web/                          Phase 0 - Next.js app (TypeScript, Tailwind)
-    app/                        page.tsx, play/[scenario]/page.tsx, card/[id]/page.tsx,
-                                debate/page.tsx, arena/page.tsx, match/[code]/page.tsx,
-                                judge/[motion]/page.tsx, me/page.tsx
-    components/                 EvalBar, MoveBadge, PlayerCard, ReplayTimeline, Recorder,
-                                Countdown, LobbyRoster, VerdictReveal, JudgeMatchup
-    lib/                        api.ts, supabase.ts, recorder.ts, personaTimeline.ts, clock.ts
-  docs/implementation/          this guide
+  softskills-grader/      exists - rates one speech
+  Arena/match_judge.py    exists - match and series verdicts
+  web/                    exists - static home screen; add game.js, screens, recorder
+  server/                 Phase 0
+    app/main.py           routes from the Build Plan
+    uploads/              recordings (git-ignored)
+    tests/test_verdict.py stubbed grader, no network
+    requirements.txt      fastapi, uvicorn, python-multipart + the grader's requirements
 ```
 
-## Conventions every phase follows
+## Phase 0 steps
 
-- **The browser never holds an API key.** ElevenLabs, Gemini and the Supabase service-role key live
-  only on the server. The browser gets a Supabase anon key (for sign-in and broadcast listening) and
-  short-lived tokens.
-- **Every API call carries the player's Supabase access token** as `Authorization: Bearer <token>`.
-  `server/app/auth.py` resolves it to a `player_id`; no route trusts a player id sent in a body.
-- **Times come from the server.** Phase deadlines are absolute UTC timestamps (`phase_ends_at`);
-  clients count down to them and never decide when a phase ends.
-- **Scores come from code.** Gemini labels and extracts; Python code in `softskills-grader`,
-  `conversation` and `Arena` turns those into numbers. No route asks a model for a score.
-- **One recording, one grade.** Grader results are cached by audio hash, so re-grading costs nothing
-  and returns the identical report. Store `standards_id` with every grade.
-- **Run all four test suites before every merge to main:**
+1. Merge PR #4 (grader retries and fallback models).
+2. Add `.gitignore`: `.env`, `__pycache__/`, `server/uploads/`, `softskills-grader/cache/`.
+3. `cp softskills-grader/.env.example softskills-grader/.env` and add `ELEVENLABS_API_KEY` and
+   `GEMINI_API_KEY`. Never commit it; the repo is public.
+4. Install ffmpeg (the grader needs it to decode browser webm).
+5. Create `server/app/main.py` from the Build Plan sketch. Run with the grader and judge on the path:
 
-  ```bash
-  python softskills-grader/tests/test_pipeline.py && python conversation/test_netmaxx_scoring.py \
-    && python Arena/test_arena_ratings.py && python Arena/test_match_judge.py && pytest server/tests -q
-  ```
+   ```bash
+   PYTHONPATH=softskills-grader:Arena uvicorn server.app.main:app --port 8000
+   python3 -m http.server 5173 --directory web
+   ```
+
+6. Grade one real 30-second webm through `POST /api/speeches` with live keys.
+
+## Run all tests before every merge
+
+```bash
+python softskills-grader/tests/test_pipeline.py && python Arena/test_match_judge.py \
+  && pytest server/tests -q
+```
 
 ## Environment variables
 
 | Name | Where | Used for |
 | --- | --- | --- |
-| `ELEVENLABS_API_KEY` | server | Speech Engine, Scribe, Voice Changer |
-| `SPEECH_ENGINE_ID` | server | id printed by `server/scripts/create_engine.py` (Phase 1) |
-| `GEMINI_API_KEY` | server | persona, rapport judge, labeling, safety check |
-| `SUPABASE_URL` | server, web | project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | server only | database, storage, broadcast |
-| `NEXT_PUBLIC_SUPABASE_URL` | web | same as `SUPABASE_URL` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | anonymous sign-in, listening to broadcasts |
-| `NEXT_PUBLIC_API_URL` | web | the FastAPI base URL |
-| `PUBLIC_WS_URL` | server | public `wss://.../ws` address ElevenLabs connects to |
+| `ELEVENLABS_API_KEY` | server (`softskills-grader/.env`) | Scribe transcription |
+| `GEMINI_API_KEY` | server (`softskills-grader/.env`) | Argument extraction |
 
-## Checked against the installed libraries
+## Archive
 
-The server code in this guide was checked against `elevenlabs` 2.71.0, `google-genai` 2.29.0,
-`supabase` 2.32.0 and `fastapi` 0.143.0:
-
-- `AsyncElevenLabs().speech_engine` has `create`, `get` and `update`; only `create` accepts
-  `overrides`. `engine.serve(port, path, on_init, on_transcript, on_close, on_error)` wires those
-  handler names with exactly the signatures used in Phase 1, and transcript messages have `.role`
-  and `.content`.
-- `conversational_ai.conversations.get_webrtc_token`, `speech_to_speech.convert` and
-  `text_to_speech.convert` exist.
-- `types.ThinkingConfig(thinking_level="low")` is accepted; `aio.models.generate_content_stream`
-  and `aio.models.embed_content` exist.
-- `create_client(...).auth.get_user(token)` exists.
-
-The browser code was checked against `@elevenlabs/react` 1.17.0 (`@elevenlabs/client` 1.27.0),
-`@supabase/supabase-js` 2.117.3 and `next` 16.4.0: the Phase 1 call screen and the voice check page
-type-check, and a jsdom test drives the call screen through the real `ConversationProvider` with a
-simulated session. `tools/checks/check_supabase.py` and `broadcast.html` were run end to end against
-a local stand-in for Supabase Auth and Realtime; `check_engine.py` against a mocked ElevenLabs API.
-
-## First-hour checks
-
-These depend on your accounts and could not be run offline. Each has a tool in `tools/checks/`
-that prints PASS or the fix:
-
-1. **Supabase auth and broadcast** (Phase 0, step 7): `python tools/checks/check_supabase.py`, then
-   `tools/checks/broadcast.html` in a browser. Confirms anonymous sign-in, that
-   `auth.get_user(token)` accepts an anonymous user's token, and that a REST broadcast on topic `x`
-   reaches `supabase.channel("x")`.
-2. **Speech Engine settings** (Phase 1, step 2): `python tools/checks/check_engine.py` (`--fix`
-   switches on missing client events).
-3. **Browser SDK events on your account** (Phase 1, step 9): the `/dev/voice-check` page.
-
-Already settled from the SDK source, so no need to re-check: `useConversation` needs a
-`<ConversationProvider>`; `startSession` returns nothing and the id comes from
-`onConnect({ conversationId })` (or `getId()`); `onMessage` gives `{ message, role, event_id }`
-with `role` `"agent"` or `"user"`; `onModeChange` gives `{ mode }`; persona timing comes from
-`onAudio`. Supabase topics are the bare name on the server and in `supabase.channel(...)`, both
-public; the server key goes on the `apikey` header only. Details:
-[tools/checks/README.md](../../tools/checks/README.md).
+`archive/` holds the NetworkMaxx phase docs, their ready-made tests and the old build plan. They
+describe cut features (personas, rapport, Speech Engine, online matches, community judging) and are
+kept for reference only.
