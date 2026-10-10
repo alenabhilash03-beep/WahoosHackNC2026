@@ -18,14 +18,13 @@ html, body {
   font-family: "Press Start 2P", monospace;
 }
 
-/* The scene renders at low resolution; the browser upscales it with hard pixel edges. */
+/* Silhouettes render at screen resolution; nearest-filtered textures keep the pixel art. */
 #scene {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  image-rendering: auto;
   display: block;
 }
 
