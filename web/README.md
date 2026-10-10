@@ -10,10 +10,18 @@ Then open http://localhost:5173.
 
 ## How the pixel look works
 
-`main.js` renders the scene at roughly 200 rows tall (`TARGET_ROWS`), and CSS
-(`image-rendering: pixelated`) upscales the canvas without smoothing. Lower
-`TARGET_ROWS` for chunkier pixels. Every surface gets a tiny noisy 8×8 texture
-so blocks read as hand-placed pixels.
+The character keeps its voxel geometry, 16×16 pixel-art face, and tiny noisy
+8×8 surface textures. These textures use nearest-neighbour filtering, so their
+pixels stay crisp and attached to the model as it turns.
+
+The canvas renders at the viewport size with antialiasing, rather than enlarging
+a roughly 200-row image. This reduces the large outline jumps caused by moving
+geometry crossing a coarse screen pixel grid. The camera stays fixed while the
+head turns, breathing, blinking, and the **Argue** hop continue to animate.
+
+`MAX_PIXEL_RATIO` caps the device pixel ratio at 2 to limit the rendering cost on
+high-density screens. This uses a larger drawing buffer than the original
+low-resolution renderer; check performance on your target devices.
 
 ## Solo practice and feedback
 
