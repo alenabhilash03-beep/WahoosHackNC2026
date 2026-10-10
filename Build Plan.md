@@ -31,7 +31,7 @@ quote as evidence; code, not the model, turns labels into scores. Every crowd nu
 | `supabase/migrations/0001_init.sql` | Written, not applied | `profiles`, `motions`, `speeches`, `judgments`, `gold_pairs`, `arena_scores`, `ratings` are exactly what this plan needs |
 | `tools/checks/check_supabase.py` | Built | First-hour check of anonymous sign-in and the server's token check |
 | `web/` home screen | Built, on GitHub Pages | Front door; ARGUE opens practice |
-| `web/js/radar.js` + `web/progress.html` | Built, 6 tests (example data) | The speech radar: grades each part of your speech, first attempt against best |
+| `web/js/radar.js` + `web/progress.html` | Built, 8 tests (example data) | The speech radar: grades each part of your speech, first attempt against best |
 | Archived Phase 5 and Phase 7 docs | Written | Step-by-step code for grading, publishing, the safety check and the whole judging flow; this plan says which steps to take |
 
 ## Stage 1: single player
@@ -81,8 +81,8 @@ Logic (logos), Emotion (pathos), and Tone, Diction and Pace (delivery). Two shap
 On the Me page "best" is per part, so the outline can combine several attempts; the tooltip says
 which attempt each part came from, and a list beside the chart ranks the parts by how much they
 improved. Ungradable attempts (under 40 words) are skipped. Hovering a part shows both scores;
-a table view shows the same numbers as rows. Colors are the reference palette's dark violet and
-dark yellow, validated for color-blind separation and contrast on the panel surface.
+a table view shows the same numbers as rows. It is drawn pixel by pixel in the arena style: a dithered curtain-red area for the first attempt and a gold outline for the best, colors
+validated for color-blind separation and contrast on the panel surface.
 
 Built in `web/js/radar.js` (pure helpers `factorScores` and `firstAndBest`, plus `renderRadar`),
 tested by `node --test web/test/*.test.mjs`, and shown with example data in `web/progress.html`.

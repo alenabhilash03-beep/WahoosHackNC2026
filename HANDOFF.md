@@ -29,7 +29,7 @@ Storage), ElevenLabs Scribe and Gemini inside the grader.
 | `Arena/match_judge.py` | Duel verdicts (parked feature) | `python Arena/test_match_judge.py`: 27/27 |
 | `supabase/migrations/` | `0001_init.sql` + `0002_prompts.sql` (prompt of the day, ranked attempts) | both parse; not applied to a project |
 | `web/` | Pixel-art home screen with an ARGUE button | - |
-| `web/js/radar.js`, `web/progress.html` | Speech radar: each part graded, first attempt vs best (example data) | `node --test web/test/*.test.mjs`: 6/6 |
+| `web/js/radar.js`, `web/progress.html` | Speech radar: each part graded, first attempt vs best (example data) | `node --test web/test/*.test.mjs`: 8/8 |
 
 **Not started:** the Supabase project, `server/`, every screen beyond home.
 

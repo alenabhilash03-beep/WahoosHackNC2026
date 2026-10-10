@@ -25,6 +25,6 @@ so blocks read as hand-placed pixels.
 ## Progress page
 
 `progress.html` shows the speech radar from `js/radar.js`: one axis per graded part (logic,
-emotion, tone, diction, pace), the first attempt as a filled area and the best on each part as an
+emotion, tone, diction, pace), drawn as pixel art in the arena style: the first attempt as a dithered red area and the best on each part as a gold
 outline, with a tooltip per part and a table view. It uses example data until `GET /api/me`
 exists. Open http://localhost:5173/progress.html; tests: `node --test web/test/*.test.mjs`.

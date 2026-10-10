@@ -10,22 +10,28 @@
   <link rel="stylesheet" href="progress.css" />
 </head>
 <body>
+  <header class="valance">
+    <p class="kicker">DEBATE ARENA</p>
+    <h1>YOUR PROGRESS</h1>
+  </header>
+
   <main class="page">
-    <a class="back" href="index.html">&larr; Arena</a>
+    <a class="back" href="index.html">&#9664; BACK TO THE ARENA</a>
 
     <section class="panel" aria-labelledby="progress-title">
       <div class="panel-copy">
-        <h1 id="progress-title">Your progress</h1>
+        <h2 id="progress-title">SPEECH RADAR</h2>
         <p class="lede">First and best attempt on each part of your speech. Every score is 0 to 100,
           from the same rubric as your speech card.</p>
         <label class="field">
-          <span>Prompt</span>
+          <span>PROMPT</span>
           <select id="prompt"></select>
         </label>
         <p class="meta" id="meta"></p>
       </div>
       <div class="panel-chart" id="radar"></div>
       <div class="panel-list">
+        <p class="list-title">MOST IMPROVED</p>
         <ul class="gains" id="gains" aria-label="Improvement per part, biggest first"></ul>
         <p class="example">Example data until the server is live.</p>
       </div>
@@ -73,7 +79,7 @@
         chart.innerHTML = "";
         return;
       }
-      meta.textContent = `${summary.attempts} graded attempt${summary.attempts === 1 ? "" : "s"}`;
+      meta.textContent = `${summary.attempts} GRADED ATTEMPT${summary.attempts === 1 ? "" : "S"}`;
       const notes = Object.fromEntries(AXES.map((a) => [a.key, `Best from attempt ${summary.bestFrom[a.key]}`]));
       renderRadar(chart, {
         series: [
@@ -85,11 +91,13 @@
       // Biggest gains first, so the panel says what improved, not only how it looks.
       const rows = AXES.map((a) => ({ ...a, gain: (summary.best[a.key] ?? 0) - (summary.first[a.key] ?? 0) }))
         .sort((x, y) => y.gain - x.gain);
-      gains.innerHTML = rows.map((r) => `<li><span>${r.label}</span><b>${r.gain > 0 ? "+" : ""}${Math.round(r.gain)}</b></li>`).join("");
+      gains.innerHTML = rows.map((r) => `<li><span>${r.label.toUpperCase()}</span><b class="${r.gain > 0 ? "" : "flat"}">${r.gain > 0 ? "+" : ""}${Math.round(r.gain)}</b></li>`).join("");
     }
 
     select.addEventListener("change", draw);
     draw();
+    // Axis labels are in the pixel font; redraw once it has loaded so they measure right.
+    document.fonts?.ready.then(draw);
   </script>
 </body>
 </html>

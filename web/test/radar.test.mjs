@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { AXES, factorScores, firstAndBest, polarPoint } from "../js/radar.js";
+import { AXES, factorScores, firstAndBest, pixelFill, pixelLine, polarPoint } from "../js/radar.js";
 
 const sample = JSON.parse(readFileSync(new URL("../../softskills-grader/sample_report.json", import.meta.url)));
 const report = (logic, emotion, tone, diction, pace) => ({
@@ -57,4 +57,21 @@ test("geometry: 100 on axis 0 is straight up, 0 is the centre, values are clampe
   close(polarPoint(0, 5, 150, 100, 100, 50), [100, 50]);
   close(polarPoint(0, 4, 50, 0, 0, 10), [0, -5]);
   close(polarPoint(1, 4, 100, 0, 0, 10), [10, 0]);
+});
+
+test("pixel lines hit both ends and step one pixel at a time", () => {
+  const line = pixelLine(0, 0, 5, 2);
+  assert.deepEqual(line[0], [0, 0]);
+  assert.deepEqual(line.at(-1), [5, 2]);
+  for (let i = 1; i < line.length; i++) {
+    assert.ok(Math.abs(line[i][0] - line[i - 1][0]) <= 1 && Math.abs(line[i][1] - line[i - 1][1]) <= 1);
+  }
+  assert.deepEqual(pixelLine(3, 3, 3, 3), [[3, 3]]);
+  assert.equal(pixelLine(0, 4, 0, 0).length, 5);
+});
+
+test("pixel fill covers the inside of a square and nothing outside it", () => {
+  const filled = pixelFill([[0, 0], [4, 0], [4, 4], [0, 4]]);
+  assert.equal(filled.length, 16);
+  for (const [x, y] of filled) assert.ok(x >= 0 && x < 4 && y >= 0 && y < 4);
 });
