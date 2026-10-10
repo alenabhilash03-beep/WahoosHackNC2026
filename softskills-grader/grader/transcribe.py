@@ -11,7 +11,7 @@ import json
 import os
 from pathlib import Path
 
-import requests
+from .http import post_with_retry
 
 URL = "https://api.elevenlabs.io/v1/speech-to-text"
 
@@ -48,13 +48,14 @@ def transcribe(audio_path: str, cfg: dict, cache_dir: str, audio_sha: str | None
         form["language_code"] = cfg["language_code"]
 
     with open(audio_path, "rb") as handle:
-        response = requests.post(
-            URL,
-            headers={"xi-api-key": api_key},
-            data=form,
-            files={"file": (os.path.basename(audio_path), handle)},
-            timeout=180,
-        )
+        audio_bytes = handle.read()          # read once so a retry can resend it
+    response = post_with_retry(
+        URL,
+        headers={"xi-api-key": api_key},
+        data=form,
+        files={"file": (os.path.basename(audio_path), audio_bytes)},
+        timeout=180,
+    )
     if response.status_code >= 400:
         raise RuntimeError(f"ElevenLabs returned {response.status_code}: {response.text[:400]}")
     result = response.json()
