@@ -6,8 +6,12 @@ try { process.loadEnvFile(new URL('../.env', import.meta.url)); }
 catch (error) { if (error.code !== 'ENOENT') throw error; }
 const config = validateConfig({
   url: process.env.SUPABASE_URL,
-  key: process.env.SUPABASE_PUBLISHABLE_KEY,
+  key: process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY,
 });
-writeFileSync(new URL('../web/config.js', import.meta.url),
-  `// Generated public browser configuration. Never include server secrets.\nwindow.ARENA_CONFIG = ${JSON.stringify(config)};\n`);
-console.log('Generated web/config.js with public Supabase configuration.');
+const publicConfig = {
+  API_URL: process.env.API_URL || '', SUPABASE_URL: config.url,
+  SUPABASE_PUBLISHABLE_KEY: config.key, DEMO_MODE: false,
+};
+writeFileSync(new URL('../web/config.local.js', import.meta.url),
+  `// Generated public browser configuration. Never include server secrets.\nwindow.ARENA_CONFIG = ${JSON.stringify(publicConfig)};\n`);
+console.log('Generated web/config.local.js with public API and Supabase configuration.');

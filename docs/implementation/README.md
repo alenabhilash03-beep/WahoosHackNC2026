@@ -9,7 +9,7 @@ routes, screens and the schedule. This page is the short checklist for starting 
 | --- | --- | --- | --- | --- |
 | 0. Foundations | Supabase, server scaffold, deploy, sign-in on the static page | B + A | 0-3 | archive/phase-0, steps 1, 3, 4, 5, 7, 8, 9 |
 | 1. Record and grade | Prompts, practice screen, upload, grading worker, basic card | A + B | 3-9 | archive/phase-5, steps 2, 3, 7 |
-| 2. Make solo good | Full card, "fix these first", deltas, Me page | A + B | 9-16 | Build Plan, "The speech card" |
+| 2. Make solo good | Full card, "fix these first", deltas, Me page | A + B | 9-16 | [Implementation and checks](phase-2-solo.md) |
 | 2c. Calibrate | Team recordings, tune `standards.yaml`, tips | C | 4-16 | Build Plan, "What good means" |
 | 3. Prompt of the day | Featured prompt, publish, ranked attempts, grade leaderboard, tiers | B + A | 16-22 | archive/phase-5 step 4; Build Plan, "Stage 2" |
 | 4. Community rating | Judging flow, aggregation job, crowd scores and board | B + A + C | 20-29 | archive/phase-7, all steps |

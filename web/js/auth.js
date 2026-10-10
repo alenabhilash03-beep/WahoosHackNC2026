@@ -1,4 +1,5 @@
-import { createAuthService, validateConfig } from './auth-service.mjs';
+import { createAuthService, gateArenaLink } from './auth-service.mjs';
+import { getAuthClient } from './auth-client.js';
 
 const dialog = document.querySelector('#account-dialog');
 const form = document.querySelector('#account-form');
@@ -28,7 +29,8 @@ function setMode(next) {
   showMessage('');
 }
 function renderSession(next) {
-  session = next;
+  session = next?.user?.is_anonymous ? null : next;
+  next = session;
   document.querySelector('#account-user').textContent = next
     ? `Welcome, ${next.user.user_metadata?.display_name || next.user.email || 'player'}` : '';
   account.hidden = !!next;
@@ -65,8 +67,7 @@ logout.addEventListener('click', async () => {
 // Capture before the existing scene handler. This is a UI gate; future API endpoints
 // must independently verify the user's JWT, never trust this browser state.
 document.querySelector('#argue').addEventListener('click', (event) => {
-  if (!ready || !session) {
-    event.stopImmediatePropagation();
+  if (gateArenaLink(event, { ready, session, demoMode: window.ARENA_CONFIG?.DEMO_MODE, hostname: location.hostname })) {
     dialog.showModal();
     if (ready) showMessage('Log in to enter the arena.');
   }
@@ -74,9 +75,7 @@ document.querySelector('#argue').addEventListener('click', (event) => {
 setMode('login');
 submit.disabled = true;
 try {
-  const config = validateConfig(window.ARENA_CONFIG);
-  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.49.8');
-  const client = createClient(config.url, config.key);
+  const client = await getAuthClient();
   service = createAuthService(client, new URL('./index.html', location.href).href);
   // INITIAL_SESSION restores storage/confirmation sessions without racing getSession.
   client.auth.onAuthStateChange((_event, next) => { renderSession(next); ready = true; });

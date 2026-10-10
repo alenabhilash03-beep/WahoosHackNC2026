@@ -1,14 +1,33 @@
-export function validateConfig({ url, key } = {}) {
+export function validateConfig(config = {}) {
+  const url = config.SUPABASE_URL ?? config.url;
+  const key = config.SUPABASE_PUBLISHABLE_KEY || config.SUPABASE_ANON_KEY || config.key;
   let parsed;
   try { parsed = new URL(url); } catch { throw new Error('Set a valid SUPABASE_URL.'); }
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/') {
     throw new Error('SUPABASE_URL must be an HTTPS project origin.');
   }
-  if (!key || !key.startsWith('sb_publishable_') || key.includes('REPLACE_ME')) {
+  let publicKey = typeof key === 'string' && key.startsWith('sb_publishable_') && !key.includes('REPLACE_ME');
+  // Legacy anon JWTs remain supported by the existing backend deployment.
+  // Decode only to reject privileged configuration; this does not verify identity.
+  if (typeof key === 'string' && key.split('.').length === 3) {
+    try {
+      const payload = key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      publicKey = JSON.parse(atob(payload)).role === 'anon';
+    } catch { publicKey = false; }
+  }
+  if (!publicKey) {
     throw new Error('Set SUPABASE_PUBLISHABLE_KEY to a publishable key, never a secret or service-role key.');
   }
   if (parsed.hostname.includes('your_project')) throw new Error('Replace the example project URL.');
   return { url: parsed.origin, key };
+}
+
+export function gateArenaLink(event, { ready, session, demoMode, hostname }) {
+  const localDemo = demoMode && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname);
+  if (localDemo || (ready && session && !session.user?.is_anonymous)) return false;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  return true;
 }
 
 export function createAuthService(client, redirectUrl) {

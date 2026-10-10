@@ -1,0 +1,35 @@
+# Debate Arena on Fly.io: the FastAPI server plus the static site, same origin.
+# Deploy from the repository root with `fly deploy`. Steps: server/README.md, "Deploy to Fly.io".
+app = "debate-arena"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATA_DIR = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Grading runs in the background of one machine: keep exactly one, always on.
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/config.js"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+
+# Grader cache: the same recording keeps the same report across deploys.
+# Create once: fly volumes create arena_data --size 1 --region iad
+[mounts]
+  source = "arena_data"
+  destination = "/data"
+
+[[vm]]
+  memory = "1gb"
+  cpus = 1

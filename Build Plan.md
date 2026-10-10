@@ -88,6 +88,10 @@ Built in `web/js/radar.js` (pure helpers `factorScores` and `firstAndBest`, plus
 tested by `node --test web/test/*.test.mjs`, and shown with example data in `web/progress.html`.
 Phase 2 swaps the example data for `GET /api/me`.
 
+Phase 2's implementation and verification map are in
+[`docs/implementation/phase-2-solo.md`](docs/implementation/phase-2-solo.md).
+The card and Me page are connected to the solo API; live-service acceptance and Phase 2c calibration still require configured services and team recordings.
+
 ### What "good" means before stage 2 starts
 
 | Check | Bar |

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Practice · Debate Arena</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="progress.css" /><link rel="stylesheet" href="solo.css" />
+  <script src="config.js"></script>
+  <script src="config.local.js"></script>
+</head>
+<body>
+  <header class="valance"><p class="kicker">DEBATE ARENA</p><h1>THE FLOOR IS YOURS</h1></header>
+  <main class="page">
+    <nav class="solo-nav" aria-label="Main"><a class="back" href="index.html">◀ ARENA</a><a class="back" href="progress.html">YOUR PROGRESS</a></nav>
+    <p id="status" role="status" aria-live="polite">Loading prompts…</p>
+    <button id="reload" class="radar-toggle" hidden type="button">RETRY</button>
+    <section class="solo-panel" aria-labelledby="practice-title">
+      <h2 id="practice-title">MAKE YOUR CASE</h2>
+      <p class="lede">Pick a prompt and side. Get ready for 10 seconds, then speak for up to 60 seconds. You can stop early. At least 40 words are needed for a grade.</p>
+      <label class="field"><span>PROMPT</span><select id="prompt" disabled></select></label>
+      <fieldset class="side-field" id="sides"><legend>YOUR SIDE</legend><label><input type="radio" name="side" value="yes" checked />YES</label><label><input type="radio" name="side" value="no" />NO</label></fieldset>
+      <p id="recording-status" role="status" aria-live="polite">Ready when you are.</p>
+      <p class="timer" id="timer" aria-label="Time remaining">60</p>
+      <div class="controls"><button class="radar-toggle" id="start" disabled type="button">CHECK MIC + RECORD</button><button class="radar-toggle" id="stop" hidden type="button">STOP</button></div>
+      <p class="lede">Or upload a recording (15 MB max). WAV works without extra server decoding tools.</p>
+      <label class="field"><span>AUDIO FILE</span><input id="file" type="file" accept="audio/*,video/webm" disabled /></label>
+      <button class="radar-toggle" id="send" disabled type="button">UPLOAD + GRADE</button>
+      <div id="preview" hidden><h2>SAVED EXAMPLES</h2><p class="demo-notice">Local preview uses sample reports and synthetic tones, not spoken recordings. Connect live services to record and grade your own speech.</p><a href="card.html?id=demo-best">OPEN SAMPLE CARD</a> · <a href="card.html?id=demo-ungradable">TOO-SHORT EXAMPLE</a></div>
+    </section>
+  </main>
+  <script type="module" src="js/practice.js"></script>
+</body>
+</html>
