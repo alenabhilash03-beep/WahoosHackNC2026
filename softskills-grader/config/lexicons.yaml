@@ -1,0 +1,126 @@
+# Word lists our code counts in the transcript. Edit freely.
+# Matching is case-insensitive and ignores punctuation. Multi-word phrases work.
+
+fillers:
+  - um
+  - uh
+  - uhm
+  - erm
+  - er
+  - ah
+  - hmm
+  - mm
+  - you know
+  - i mean
+  - basically
+  - literally
+  - or something
+  # - like        # ambiguous ("I like dogs"); enable only if you accept false hits
+
+hedges:
+  - i think
+  - i guess
+  - i feel like
+  - i suppose
+  - maybe
+  - perhaps
+  - probably
+  - possibly
+  - kind of
+  - sort of
+  - might
+  - somewhat
+  - not sure
+  - in my opinion
+
+connectives:
+  - because
+  - therefore
+  - thus
+  - consequently
+  - as a result
+  - which means
+  - this means
+  - that is why
+  - that's why
+  - for example
+  - for instance
+  - however
+  - although
+  - on the other hand
+  - first
+  - second
+  - third
+  - finally
+  - in conclusion
+
+audience_words:
+  - you
+  - your
+  - yours
+  - we
+  - us
+  - our
+  - ours
+  - ourselves
+  - let's
+  - everyone
+  - together
+
+emotion_words:
+  - afraid
+  - angry
+  - anxious
+  - betray
+  - brave
+  - care
+  - catastrophe
+  - children
+  - courage
+  - crash
+  - crisis
+  - danger
+  - dangerous
+  - death
+  - deserve
+  - devastating
+  - die
+  - dream
+  - families
+  - family
+  - fear
+  - freedom
+  - future
+  - harm
+  - heart
+  - home
+  - hope
+  - hurt
+  - imagine
+  - justice
+  - kill
+  - lives
+  - lose
+  - loss
+  - love
+  - precious
+  - promise
+  - protect
+  - protects
+  - proud
+  - reckless
+  - risk
+  - safe
+  - safety
+  - scared
+  - suffer
+  - survive
+  - terrifying
+  - threat
+  - thrive
+  - tragedy
+  - trust
+  - unfair
+  - urgent
+  - worried
+  - worry
