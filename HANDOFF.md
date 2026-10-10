@@ -1,6 +1,6 @@
 # Handoff: Debate Arena
 
-State of the repo on Saturday, October 10, 2026. Read this first, then the
+State after the Phase 2 solo implementation on Saturday, October 10, 2026. Read this first, then the
 [Build Plan](Build%20Plan.md).
 
 ## What we are building
@@ -24,21 +24,18 @@ Storage), ElevenLabs Scribe and Gemini inside the grader.
 
 | Path | What it is | Tests on `main` |
 | --- | --- | --- |
-| `softskills-grader/` | Rates a speech; retries busy APIs and falls back to another Gemini model | `python softskills-grader/tests/test_pipeline.py`: 26/26 |
+| `softskills-grader/` | Rates a speech; retries busy APIs, word timings and measured monotone ranges for replay | 26 pipeline + 7 timing tests |
 | `Arena/arena_ratings.py` | Crowd scores from head-to-head votes | `python Arena/test_arena_ratings.py`: 13/13 |
 | `Arena/match_judge.py` | Duel verdicts (parked feature) | `python Arena/test_match_judge.py`: 27/27 |
-| `supabase/migrations/` | `0001_init.sql` + `0002_prompts.sql` (prompt of the day, ranked attempts) | both parse; not applied to a project |
-| `web/` | Pixel-art home screen with an ARGUE button | - |
-| `web/js/radar.js`, `web/progress.html` | Speech radar: each part graded, first attempt vs best (example data) | `node --test web/test/*.test.mjs`: 8/8 |
+| `supabase/migrations/` | 0001 + 0002 + 0003 (solo status, history indexes, practice prompts) | not applied to a live project |
+| `web/` | Home, recording, full speech card, HTTP-backed Me radar and history | 33 frontend tests; desktop/mobile browser checks |
+| `server/` | Supabase auth, private upload/grading, card/tips/deltas, Me API, local saved-example viewer | See [Phase 2 verification](docs/implementation/phase-2-solo.md) |
 
-**Not started:** the Supabase project, `server/`, every screen beyond home.
+**Implemented:** Phase 2 code and its recording/auth/API prerequisites. Full card, replay, coaching tips and progress work in the local HTTP preview. Demo audio is explicitly synthetic. Supabase, ElevenLabs, Gemini and deployed real-speech acceptance have not been verified.
 
 ## What to do next
 
-Follow the schedule in the Build Plan and the checklist in
-[docs/implementation/README.md](docs/implementation/README.md): Phase 0 foundations, Phase 1 record
-and grade, Phase 2 make solo good with calibration in parallel, then the gate, then Phase 3 prompt
-of the day and Phase 4 community rating.
+Follow [Phase 2 setup and acceptance](docs/implementation/phase-2-solo.md) and `server/README.md`: configure live services, apply the migrations, verify a real recording and retry, then complete Phase 2c calibration. Keep the community gate closed until the Build Plan's quality checks pass. Phases 3 and 4 are not implemented.
 
 ## Decisions
 
@@ -55,11 +52,13 @@ of the day and Phase 4 community rating.
 
 - Nothing has run against live ElevenLabs, Gemini or Supabase yet.
 - The crowd needs volume (about 12 listener-minutes per speech for 10 judgments); plan to seed.
-- The repo is public: never commit `.env`; add `.gitignore` in Phase 0.
+- `.gitignore` excludes credentials, recordings, caches and local environments; never commit `.env`.
+- Grading uses in-process background tasks on one machine. Keep the cache on persistent disk; restart recovery is documented in `server/README.md`.
 
 ## Run all tests
 
 ```bash
 python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratings.py \
-  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs
+  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs \
+  && python -m pytest server/tests softskills-grader/tests/test_timing.py -q
 ```

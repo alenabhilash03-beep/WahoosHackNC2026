@@ -61,6 +61,8 @@ def grade(audio_path: str, topic: str, side: str, config_dir: str | None = None,
                    "standards_version": standards.get("version"), "standards_id": standards_id,
                    "word_count": len(words)},
         "measurements": {}, "evidence": {}, "transcript": text,
+        "words": [{"text": w["raw"], "start": w["start"], "end": w["end"],
+                   "confidence": w["confidence"]} for w in words],
     }
     minimum = standards["session"]["min_words_to_grade"]
     if len(words) < minimum:

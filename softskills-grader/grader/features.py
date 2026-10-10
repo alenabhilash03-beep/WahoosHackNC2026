@@ -83,14 +83,29 @@ def drop_phrases(tokens: list[str], phrases: list[str]) -> list[str]:
 
 
 def words_from_scribe(scribe: dict) -> list[dict]:
+    """Keep actual timed words; malformed timestamps cannot be used as evidence."""
     words = []
-    for item in scribe.get("words", []):
-        if item.get("type", "word") != "word":
+    for item in scribe.get("words") or []:
+        if not isinstance(item, dict) or item.get("type", "word") != "word":
             continue
-        token = normalise(item.get("text", ""))
-        if token:
-            words.append({"t": token, "raw": item["text"].strip(), "start": float(item["start"]),
-                          "end": float(item["end"]), "logprob": item.get("logprob")})
+        raw = item.get("text")
+        if not isinstance(raw, str) or not (token := normalise(raw)):
+            continue
+        if isinstance(item.get("start"), bool) or isinstance(item.get("end"), bool):
+            continue
+        try:
+            start, end = float(item["start"]), float(item["end"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+        if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end < start:
+            continue
+        logprob = item.get("logprob")
+        if (not isinstance(logprob, (int, float)) or isinstance(logprob, bool)
+                or not math.isfinite(logprob) or logprob > 0):
+            logprob = None
+        words.append({"t": token, "raw": raw.strip(), "start": start, "end": end,
+                      "logprob": logprob,
+                      "confidence": math.exp(logprob) if logprob is not None else None})
     return words
 
 
@@ -177,7 +192,8 @@ def tone_metrics(words: list[dict], track, lexicons: dict, analysis: dict) -> tu
     metrics = {"hedges_per_100_words": _per_100(len(hedge_hits), len(tokens)),
                "pitch_variation_pct": None, "pitch_variation_semitones": None,
                "loudness_variation_db": None, "uptalk_pct": None, "monotone_window_count": None}
-    evidence = {"hedges": [" ".join(tokens[s:s + n]) for s, n in hedge_hits], "uptalk_sentences": []}
+    evidence = {"hedges": [" ".join(tokens[s:s + n]) for s, n in hedge_hits],
+                "uptalk_sentences": [], "monotone_ranges": []}
     if track is None or int(track.voiced.sum()) < 100:       # under 1 s of voiced speech
         return metrics, evidence
 
@@ -193,7 +209,11 @@ def tone_metrics(words: list[dict], track, lexicons: dict, analysis: dict) -> tu
         inside = voiced & (track.times >= start) & (track.times < start + window)
         if inside.sum() >= 100:                               # at least 1 s of voiced speech
             pitch = track.f0[inside]
-            quotients.append(100.0 * float(np.std(pitch)) / float(np.mean(pitch)))
+            quotient = 100.0 * float(np.std(pitch)) / float(np.mean(pitch))
+            quotients.append(quotient)
+            if quotient < analysis["monotone_pvq_pct"]:
+                evidence["monotone_ranges"].append(
+                    {"start": start, "end": min(start + window, track.duration)})
         start += window
     if quotients:
         metrics["pitch_variation_pct"] = sum(quotients) / len(quotients)
