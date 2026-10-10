@@ -108,6 +108,15 @@ def track_voice(samples: np.ndarray, floor_hz: float = 70, ceiling_hz: float = 4
         smoothed = np.nanmedian(stacked, axis=0)
     f0 = np.where(voiced, smoothed, np.nan)
 
+    # Pitch estimates are unreliable where voicing starts and stops, so drop the
+    # two frames at each edge of every voiced stretch.
+    core = voiced.copy()
+    for shift in (1, 2):
+        core[shift:] &= voiced[:-shift]
+        core[:-shift] &= voiced[shift:]
+    voiced = core
+    f0 = np.where(voiced, f0, np.nan)
+
     median = float(np.nanmedian(f0)) if voiced.any() else float("nan")
     with np.errstate(all="ignore"):
         semitones = 12 * np.log2(f0 / median)

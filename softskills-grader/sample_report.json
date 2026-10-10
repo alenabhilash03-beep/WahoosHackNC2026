@@ -73,39 +73,41 @@
       "long_pauses": [
         {
           "at_seconds": 18.21,
-          "seconds": 1.8
-        },
-        {
-          "at_seconds": 39.18,
-          "seconds": 1.6
+          "seconds": 2.2
         }
       ],
-      "speaking_seconds": 58.48,
+      "speaking_seconds": 58.88,
       "window_wpm": [
         180.0,
-        114.0,
+        108.0,
         168.0,
-        150.0,
-        180.0,
-        162.8
+        156.0,
+        168.0,
+        169.0
       ]
     },
     "tone": {
-      "hedges": [
-        "i think"
-      ],
-      "median_pitch_hz": 120.6,
+      "hedges": [],
+      "median_pitch_hz": 120.7,
       "uptalk_sentences": [
         {
           "ends_at_seconds": 18.21,
-          "rise_semitones": 5.3,
+          "rise_semitones": 5.2,
           "text": "Second, pacing protects ordinary people."
         },
         {
-          "ends_at_seconds": 53.46,
-          "rise_semitones": 5.4,
+          "ends_at_seconds": 53.86,
+          "rise_semitones": 5.3,
           "text": "you know, set the pace together."
         }
+      ],
+      "window_pitch_variation_pct": [
+        11.6,
+        12.1,
+        11.9,
+        11.9,
+        11.6,
+        11.6
       ]
     },
     "word_count": 155,
@@ -117,7 +119,6 @@
         "we",
         "our",
         "we",
-        "together",
         "we"
       ],
       "connectives": [
@@ -147,11 +148,11 @@
   },
   "factors": {
     "diction": {
-      "base": 94.0,
+      "base": 100.0,
       "deducted": 0.0,
       "deductions": [
         {
-          "free": 1,
+          "free": 2,
           "label": "Stumbles (word said twice in a row)",
           "max_points": 15,
           "metric": "repeated_word_count",
@@ -162,14 +163,14 @@
       ],
       "metrics": [
         {
-          "bucket": "1 to under 2.5",
+          "bucket": "under 2",
           "label": "Filler words",
           "metric": "fillers_per_100_words",
-          "score": 85.0,
+          "score": 100.0,
           "source": "ElevenLabs transcript + our word lists",
           "unit": "per 100 words",
           "value": 1.94,
-          "weight": 40
+          "weight": 3
         },
         {
           "bucket": "80 or more",
@@ -179,7 +180,7 @@
           "source": "ElevenLabs transcript + our word lists",
           "unit": "%",
           "value": 89.67,
-          "weight": 30
+          "weight": 1
         },
         {
           "bucket": "92 or more",
@@ -189,15 +190,15 @@
           "source": "ElevenLabs word confidence + our code",
           "unit": "%",
           "value": 96.52,
-          "weight": 30
+          "weight": 1
         }
       ],
-      "score": 94.0,
+      "score": 100.0,
       "weight": 20,
       "weight_pct": 20.0
     },
     "emotion": {
-      "base": 100.0,
+      "base": 94.0,
       "deducted": 0.0,
       "deductions": [
         {
@@ -219,17 +220,17 @@
           "source": "Gemini extraction + our verification",
           "unit": "count",
           "value": 3.0,
-          "weight": 40
+          "weight": 2
         },
         {
-          "bucket": "3 or more",
-          "label": "Kinds of emotional appeal",
-          "metric": "appeal_variety",
-          "score": 100.0,
-          "source": "Gemini extraction + our verification",
-          "unit": "count",
-          "value": 3.0,
-          "weight": 20
+          "bucket": "2.4 to under 4.9",
+          "label": "Speaking to the audience (you / we / our)",
+          "metric": "audience_address_per_100_words",
+          "score": 85.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "per 100 words",
+          "value": 4.52,
+          "weight": 2
         },
         {
           "bucket": "2 to under 7",
@@ -239,20 +240,10 @@
           "source": "ElevenLabs transcript + our word lists",
           "unit": "per 100 words",
           "value": 6.45,
-          "weight": 20
-        },
-        {
-          "bucket": "4 or more",
-          "label": "Speaking to the audience (you / we / our)",
-          "metric": "audience_address_per_100_words",
-          "score": 100.0,
-          "source": "ElevenLabs transcript + our word lists",
-          "unit": "per 100 words",
-          "value": 5.16,
-          "weight": 20
+          "weight": 1
         }
       ],
-      "score": 100.0,
+      "score": 94.0,
       "weight": 15,
       "weight_pct": 15.0
     },
@@ -306,7 +297,7 @@
           "source": "Gemini extraction + our verification",
           "unit": "count",
           "value": 3.0,
-          "weight": 45
+          "weight": 3
         },
         {
           "bucket": "2 or more",
@@ -316,7 +307,7 @@
           "source": "Gemini extraction + our verification",
           "unit": "of 2",
           "value": 2.0,
-          "weight": 20
+          "weight": 3
         },
         {
           "bucket": "2 or more",
@@ -326,7 +317,7 @@
           "source": "Gemini extraction + our verification",
           "unit": "0-2",
           "value": 2.0,
-          "weight": 20
+          "weight": 3
         },
         {
           "bucket": "3 or more",
@@ -336,7 +327,7 @@
           "source": "ElevenLabs transcript + our word lists",
           "unit": "per 100 words",
           "value": 5.81,
-          "weight": 15
+          "weight": 1
         }
       ],
       "score": 100.0,
@@ -345,7 +336,7 @@
     },
     "pace": {
       "base": 100.0,
-      "deducted": 5.0,
+      "deducted": 0.0,
       "deductions": [
         {
           "free": 1,
@@ -353,40 +344,30 @@
           "max_points": 20,
           "metric": "long_pause_count",
           "points_each": 5,
-          "points_lost": 5.0,
-          "value": 2.0
+          "points_lost": 0.0,
+          "value": 1.0
         }
       ],
       "metrics": [
         {
-          "bucket": "140 to under 170",
+          "bucket": "140 to under 195",
           "label": "Speaking rate",
           "metric": "words_per_minute",
           "score": 100.0,
           "source": "ElevenLabs timings + our code",
           "unit": "wpm",
-          "value": 159.03,
-          "weight": 50
+          "value": 157.95,
+          "weight": 3
         },
         {
-          "bucket": "8 to under 25",
-          "label": "Pace variation between windows",
-          "metric": "pace_variation_pct",
-          "score": 100.0,
-          "source": "ElevenLabs timings + our code",
-          "unit": "%",
-          "value": 14.25,
-          "weight": 20
-        },
-        {
-          "bucket": "5 to under 20",
+          "bucket": "15 to under 30",
           "label": "Time spent in pauses",
           "metric": "pause_time_pct",
           "score": 100.0,
           "source": "ElevenLabs timings + our code",
           "unit": "%",
-          "value": 13.51,
-          "weight": 15
+          "value": 15.52,
+          "weight": 2
         },
         {
           "bucket": "90 or more",
@@ -395,16 +376,16 @@
           "score": 100.0,
           "source": "ElevenLabs timings + our code",
           "unit": "%",
-          "value": 97.46,
-          "weight": 15
+          "value": 98.13,
+          "weight": 1
         }
       ],
-      "score": 95.0,
+      "score": 100.0,
       "weight": 20,
       "weight_pct": 20.0
     },
     "tone": {
-      "base": 83.0,
+      "base": 83.1,
       "deducted": 0.0,
       "deductions": [
         {
@@ -419,92 +400,83 @@
       ],
       "metrics": [
         {
-          "bucket": "2 to under 2.5",
-          "label": "Pitch variation (inflection)",
-          "metric": "pitch_variation_semitones",
-          "score": 80.0,
+          "bucket": "11 to under 16",
+          "label": "Pitch variation (PVQ: pitch SD / mean, per 10 s)",
+          "metric": "pitch_variation_pct",
+          "score": 65.0,
           "source": "our audio analysis",
-          "unit": "semitones",
-          "value": 2.2,
-          "weight": 40
-        },
-        {
-          "bucket": "3 to under 4",
-          "label": "Loudness variation (emphasis)",
-          "metric": "loudness_variation_db",
-          "score": 75.0,
-          "source": "our audio analysis",
-          "unit": "dB",
-          "value": 3.63,
-          "weight": 20
-        },
-        {
-          "bucket": "15 to under 30",
-          "label": "Statements ending on a rising pitch",
-          "metric": "uptalk_pct",
-          "score": 80.0,
-          "source": "ElevenLabs timings + our audio analysis",
           "unit": "%",
-          "value": 18.18,
-          "weight": 20
+          "value": 11.79,
+          "weight": 3
         },
         {
-          "bucket": "under 1",
+          "bucket": "under 0.6",
           "label": "Hedging phrases",
           "metric": "hedges_per_100_words",
           "score": 100.0,
           "source": "ElevenLabs transcript + our word lists",
           "unit": "per 100 words",
-          "value": 0.65,
-          "weight": 20
+          "value": 0.0,
+          "weight": 3
+        },
+        {
+          "bucket": "10 to under 37",
+          "label": "Statements ending on a rising pitch",
+          "metric": "uptalk_pct",
+          "score": 85.0,
+          "source": "ElevenLabs timings + our audio analysis",
+          "unit": "%",
+          "value": 18.18,
+          "weight": 2
         }
       ],
-      "score": 83.0,
+      "score": 83.1,
       "weight": 20,
       "weight_pct": 20.0
     }
   },
   "gradable": true,
   "inputs": {
-    "audio_sha256": "0d2878eb5ed0d81083ecf56639a60eff4d2cb4e1b58786ac65561a92ef5bc81f",
+    "audio_sha256": "2cddba80d48dab93157b892daa4612c51cc24bb38814f5d38133a69732cbcf62",
     "side": "yes",
-    "standards_id": "de9f17e39ff4597c",
-    "standards_version": "2026-10-10.1",
+    "standards_id": "210790ad8e763efc",
+    "standards_version": "2026-10-10.2-research",
     "topic": "Should the frontier of AI be paced?",
     "word_count": 155
   },
   "measurements": {
     "appeal_variety": 3.0,
-    "audience_address_per_100_words": 5.16,
+    "audience_address_per_100_words": 4.52,
     "clarity_pct": 96.52,
     "connectives_per_100_words": 5.81,
     "counterargument_level": 2.0,
     "emotion_words_per_100_words": 6.45,
     "emotional_appeals": 3.0,
     "fillers_per_100_words": 1.94,
-    "hedges_per_100_words": 0.65,
-    "long_pause_count": 2.0,
-    "loudness_variation_db": 3.63,
+    "hedges_per_100_words": 0.0,
+    "long_pause_count": 1.0,
+    "loudness_variation_db": 2.14,
     "manipulative_appeal_count": 0.0,
     "monotone_window_count": 0.0,
-    "pace_variation_pct": 14.25,
-    "pause_time_pct": 13.51,
-    "pitch_variation_semitones": 2.2,
+    "pace_variation_pct": 14.85,
+    "pause_time_pct": 15.52,
+    "pitch_variation_pct": 11.79,
+    "pitch_variation_semitones": 2.04,
     "reasoning_fallacy_count": 0.0,
     "repeated_word_count": 0.0,
     "stance_mismatch": 0.0,
     "stance_unclear": 0.0,
     "structure_points": 2.0,
     "supported_arguments": 3.0,
-    "time_used_pct": 97.46,
+    "time_used_pct": 98.13,
     "unsupported_claim_count": 1.0,
     "uptalk_pct": 18.18,
     "vocabulary_variety_pct": 89.67,
-    "words_per_minute": 159.03
+    "words_per_minute": 157.95
   },
   "overall": {
     "letter": "A",
-    "score": 94.4
+    "score": 95.7
   },
   "reason": null,
   "transcript": "I believe the frontier of AI should be paced. First, safety research needs time to catch up, because right now we can build systems faster than we can test them. For example, um, labs have released models and only later discovered serious flaws. Second, pacing protects ordinary people. Imagine a nurse or a truck driver who wakes up one morning and finds that their job has disappeared overnight. Our families deserve time to adapt. Third, trust matters. A recent survey found that most people, uh, do not trust companies to regulate themselves, which means moving slower is how we earn that trust. Some people argue that slowing down lets our rivals win the race. However, a race with no brakes does not have a winner, it just has a crash. So, I think we should, you know, set the pace together. In conclusion, we should pace the frontier, because the future is worth getting right."

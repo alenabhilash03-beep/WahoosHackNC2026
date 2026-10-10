@@ -25,7 +25,7 @@ SPEECH = [
     ("I believe the frontier of AI should be paced.", False, 0.0),
     ("First, safety research needs time to catch up, because right now we can build systems faster than we can test them.", False, 0.0),
     ("For example, um, labs have released models and only later discovered serious flaws.", False, 0.0),
-    ("Second, pacing protects ordinary people.", True, 1.3),
+    ("Second, pacing protects ordinary people.", True, 1.7),
     ("Imagine a nurse or a truck driver who wakes up one morning and finds that their job has disappeared overnight.", False, 0.0),
     ("Our families deserve time to adapt.", False, 0.0),
     ("Third, trust matters.", False, 0.0),
@@ -120,8 +120,15 @@ def _synthesise(words, total: float):
     voice = sum(np.sin(k * phase) / k for k in range(1, 9))
     signal = amp * voice / 2.0 + np.random.default_rng(0).normal(0, 0.0005, n)
     voiced = amp > 0.01
+    quotients = []
+    for start in range(0, n, 10 * SR):                       # same 10 s windows as the grader
+        inside = voiced[start:start + 10 * SR]
+        if inside.sum() >= SR:
+            pitch = f0[start:start + 10 * SR][inside]
+            quotients.append(100 * float(np.std(pitch)) / float(np.mean(pitch)))
     truth = {"median_hz": float(np.median(f0[voiced])),
-             "pitch_sd_semitones": float(np.std(12 * np.log2(f0[voiced] / np.median(f0[voiced]))))}
+             "pitch_sd_semitones": float(np.std(12 * np.log2(f0[voiced] / np.median(f0[voiced])))),
+             "pvq_pct": float(np.mean(quotients))}
     return signal, truth
 
 
