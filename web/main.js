@@ -1,14 +1,13 @@
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
-// Renderer: draw at low resolution, let CSS upscale with nearest-neighbour.
-// TARGET_ROWS is roughly how many "pixels" tall the screen is.
+// Render silhouettes at screen resolution so animation does not jump between
+// magnified screen pixels. Pixel art lives in the nearest-filtered textures.
 // ---------------------------------------------------------------------------
-const TARGET_ROWS = 200;
+const MAX_PIXEL_RATIO = 2;
 
 const canvas = document.getElementById("scene");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-renderer.setPixelRatio(1);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.BasicShadowMap;
 
@@ -24,9 +23,9 @@ camera.position.copy(CAMERA_POS);
 camera.lookAt(CAMERA_LOOK);
 
 function resize() {
-  const scale = Math.max(2, Math.round(window.innerHeight / TARGET_ROWS));
-  const w = Math.ceil(window.innerWidth / scale);
-  const h = Math.ceil(window.innerHeight / scale);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO));
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   // Keep the character framed on narrow (portrait) screens.
@@ -418,10 +417,8 @@ function animate() {
     a.headG.rotation.y = Math.sin(t * a.speed * 0.5 + a.phase) * 0.15 * m;
   }
 
-  // Slow handheld drift keeps the scene alive without pulling focus.
-  camera.position.x = CAMERA_POS.x + Math.sin(t * 0.25) * 0.12 * m;
-  camera.position.y = CAMERA_POS.y + Math.sin(t * 0.33) * 0.05 * m;
-  camera.lookAt(CAMERA_LOOK);
+  // The camera stays anchored; head turns and idle motion animate the character
+  // without constantly shifting the whole scene across the screen pixel grid.
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
