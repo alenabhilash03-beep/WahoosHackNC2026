@@ -31,6 +31,7 @@ quote as evidence; code, not the model, turns labels into scores. Every crowd nu
 | `supabase/migrations/0001_init.sql` | Written, not applied | `profiles`, `motions`, `speeches`, `judgments`, `gold_pairs`, `arena_scores`, `ratings` are exactly what this plan needs |
 | `tools/checks/check_supabase.py` | Built | First-hour check of anonymous sign-in and the server's token check |
 | `web/` home screen | Built, on GitHub Pages | Front door; ARGUE opens practice |
+| `web/js/radar.js` + `web/progress.html` | Built, 6 tests (example data) | The speech radar: grades each part of your speech, first attempt against best |
 | Archived Phase 5 and Phase 7 docs | Written | Step-by-step code for grading, publishing, the safety check and the whole judging flow; this plan says which steps to take |
 
 ## Stage 1: single player
@@ -55,6 +56,7 @@ quote as evidence; code, not the model, turns labels into scores. Every crowd nu
 | **Delivery** | pace, diction, tone factors | Words per minute, pauses, fillers, stumbles, pitch variation, monotone stretches, emphasis |
 | Fix these first | computed (below) | The three changes worth the most points, each with a one-line tip |
 | Transcript | `report.transcript` + evidence | Fillers, long pauses and monotone stretches highlighted; click to play that moment |
+| Speech radar | the five factor scores | This speech (outline) over your previous best on this prompt (filled area), one axis per part |
 | Progress | your past speeches | Best on this prompt, deltas per section, last 10 overalls as a sparkline |
 
 **"Fix these first" is computed, not generated.** Each metric's lost points are
@@ -65,6 +67,26 @@ overall (on `sample_report.json`: 4.28 lost against an overall of 95.7, the gap 
 tip written for that metric in `server/app/tips.py` ("Long pauses: you paused 2 s or more 4 times;
 plan your next point while finishing the current one"). Ethos is not on the solo card: nothing in
 the audio measures credibility honestly. It appears once the crowd rates you.
+
+### The speech radar
+
+One axis per graded part of the speech, each 0 to 100 straight from the report's factor scores:
+Logic (logos), Emotion (pathos), and Tone, Diction and Pace (delivery). Two shapes are overlaid:
+
+| Where | Filled area | Outline |
+| --- | --- | --- |
+| Speech card | Your previous best speech on this prompt | This speech |
+| Me page | Your first graded attempt (per prompt, or across all prompts) | Your best on each part, with the attempt it came from |
+
+On the Me page "best" is per part, so the outline can combine several attempts; the tooltip says
+which attempt each part came from, and a list beside the chart ranks the parts by how much they
+improved. Ungradable attempts (under 40 words) are skipped. Hovering a part shows both scores;
+a table view shows the same numbers as rows. Colors are the reference palette's dark violet and
+dark yellow, validated for color-blind separation and contrast on the panel surface.
+
+Built in `web/js/radar.js` (pure helpers `factorScores` and `firstAndBest`, plus `renderRadar`),
+tested by `node --test web/test/*.test.mjs`, and shown with example data in `web/progress.html`.
+Phase 2 swaps the example data for `GET /api/me`.
 
 ### What "good" means before stage 2 starts
 
@@ -178,7 +200,7 @@ The conversation and match tables in `0001_init.sql` stay unused.
 | `GET /api/prompts` | 1 | All prompts; today's has `featured: true` |
 | `POST /api/speeches` | 1 | Form: `motion_id`, `side`, `audio`. Returns `{speech_id}` with 202; grading runs in the background |
 | `GET /api/speeches/{id}` | 1 | Status, report, signed audio URL, top-3 fixes, deltas vs your best |
-| `GET /api/me` | 1 | Display name, per-prompt bests, recent overalls, season tier, judge XP |
+| `GET /api/me` | 1 | Display name, per-prompt bests, recent overalls, each speech's five factor scores in recording order (for the radar), season tier, judge XP |
 | `POST /api/speeches/{id}/publish` | 2 | `{consent, ranked}`. Safety check; `ranked` only on today's prompt and under 3 ranked attempts (409 otherwise) |
 | `PUT /api/me/name` | 2 | Set display name |
 | `GET /api/leaderboard/{motion_id}?by=grade\|crowd` | 2 | Ranked rows: place, name, score, letter, judgments, provisional |
@@ -206,7 +228,7 @@ The server sorts those rows by `overall desc, created_at` and joins display name
 | Home (exists) | 1 | The pixel arena; ARGUE goes to practice. Shows today's prompt in stage 2 |
 | Practice | 1 | Prompt picker, side toggle, mic check, countdown, recorder |
 | Card | 1 | The speech card above; in stage 2 also "Publish" and the crowd column |
-| Me | 1 | Bests per prompt, sparkline; in stage 2 also tier and judge XP |
+| Me | 1 | Speech radar (first vs best, prompt picker), improvement list, sparkline; in stage 2 also tier and judge XP |
 | Today | 2 | Featured prompt, "Answer it" (ranked attempts left), the two leaderboards |
 | Judge | 2 | The archived Phase 7 judging steps, then the next matchup |
 
@@ -218,7 +240,7 @@ Lanes: **A** frontend, **B** server, **C** grader calibration. Feature freeze at
 | --- | --- | --- | --- | --- |
 | 0. Foundations | Supabase project (anonymous sign-ins on, raise their limit from 30 per hour per IP), apply 0001 + 0002, server scaffold (settings, auth, db, storage), Fly deploy, `.gitignore`, supabase-js sign-in on the static page | B + A | 0-3 | `check_supabase.py` passes; the deployed page shows the signed-in id and `GET /api/me` returns it |
 | 1. Record and grade | Prompts seeded, practice screen, upload, grading worker, basic card | A + B | 3-9 | A recording on the deployed page shows a card in under 20 s; the same file twice gives the identical report |
-| 2. Make solo good | Full card (sections, transcript highlights, click to play), "fix these first", deltas, Me page | A + B | 9-16 | The card renders every metric and deduction from `sample_report.json` and a real speech |
+| 2. Make solo good | Full card (sections, radar, transcript highlights, click to play), "fix these first", deltas, Me page with the radar on live data | A + B | 9-16 | The card renders every metric and deduction from `sample_report.json` and a real speech; the Me radar draws from `GET /api/me` |
 | 2c. Calibrate | Team recordings, tune `standards.yaml`, write `tips.py` | C | 4-16 | Every row of "What good means" passes. **Gate: stage 2 starts only after this** |
 | 3. Prompt of the day | `featured_on` rotation, publish with consent and safety, ranked attempts, names, grade leaderboard, season tiers, Today screen | B + A | 16-22 | Three teammates publish ranked answers and see the board order by best score; the 4th ranked attempt returns 409 |
 | 4. Community rating | Judge screen, tokens and checks, aggregation job, crowd column, crowd leaderboard, gold pairs, bot seeding | B + A + C | 20-29 | Archived Phase 7 "Done when" list, using today's prompt as the motion |

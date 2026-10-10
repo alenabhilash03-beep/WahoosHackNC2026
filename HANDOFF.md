@@ -29,6 +29,7 @@ Storage), ElevenLabs Scribe and Gemini inside the grader.
 | `Arena/match_judge.py` | Duel verdicts (parked feature) | `python Arena/test_match_judge.py`: 27/27 |
 | `supabase/migrations/` | `0001_init.sql` + `0002_prompts.sql` (prompt of the day, ranked attempts) | both parse; not applied to a project |
 | `web/` | Pixel-art home screen with an ARGUE button | - |
+| `web/js/radar.js`, `web/progress.html` | Speech radar: each part graded, first attempt vs best (example data) | `node --test web/test/*.test.mjs`: 6/6 |
 
 **Not started:** the Supabase project, `server/`, every screen beyond home.
 
@@ -60,5 +61,5 @@ of the day and Phase 4 community rating.
 
 ```bash
 python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratings.py \
-  && python Arena/test_match_judge.py
+  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs
 ```

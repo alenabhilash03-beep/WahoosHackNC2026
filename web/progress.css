@@ -1,0 +1,160 @@
+/* Progress page + the radar component (web/js/radar.js).
+   Dark only, like the arena. Series colors are the reference palette's dark violet and
+   dark yellow, validated against --surface: lightness band, CVD and contrast all pass. */
+:root {
+  color-scheme: dark;
+  --bg: #0d0b14;
+  --surface: #15121f;
+  --border: #2c2640;
+  --text-primary: #f4ead2;
+  --text-secondary: #c3bba6;
+  --text-muted: #8d8676;
+  --grid: #3a3350;
+  --series-first: #9085e9;   /* first attempt: filled area */
+  --series-best: #c98500;    /* best attempt: outline */
+  --gold: #f2b84b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.panel-copy { grid-area: copy; }
+.panel-chart { grid-area: chart; }
+.panel-list { grid-area: list; }
+
+.page { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+
+.back {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  text-decoration: none;
+}
+.back:hover { color: var(--gold); }
+
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  grid-template-areas: "copy chart" "list chart";
+  grid-template-rows: auto 1fr;
+  column-gap: 24px;
+  row-gap: 8px;
+  padding: 24px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+}
+@media (max-width: 720px) {
+  .panel { grid-template-columns: 1fr; grid-template-areas: "copy" "chart" "list"; padding: 16px; }
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--gold);
+}
+.lede { margin: 0 0 16px; color: var(--text-secondary); }
+
+.field { display: grid; gap: 6px; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px; }
+select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.meta { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; }
+
+.gains { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.gains li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.gains b { color: var(--text-primary); }
+
+.example { margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }
+
+/* ------------------------------------------------------------------ radar */
+.radar { position: relative; display: grid; gap: 8px; }
+
+.radar-legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-secondary); font-size: 13px; }
+.radar-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+.radar-swatch { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.radar-legend .radar-swatch { margin-right: 0; }
+.radar-swatch-area { background: color-mix(in srgb, var(--series-first) 45%, transparent); border: 1px solid var(--series-first); }
+.radar-swatch-outline { border: 2px solid var(--series-best); }
+
+.radar-plot { position: relative; }
+.radar-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.radar-grid polygon { fill: none; stroke: var(--grid); stroke-width: 1; }
+.radar-grid line { stroke: var(--grid); stroke-width: 1; }
+.radar-ring-label text { fill: var(--text-muted); font-size: 9px; }
+
+.radar-area { fill: color-mix(in srgb, var(--series-first) 30%, transparent); stroke: var(--series-first); stroke-width: 1.5; stroke-linejoin: round; }
+.radar-outline { fill: none; stroke: var(--series-best); stroke-width: 2; stroke-linejoin: round; }
+.radar-dot { stroke: var(--surface); stroke-width: 2; }
+.radar-dot-area { fill: var(--series-first); }
+.radar-dot-outline { fill: var(--series-best); }
+
+.radar-axis-label { fill: var(--text-secondary); font-size: 12px; }
+.radar-axis-value { fill: var(--text-primary); font-weight: 700; }
+
+.radar-hits polygon { fill: transparent; cursor: default; outline: none; }
+.radar-grid line.active { stroke: var(--text-secondary); stroke-width: 1.5; }
+
+.radar-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  min-width: 150px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  z-index: 1;
+}
+.radar-tip.below { transform: translate(-50%, 14px); }
+.radar-tip b { color: var(--text-primary); float: right; margin-left: 12px; }
+.radar-tip-title { color: var(--text-primary); font-weight: 700; margin-bottom: 4px; }
+.radar-tip-title span, .radar-table td span { color: var(--text-muted); font-weight: 400; font-size: 11px; }
+.radar-tip-note { margin-top: 4px; color: var(--text-muted); }
+
+.radar-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.radar-table th, .radar-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; }
+.radar-table th:first-child, .radar-table td:first-child { text-align: left; }
+.radar-table th { color: var(--text-secondary); font-weight: 600; }
+
+.radar-toggle {
+  justify-self: end;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.radar-toggle:hover { color: var(--text-primary); border-color: var(--text-muted); }

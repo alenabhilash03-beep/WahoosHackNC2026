@@ -21,3 +21,10 @@ so blocks read as hand-placed pixels.
   The walk-to-podium animation should replace that.
 - The centre aisle and stage steps lead to the podium (`PODIUM_X`, `STAGE_Z`),
   so the walk path is already clear.
+
+## Progress page
+
+`progress.html` shows the speech radar from `js/radar.js`: one axis per graded part (logic,
+emotion, tone, diction, pace), the first attempt as a filled area and the best on each part as an
+outline, with a tooltip per part and a table view. It uses example data until `GET /api/me`
+exists. Open http://localhost:5173/progress.html; tests: `node --test web/test/*.test.mjs`.

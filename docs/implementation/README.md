@@ -29,6 +29,7 @@ WahoosHackNC2026/
   supabase/migrations/          0001_init.sql + 0002_prompts.sql
   tools/checks/check_supabase.py  first-hour check
   web/                          exists - static site on GitHub Pages; add practice, card, me, today, judge
+    js/radar.js                 exists - speech radar (first vs best per part); progress.html shows it
   server/                       Phase 0 - FastAPI on Fly.io
     app/main.py settings.py auth.py db.py storage.py tips.py safety.py
     app/routes/                 prompts.py, speeches.py, me.py, leaderboard.py, judgments.py
@@ -41,7 +42,7 @@ WahoosHackNC2026/
 
 ```bash
 python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratings.py \
-  && python Arena/test_match_judge.py && pytest server/tests -q
+  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs && pytest server/tests -q
 ```
 
 ## Environment variables

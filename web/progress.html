@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your Progress</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="progress.css" />
+</head>
+<body>
+  <main class="page">
+    <a class="back" href="index.html">&larr; Arena</a>
+
+    <section class="panel" aria-labelledby="progress-title">
+      <div class="panel-copy">
+        <h1 id="progress-title">Your progress</h1>
+        <p class="lede">First and best attempt on each part of your speech. Every score is 0 to 100,
+          from the same rubric as your speech card.</p>
+        <label class="field">
+          <span>Prompt</span>
+          <select id="prompt"></select>
+        </label>
+        <p class="meta" id="meta"></p>
+      </div>
+      <div class="panel-chart" id="radar"></div>
+      <div class="panel-list">
+        <ul class="gains" id="gains" aria-label="Improvement per part, biggest first"></ul>
+        <p class="example">Example data until the server is live.</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { AXES, firstAndBest, renderRadar } from "./js/radar.js";
+
+    // Example attempts in grader-report shape (only the fields the radar reads).
+    // Phase 2 replaces this with GET /api/me, which returns the player's reports per prompt.
+    const report = (logic, emotion, tone, diction, pace) => ({
+      gradable: true,
+      factors: { logic: { score: logic }, emotion: { score: emotion }, tone: { score: tone },
+                 diction: { score: diction }, pace: { score: pace } },
+    });
+    const EXAMPLE = {
+      "Should homework be banned in elementary school?": [
+        report(62, 48, 55, 71, 80),
+        { gradable: false, reason: "Under 40 words" },
+        report(74, 60, 68, 78, 85),
+        report(88, 66, 83, 92, 100),
+        report(81, 72, 79, 90, 95),
+      ],
+      "Should the frontier of AI be paced?": [
+        report(70, 40, 61, 65, 64),
+        report(76, 58, 70, 80, 85),
+      ],
+      "All prompts": null,
+    };
+    EXAMPLE["All prompts"] = Object.values(EXAMPLE).filter(Boolean).flat();
+
+    const select = document.getElementById("prompt");
+    for (const name of Object.keys(EXAMPLE)) select.add(new Option(name, name));
+    select.value = "All prompts";
+
+    function draw() {
+      const summary = firstAndBest(EXAMPLE[select.value]);
+      const meta = document.getElementById("meta");
+      const gains = document.getElementById("gains");
+      const chart = document.getElementById("radar");
+      if (!summary) {
+        meta.textContent = "No graded speeches yet.";
+        gains.innerHTML = "";
+        chart.innerHTML = "";
+        return;
+      }
+      meta.textContent = `${summary.attempts} graded attempt${summary.attempts === 1 ? "" : "s"}`;
+      const notes = Object.fromEntries(AXES.map((a) => [a.key, `Best from attempt ${summary.bestFrom[a.key]}`]));
+      renderRadar(chart, {
+        series: [
+          { name: "First attempt", kind: "area", values: summary.first },
+          { name: "Best attempt", kind: "outline", values: summary.best },
+        ],
+        notes,
+      });
+      // Biggest gains first, so the panel says what improved, not only how it looks.
+      const rows = AXES.map((a) => ({ ...a, gain: (summary.best[a.key] ?? 0) - (summary.first[a.key] ?? 0) }))
+        .sort((x, y) => y.gain - x.gain);
+      gains.innerHTML = rows.map((r) => `<li><span>${r.label}</span><b>${r.gain > 0 ? "+" : ""}${Math.round(r.gain)}</b></li>`).join("");
+    }
+
+    select.addEventListener("change", draw);
+    draw();
+  </script>
+</body>
+</html>
