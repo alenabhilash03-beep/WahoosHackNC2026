@@ -41,7 +41,7 @@ with every flagged moment clickable.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `audio` | file | `audio/webm` from `MicRecorder.stop()` |
-| `persona_turns` | string | JSON `[{"start": 3.1, "end": 9.4, "text": "..."}]`, seconds on the recorder clock |
+| `persona_turns` | string | JSON `[{"start": 3.1, "end": 9.4, "text": "...", "interrupted": false}]`, seconds on the recorder clock |
 
 Response `202 {"status": "grading"}`. When done, broadcast `results_ready` on `session:{id}` with
 `{"session_id": id}`.
@@ -311,7 +311,7 @@ After `stop()` in the call page:
 ```ts
 const form = new FormData();
 form.append("audio", blob, "user.webm");
-form.append("persona_turns", JSON.stringify(turns.current));
+form.append("persona_turns", JSON.stringify(timeline.current.turns));   // Phase 1 PersonaTimeline
 await api(`/api/sessions/${s.session_id}/finish`, { method: "POST", body: form });
 router.push(`/card/${s.session_id}`);
 ```

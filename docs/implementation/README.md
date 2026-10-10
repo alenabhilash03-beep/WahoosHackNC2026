@@ -15,11 +15,13 @@ its **Done when** list is ticked, not when the code is written.
 | `Arena/match_judge.py` | Picks winners of duels, team matches and free-for-alls from grader reports | `python Arena/test_match_judge.py` (27) |
 | `supabase/migrations/0001_init.sql` | Every table for every phase | parsed with the Postgres parser |
 | `docs/implementation/tests/` | Ready-made server tests for Phases 2 and 6; copy into `server/tests/` | 5 + 5, run against this guide's code |
+| `docs/implementation/tests/web/` | Persona timeline tests for Phase 1; copy into `web/test/` | 7 (vitest) |
+| `tools/checks/` | First-hour checks for Supabase and ElevenLabs ([README](../../tools/checks/README.md)) | run against the live services |
 
 **How this guide was checked.** Every Python block in it parses. The server files it defines were
 assembled from the blocks exactly as written: all 23 modules import against the real libraries, and
 the Phase 2 rapport tests and Phase 6 match-runner tests in `tests/` pass. What could not be
-checked offline is listed under "Things to confirm in the first hour".
+checked offline is listed under "First-hour checks", each with a tool that tests it.
 
 ## What the phases build
 
@@ -48,6 +50,7 @@ WahoosHackNC2026/
   conversation/                 exists - conversation scorer (Phase 3 ports it into the grader)
   Arena/                        exists - crowd aggregation + match judge
   supabase/migrations/          exists - schema
+  tools/checks/                 exists - first-hour checks (Supabase, Speech Engine, voice check page)
   server/                       Phase 0 - FastAPI game server (Python 3.11+)
     app/
       main.py                   FastAPI app, routers, CORS, health
@@ -74,7 +77,7 @@ WahoosHackNC2026/
                                 judge/[motion]/page.tsx, me/page.tsx
     components/                 EvalBar, MoveBadge, PlayerCard, ReplayTimeline, Recorder,
                                 Countdown, LobbyRoster, VerdictReveal, JudgeMatchup
-    lib/                        api.ts, supabase.ts, recorder.ts, clock.ts
+    lib/                        api.ts, supabase.ts, recorder.ts, personaTimeline.ts, clock.ts
   docs/implementation/          this guide
 ```
 
@@ -127,12 +130,29 @@ The server code in this guide was checked against `elevenlabs` 2.71.0, `google-g
   and `aio.models.embed_content` exist.
 - `create_client(...).auth.get_user(token)` exists.
 
-## Things to confirm in the first hour
+The browser code was checked against `@elevenlabs/react` 1.17.0 (`@elevenlabs/client` 1.27.0),
+`@supabase/supabase-js` 2.117.3 and `next` 16.4.0: the Phase 1 call screen and the voice check page
+type-check, and a jsdom test drives the call screen through the real `ConversationProvider` with a
+simulated session. `tools/checks/check_supabase.py` and `broadcast.html` were run end to end against
+a local stand-in for Supabase Auth and Realtime; `check_engine.py` against a mocked ElevenLabs API.
 
-These depend on the live services or the browser SDK and could not be checked offline:
+## First-hour checks
 
-1. The `@elevenlabs/react` event names for mode changes and messages, and how the browser reads the
-   conversation id (`startSession` return value or `conversation.getId()`). Phase 1, step 8.
-2. That a broadcast sent through the REST endpoint reaches a `supabase.channel(topic)` listener
-   with the same topic name. Phase 0, step 7.
-3. That `auth.get_user(token)` accepts an anonymous user's access token. Phase 0, step 5.
+These depend on your accounts and could not be run offline. Each has a tool in `tools/checks/`
+that prints PASS or the fix:
+
+1. **Supabase auth and broadcast** (Phase 0, step 7): `python tools/checks/check_supabase.py`, then
+   `tools/checks/broadcast.html` in a browser. Confirms anonymous sign-in, that
+   `auth.get_user(token)` accepts an anonymous user's token, and that a REST broadcast on topic `x`
+   reaches `supabase.channel("x")`.
+2. **Speech Engine settings** (Phase 1, step 2): `python tools/checks/check_engine.py` (`--fix`
+   switches on missing client events).
+3. **Browser SDK events on your account** (Phase 1, step 9): the `/dev/voice-check` page.
+
+Already settled from the SDK source, so no need to re-check: `useConversation` needs a
+`<ConversationProvider>`; `startSession` returns nothing and the id comes from
+`onConnect({ conversationId })` (or `getId()`); `onMessage` gives `{ message, role, event_id }`
+with `role` `"agent"` or `"user"`; `onModeChange` gives `{ mode }`; persona timing comes from
+`onAudio`. Supabase topics are the bare name on the server and in `supabase.channel(...)`, both
+public; the server key goes on the `apikey` header only. Details:
+[tools/checks/README.md](../../tools/checks/README.md).

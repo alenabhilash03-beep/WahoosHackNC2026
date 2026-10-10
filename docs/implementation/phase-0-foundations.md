@@ -14,7 +14,8 @@ exists, and a browser can sign in anonymously and call an authenticated API rout
 - [ ] `GET https://<api-host>/health` returns `{"ok": true}` from the deployed server
 - [ ] The deployed web app shows "Signed in as <uuid>" after loading
 - [ ] `GET /api/me` with that session's token returns the same uuid, and a `profiles` row exists
-- [ ] A broadcast sent with `curl` (step 7) appears in the browser console
+- [ ] `python tools/checks/check_supabase.py` prints ALL REQUIRED CHECKS PASSED, and a `curl`
+      broadcast shows up in `tools/checks/broadcast.html` (step 7)
 - [ ] All four existing test suites pass on a fresh clone (README, "Conventions")
 
 ## Steps
@@ -24,10 +25,16 @@ exists, and a browser can sign in anonymously and call an authenticated API rout
 1. **ElevenLabs:** create an API key (Settings, API keys). Put it in the team password manager.
 2. **Gemini:** create a key in Google AI Studio. Confirm `gemini-3.8-flash` is listed on the
    [models page](https://ai.google.dev/gemini-api/docs/models).
-3. **Supabase:** create a project. Copy the project URL, the anon key and the service-role key.
+3. **Supabase:** create a project. From Settings, API Keys copy the project URL and two keys: the
+   public one (`sb_publishable_...`, or the legacy `anon` JWT) and a secret one (`sb_secret_...`, or
+   the legacy `service_role` JWT). Either format works in the variables named `..._ANON_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY`. The new keys are not JWTs, so they only ever go on the `apikey`
+   header, and secret keys are refused from browsers.
    - Authentication, Providers: turn on **Anonymous sign-ins**.
    - Authentication, Rate limits: anonymous sign-ins default to **30 per hour per IP**. Everyone at
      the venue shares one IP, so raise it to 1000 now, or the live demo stops letting people in.
+   - Realtime, Settings: leave **Allow public access** on. Every channel in this guide is public;
+     with it off, only private channels (with RLS on `realtime.messages`) work.
 4. **Hosting:** a Fly.io account for the server (it needs two public ports, see step 8) and a Vercel
    account for the web app.
 
@@ -157,13 +164,17 @@ from .settings import settings
 
 
 async def broadcast(topic: str, event: str, payload: dict) -> None:
-    """Send one Realtime broadcast. The browser listens with supabase.channel(topic)."""
+    """Send one Realtime broadcast. The browser listens with supabase.channel(topic).
+
+    topic is the bare name ("session:<id>"); supabase-js adds the "realtime:" prefix on its side.
+    The key goes on the apikey header only: that works for both the legacy service_role JWT and a
+    new sb_secret_ key, which is not a JWT and must not be sent as "Authorization: Bearer".
+    """
     url = f"{settings.supabase_url}/realtime/v1/api/broadcast"
-    key = settings.supabase_service_role_key
-    body = {"messages": [{"topic": topic, "event": event, "payload": payload}]}
+    body = {"messages": [{"topic": topic, "event": event, "payload": payload, "private": False}]}
     async with httpx.AsyncClient(timeout=5) as client:
-        r = await client.post(url, json=body, headers={"apikey": key, "Authorization": f"Bearer {key}"})
-        r.raise_for_status()
+        r = await client.post(url, json=body, headers={"apikey": settings.supabase_service_role_key})
+        r.raise_for_status()                  # 202 Accepted on success
 ```
 
 `server/app/storage.py`:
@@ -275,7 +286,7 @@ Run: `cd server && cp .env.example .env` (fill it in), `python run.py`, then `py
 
 ```bash
 npx create-next-app@latest web --typescript --tailwind --app --eslint --no-src-dir --import-alias "@/*"
-cd web && npm install @supabase/supabase-js @elevenlabs/react
+cd web && npm install @supabase/supabase-js@2 @elevenlabs/react@1   # the code here targets these majors
 ```
 
 `web/lib/supabase.ts`:
@@ -333,25 +344,53 @@ export const msUntil = (iso: string) => Math.max(0, Date.parse(iso) - serverNow(
 
 Make `web/app/page.tsx` call `api("/api/me")` on load and show "Signed in as {player_id}".
 
-### 7. Check broadcast end to end
+### 7. Check auth and broadcast end to end (10 min)
 
-Open the web app, run this in the browser console:
+Phases 2, 4, 6 and 7 push every live update through Realtime broadcast, and every API route trusts
+`auth.get_user`, so prove both before building on them.
 
-```js
-supabase.channel("test:hello").on("broadcast", { event: "ping" }, (m) => console.log("got", m)).subscribe()
-```
-
-Then from a terminal:
+**From a terminal** (with `server/.env` and `web/.env.local` filled in, or the variables exported):
 
 ```bash
-curl -s -X POST "$SUPABASE_URL/realtime/v1/api/broadcast" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"topic":"test:hello","event":"ping","payload":{"ok":true}}]}'
+python tools/checks/check_supabase.py
 ```
 
-The console must print `got` with `payload: {ok: true}`. If it does not, the topic naming differs;
-fix it here, because Phases 2, 4, 6 and 7 all depend on it.
+It signs in anonymously with the public key (like `web/lib/supabase.ts`), resolves that token with
+the server key (like `server/app/auth.py`), subscribes to a public channel as that visitor, then
+sends a broadcast with the same request as `server/app/realtime.py` and waits for it. Expected:
+
+```text
+PASS  anonymous sign-in (user 6f1c...)
+PASS  server auth.get_user(token) -> 6f1c... (is_anonymous=True)
+PASS  subscribed to public channel 'check:9a7e2c41'
+PASS  server-style broadcast (POST /realtime/v1/api/broadcast, apikey header) -> HTTP 202, received=True
+PASS  single-message endpoint (/api/broadcast/<topic>/events/<event>) -> HTTP 202, received=True
+```
+
+Every FAIL line prints its fix. The usual ones: anonymous sign-ins off, the rate limit hit, or
+Realtime's "Allow public access" switched off.
+
+**In a browser:** open `tools/checks/broadcast.html` (double-click it), paste the project URL and
+the public key, press Listen, and run the `curl` command it prints:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$SUPABASE_URL/realtime/v1/api/broadcast" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H 'Content-Type: application/json' \
+  -d '{"messages":[{"topic":"test:hello","event":"ping","payload":{"ok":true},"private":false}]}'
+```
+
+The terminal prints `202` and the page shows `event=ping payload={"ok":true}` within a second.
+
+The rules this confirms, which every later phase relies on:
+
+- The server sends the **bare** topic (`session:<id>`, `player:<id>`, `match:<id>`); the browser
+  listens with `supabase.channel("session:<id>")`. supabase-js adds `realtime:` to the socket topic
+  itself, so never put that prefix in the server's topic.
+- Channels and REST broadcasts are **public** unless marked private, and a public broadcast only
+  reaches public channels. Keep both public everywhere in this guide.
+- The server key goes on the **`apikey` header only**.
+- Public broadcasts are not replayed: a client that subscribes after a message was sent never sees
+  it. Pages that might subscribe late (the card page in Phase 4) also poll.
 
 ### 8. Deploy
 
@@ -435,3 +474,9 @@ jobs:
   `storage.signed_url` handles both.
 - Do not add RLS policies "to make it work". The browser should not read tables; add a server route.
 - Keep `.env` files out of git (`server/.env`, `web/.env.local`).
+- `supabase` is a module import in the Next.js app, not a global, so it is not available in the
+  browser console. Use `tools/checks/broadcast.html` for console-style experiments.
+- Public channels can be joined by anyone who knows the topic name. Topics carry random UUIDs or
+  match codes, which is enough for a hackathon; switching to private channels later means
+  `{ config: { private: true } }` on the channel, `"private": true` on the broadcast, and RLS
+  policies on `realtime.messages`.

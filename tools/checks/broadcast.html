@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  Browser side of the Phase 0 broadcast check. Open this file directly in a browser (double-click
+  it, or `python -m http.server` in this folder and open http://localhost:8000/broadcast.html).
+  Paste the project URL and the PUBLIC key (anon or sb_publishable_), press Listen, then run the
+  curl command it prints in a terminal. Never paste the service-role / sb_secret_ key here.
+  It signs in anonymously first, exactly like web/lib/supabase.ts, so it also proves that works.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broadcast check</title>
+<style>
+  :root { --bg: #ffffff; --fg: #1b1b1b; --muted: #666; --ok: #0a7d32; --bad: #b3261e; --box: #f3f3f3; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #141414; --fg: #ececec; --muted: #9a9a9a; --ok: #5fd38a; --bad: #ff8a80; --box: #222; } }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  label { display: block; margin-top: 10px; color: var(--muted); font-size: 13px; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; font: inherit; background: var(--box); color: var(--fg); border: 1px solid #8884; border-radius: 6px; }
+  button { margin-top: 14px; padding: 8px 16px; font: inherit; border-radius: 6px; border: 1px solid #8886; background: var(--box); color: var(--fg); cursor: pointer; }
+  pre { background: var(--box); padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 13px; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<h1>Broadcast check</h1>
+<label>Project URL <input id="url" placeholder="https://abcd.supabase.co"></label>
+<label>Public key (anon or sb_publishable_) <input id="key" placeholder="eyJ... or sb_publishable_..."></label>
+<label>Topic <input id="topic" value="test:hello"></label>
+<button id="go">Listen</button>
+<h2>Status</h2>
+<pre id="status">not started</pre>
+<h2>Send from a terminal</h2>
+<pre id="curl">press Listen first</pre>
+<h2>Received</h2>
+<pre id="log">nothing yet</pre>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const say = (el, text, cls) => { $(el).textContent = text; $(el).className = cls || ""; };
+  try {
+    $("url").value = localStorage.getItem("bc.url") || "";
+    $("key").value = localStorage.getItem("bc.key") || "";
+  } catch (e) { /* storage blocked: fine */ }
+
+  $("go").onclick = async () => {
+    const url = $("url").value.trim().replace(/\/$/, "");
+    const key = $("key").value.trim();
+    const topic = $("topic").value.trim();
+    if (key.startsWith("sb_secret_")) { say("status", "That is the SECRET key. Use the publishable/anon key here.", "bad"); return; }
+    try { localStorage.setItem("bc.url", url); localStorage.setItem("bc.key", key); } catch (e) {}
+    const client = supabase.createClient(url, key);
+    const { data, error } = await client.auth.signInAnonymously();
+    if (error) { say("status", "Anonymous sign-in failed: " + error.message + "\nEnable it under Authentication > Sign In / Providers.", "bad"); return; }
+    say("status", "signed in anonymously as " + data.user.id + "\nsubscribing to '" + topic + "' ...");
+    const received = [];
+    client.channel(topic)
+      .on("broadcast", { event: "*" }, (msg) => {
+        received.push(new Date().toLocaleTimeString() + "  event=" + msg.event + "  payload=" + JSON.stringify(msg.payload));
+        say("log", received.join("\n"), "ok");
+      })
+      .subscribe((state, err) => {
+        const line = "channel state: " + state + (err ? " (" + err.message + ")" : "");
+        const hint = state === "SUBSCRIBED" ? "" :
+          state === "CHANNEL_ERROR" ? "\nIf the error mentions public access: Realtime > Settings > turn on 'Allow public access'." : "";
+        say("status", "signed in anonymously as " + data.user.id + "\n" + line + hint, state === "SUBSCRIBED" ? "ok" : "bad");
+      });
+    const body = JSON.stringify({ messages: [{ topic, event: "ping", payload: { ok: true }, private: false }] });
+    say("curl",
+      "curl -s -o /dev/null -w '%{http_code}\\n' -X POST '" + url + "/realtime/v1/api/broadcast' \\\n" +
+      "  -H \"apikey: $SUPABASE_SERVICE_ROLE_KEY\" -H 'Content-Type: application/json' \\\n" +
+      "  -d '" + body + "'\n\n# expect 202 in the terminal and a line under Received within a second");
+  };
+</script>
+</body>
+</html>
