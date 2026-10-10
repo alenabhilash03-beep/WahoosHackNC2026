@@ -7,6 +7,22 @@
   --red-dark: #6e1d1a;
 }
 
+[hidden] { display: none !important; }
+.account-bar { position: fixed; top: 18px; right: 18px; display: flex; align-items: center; gap: 12px; max-width: 45%; }
+#account-user { font: 14px/1.5 monospace; overflow-wrap: anywhere; }
+.account-btn { font: 13px/1.5 monospace; padding: 10px 14px; background: var(--red-dark); color: var(--ink); border: 2px solid var(--gold); cursor: pointer; }
+.account-btn:disabled { opacity: .55; cursor: wait; }
+.account-btn:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+dialog { background: var(--bg); color: var(--ink); border: 4px solid var(--gold); width: min(440px, calc(100% - 32px)); max-height: 90dvh; overflow: auto; padding: 30px 24px; }
+dialog::backdrop { background: #000b; }
+dialog h2 { font-size: 16px; line-height: 1.6; margin-right: 36px; }
+dialog .close { position: absolute; top: 8px; right: 8px; }
+dialog label { display: block; margin: 18px 0; font: 16px/1.5 monospace; }
+dialog input { display: block; width: 100%; padding: 12px; background: #211b2c; color: var(--ink); border: 2px solid #b7a98a; font-size: 16px; }
+#account-message { font: 15px/1.5 monospace; min-height: 24px; overflow-wrap: anywhere; }
+#account-switch { margin-top: 18px; }
+@media (max-width: 800px) { .account-bar { top: auto; bottom: 145px; right: 16px; left: 16px; justify-content: center; max-width: none; flex-wrap: wrap; } }
+
 * { box-sizing: border-box; }
 
 html, body {

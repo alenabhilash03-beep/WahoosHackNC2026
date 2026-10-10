@@ -2,6 +2,9 @@
 
 A static Three.js page. No build step; Three.js loads from a CDN via an import map.
 
+Email/password accounts use Supabase Auth. Follow [account setup](../docs/auth-setup.md)
+to generate public browser configuration before serving or deploying this directory.
+
 ```bash
 python3 -m http.server 5173 --directory web
 ```

@@ -26,6 +26,28 @@
     <p class="hint">The floor is yours.</p>
   </div>
 
+  <nav class="account-bar" aria-label="Account">
+    <span id="account-user" aria-live="polite"></span>
+    <button id="account-open" class="account-btn">LOG IN / SIGN UP</button>
+    <button id="account-logout" class="account-btn" hidden>LOG OUT</button>
+  </nav>
+  <dialog id="account-dialog" aria-labelledby="account-heading">
+    <button id="account-close" class="account-btn close" aria-label="Close account dialog">×</button>
+    <h2 id="account-heading">LOG IN</h2>
+    <form id="account-form">
+      <label id="name-field" hidden>Display name
+        <input name="displayName" autocomplete="nickname" maxlength="40" />
+      </label>
+      <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
+      <p id="account-message" role="status" aria-live="polite"></p>
+      <button id="account-submit" class="account-btn" type="submit" disabled>LOG IN</button>
+    </form>
+    <button id="account-switch" class="account-btn">New here? Create an account</button>
+  </dialog>
+  <script src="config.js"></script>
+  <script type="module" src="js/auth.js"></script>
+
   <script type="module" src="main.js"></script>
 </body>
 </html>
