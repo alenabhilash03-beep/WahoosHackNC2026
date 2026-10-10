@@ -76,6 +76,49 @@ def test_speaking_rate_comes_from_word_timings():
     assert report["measurements"]["long_pause_count"] == 1      # one silence over 2 s in the fixture
 
 
+def test_decoding_without_ffmpeg():
+    real_which, real_platform = audio.shutil.which, audio.sys.platform
+    real_ffmpeg = real_which("ffmpeg")
+    reference = audio.decode(FX["audio"])
+    audio.shutil.which = lambda name: None                     # pretend nothing is installed
+    try:
+        # A WAV file still decodes, and to the same samples.
+        assert np.allclose(audio.decode(FX["audio"]), reference, atol=1e-4)
+        # Anything else fails with instructions instead of a cryptic parser error.
+        fake_m4a = os.path.join(TMP, "speech.m4a")
+        open(fake_m4a, "wb").write(b"\x00\x00\x00\x1cftypM4A " + b"\x00" * 64)
+        try:
+            audio.decode(fake_m4a)
+        except RuntimeError as error:
+            assert "ffmpeg" in str(error) and "conda install" in str(error)
+        else:
+            raise AssertionError("expected a RuntimeError")
+        # On a Mac without ffmpeg, the built-in converter is used. A stand-in script
+        # checks that we call it with the arguments afconvert expects.
+        if real_ffmpeg:
+            real_m4a = os.path.join(TMP, "real.m4a")
+            subprocess.run([real_ffmpeg, "-v", "error", "-y", "-i", FX["audio"], "-c:a", "aac", real_m4a], check=True)
+            stand_in = os.path.join(TMP, "afconvert")
+            open(stand_in, "w").write(
+                "#!/bin/sh\n[ \"$1\" = -f ] && [ \"$2\" = WAVE ] && [ \"$3\" = -d ] && "
+                "[ \"$4\" = LEI16@16000 ] && [ \"$5\" = -c ] && [ \"$6\" = 1 ] || exit 2\n"
+                f"exec {real_ffmpeg} -v error -y -i \"$7\" -ac 1 -ar 16000 \"$8\"\n")
+            os.chmod(stand_in, 0o755)
+            audio.shutil.which = lambda name: stand_in if name == "afconvert" else None
+            audio.sys.platform = "darwin"
+            real_run = audio.subprocess.run
+            audio.subprocess.run = lambda cmd, **kw: real_run([stand_in] + cmd[1:], **kw)
+            try:
+                samples = audio.decode(real_m4a)
+            finally:
+                audio.subprocess.run = real_run
+            assert abs(len(samples) - len(reference)) < 0.1 * audio.SAMPLE_RATE
+            track = audio.track_voice(samples, 70, 400)
+            assert abs(track.median_f0 - FX["truth"]["median_hz"]) / FX["truth"]["median_hz"] < 0.03
+    finally:
+        audio.shutil.which, audio.sys.platform = real_which, real_platform
+
+
 # ----------------------------------------------------------------------- scoring
 def test_bucket_edges_lower_inclusive_upper_exclusive():
     rule = STANDARDS["factors"]["pace"]["metrics"]["words_per_minute"]

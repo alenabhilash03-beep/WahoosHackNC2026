@@ -8,7 +8,9 @@ and scores it against a rubric you edit in `config/standards.yaml`.**
 
 ```bash
 pip install -r requirements.txt      # numpy, scipy, pyyaml, requests
-# ffmpeg must be on the PATH (decodes browser recordings: webm, m4a, mp3 ...)
+# ffmpeg decodes browser recordings (webm, m4a, mp3 ...). Install it with
+#   conda install -c conda-forge ffmpeg    or    brew install ffmpeg
+# Without it, WAV files work everywhere and m4a/mp3 work on a Mac.
 
 python demo.py                       # no API keys needed: synthetic recording + canned API responses
 python tests/test_pipeline.py        # 22 checks, no network
