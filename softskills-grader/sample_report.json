@@ -439,7 +439,7 @@
   "inputs": {
     "audio_sha256": "2cddba80d48dab93157b892daa4612c51cc24bb38814f5d38133a69732cbcf62",
     "side": "yes",
-    "standards_id": "210790ad8e763efc",
+    "standards_id": "a77efe3fa4a259e1",
     "standards_version": "2026-10-10.2-research",
     "topic": "Should the frontier of AI be paced?",
     "word_count": 155

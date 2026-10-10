@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import fixtures  # noqa: E402
-from grader import audio, extract, grade, transcribe  # noqa: E402
+from grader import audio, extract, grade, http, transcribe  # noqa: E402
 from grader.config import StandardsError, load_standards, validate  # noqa: E402
 from grader.features import compute_features, verify_extraction, words_from_scribe  # noqa: E402
 from grader.scoring import bucket_score, score_all, score_factor  # noqa: E402
@@ -190,14 +190,14 @@ def test_identical_report_in_a_fresh_process_with_another_hash_seed():
 def test_changing_the_standards_regrades_without_calling_any_api():
     cache = os.path.join(TMP, "cache-regrade")
     calls = []
-    original = (transcribe.requests.post, extract.requests.post)
+    original = (http.requests.post, http.requests.post)
 
     def fake_post(url, **kwargs):
         calls.append(url)
         return FakeResponse(FX["scribe"] if "elevenlabs" in url else FX["gemini_response"])
 
     os.environ["ELEVENLABS_API_KEY"], os.environ["GEMINI_API_KEY"] = "test-el", "test-gm"
-    transcribe.requests.post = extract.requests.post = fake_post
+    http.requests.post = http.requests.post = fake_post
     try:
         before = grade(FX["audio"], FX["topic"], "yes", cache_dir=cache)
         assert len(calls) == 2                       # one transcription, one extraction
@@ -216,7 +216,7 @@ def test_changing_the_standards_regrades_without_calling_any_api():
         assert after["overall"]["score"] != before["overall"]["score"]
         assert after["inputs"]["standards_id"] != before["inputs"]["standards_id"]
     finally:
-        transcribe.requests.post, extract.requests.post = original
+        http.requests.post, http.requests.post = original
 
 
 # ---------------------------------------------------------------- Gemini grounding
@@ -265,21 +265,21 @@ def test_malformed_gemini_output_does_not_crash():
 
 # -------------------------------------------------------------------- API clients
 def test_elevenlabs_request_shape_and_cache():
-    seen, original = [], transcribe.requests.post
+    seen, original = [], http.requests.post
 
     def fake_post(url, headers=None, data=None, files=None, timeout=None):
         seen.append({"url": url, "headers": headers, "data": data, "file": files["file"][0]})
         return FakeResponse(FX["scribe"])
 
     os.environ["ELEVENLABS_API_KEY"] = "test-el"
-    transcribe.requests.post = fake_post
+    http.requests.post = fake_post
     try:
         cache = os.path.join(TMP, "cache-el")
         cfg = STANDARDS["apis"]["elevenlabs"]
         first = transcribe.transcribe(FX["audio"], cfg, cache)
         second = transcribe.transcribe(FX["audio"], cfg, cache)
     finally:
-        transcribe.requests.post = original
+        http.requests.post = original
     assert len(seen) == 1 and first == second == FX["scribe"]
     call = seen[0]
     assert call["url"] == "https://api.elevenlabs.io/v1/speech-to-text"
@@ -290,14 +290,14 @@ def test_elevenlabs_request_shape_and_cache():
 
 
 def test_gemini_request_shape_parse_and_cache():
-    seen, original = [], extract.requests.post
+    seen, original = [], http.requests.post
 
     def fake_post(url, headers=None, json=None, timeout=None):
         seen.append({"url": url, "headers": headers, "body": json})
         return FakeResponse(FX["gemini_response"])
 
     os.environ["GEMINI_API_KEY"] = "test-gm"
-    extract.requests.post = fake_post
+    http.requests.post = fake_post
     try:
         cache = os.path.join(TMP, "cache-gm")
         cfg = STANDARDS["apis"]["gemini"]
@@ -305,7 +305,7 @@ def test_gemini_request_shape_parse_and_cache():
         second = extract.extract(FX["scribe"]["text"], FX["topic"], cfg, cache)
         extract.extract(FX["scribe"]["text"] + " One more sentence.", FX["topic"], cfg, cache)
     finally:
-        extract.requests.post = original
+        http.requests.post = original
     assert len(seen) == 2 and first == second == FX["annotations"]   # new transcript -> new call
     body = seen[0]["body"]
     assert seen[0]["url"] == "https://generativelanguage.googleapis.com/v1beta/interactions"
@@ -315,6 +315,53 @@ def test_gemini_request_shape_parse_and_cache():
     assert body["response_format"]["mime_type"] == "application/json"
     assert body["response_format"]["schema"]["required"][0] == "stance"
     assert FX["scribe"]["text"] in body["input"] and FX["topic"] in body["input"]
+
+
+def _gemini_with(statuses_by_model):
+    """Run extract() against a fake Gemini that answers each model with the given statuses."""
+    calls, sleeps = [], []
+    original_post, original_sleep = http.requests.post, http.time.sleep
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        model = json["model"]
+        calls.append(model)
+        status = statuses_by_model[model].pop(0)
+        return FakeResponse(FX["gemini_response"] if status == 200 else {"error": {"code": status}}, status)
+
+    os.environ["GEMINI_API_KEY"] = "test-gm"
+    http.requests.post, http.time.sleep = fake_post, sleeps.append
+    cache = tempfile.mkdtemp(dir=TMP)
+    try:
+        result = extract.extract(FX["scribe"]["text"], FX["topic"], STANDARDS["apis"]["gemini"], cache)
+        again = extract.extract(FX["scribe"]["text"], FX["topic"], STANDARDS["apis"]["gemini"], cache)
+        assert again == result                      # cached, whichever model answered
+        return result, calls, sleeps
+    finally:
+        http.requests.post, http.time.sleep = original_post, original_sleep
+
+
+def test_busy_gemini_is_retried_then_succeeds():
+    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503, 429, 200]})
+    assert result == FX["annotations"]
+    assert calls == ["gemini-3.8-flash"] * 3 and sleeps == [2, 5]
+
+
+def test_overloaded_model_falls_back_to_the_next_one():
+    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503] * 4, "gemini-3.6-flash": [200]})
+    assert result == FX["annotations"]
+    assert calls == ["gemini-3.8-flash"] * 4 + ["gemini-3.6-flash"]
+
+
+def test_every_model_failing_gives_one_readable_error():
+    busy = {"gemini-3.8-flash": [503] * 4, "gemini-3.6-flash": [503] * 4, "gemini-3.5-flash-lite": [400]}
+    try:
+        _gemini_with(busy)
+    except RuntimeError as error:
+        text = str(error)
+        assert all(name in text for name in busy), text
+        assert busy["gemini-3.5-flash-lite"] == []   # a 400 is not retried
+    else:
+        raise AssertionError("expected a RuntimeError")
 
 
 # ---------------------------------------------------------------------- standards
