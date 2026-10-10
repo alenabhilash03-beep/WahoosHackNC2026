@@ -70,6 +70,8 @@ h1 {
 }
 
 .pixel-btn {
+  display: inline-block;
+  text-decoration: none;
   font-family: inherit;
   font-size: clamp(16px, 2.2vw, 24px);
   letter-spacing: 3px;

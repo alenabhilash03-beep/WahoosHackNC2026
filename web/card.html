@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your speech card · Debate Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="progress.css">
+  <link rel="stylesheet" href="card.css">
+</head>
+<body>
+  <header class="valance"><p class="kicker">DEBATE ARENA</p><h1>YOUR SPEECH CARD</h1></header>
+  <main class="page card-page">
+    <nav class="card-nav" aria-label="Arena"><a class="back" href="index.html">◀ ARENA</a><a class="back" href="progress.html">YOUR PROGRESS ▶</a></nav>
+    <section id="status-panel" class="card-panel" aria-labelledby="status-heading">
+      <h2 id="status-heading">LOADING YOUR CARD</h2>
+      <p id="status" role="status" aria-live="polite">Getting your speech…</p>
+      <button id="reload" class="arena-button" type="button" hidden>TRY AGAIN</button>
+      <a class="arena-button" id="status-practice" href="practice.html" hidden>RECORD A SPEECH</a>
+    </section>
+    <div id="card" hidden>
+      <p id="demo-banner" class="card-panel body-copy" hidden>LOCAL DEMO · Saved examples. Audio is a synthetic tone; this is not a live graded recording.</p>
+      <section class="card-panel overview" aria-labelledby="prompt">
+        <div><p class="eyebrow">PRIVATE PRACTICE · <span id="side"></span></p><h2 id="prompt"></h2><p class="body-copy" id="comparison"></p><a id="retry" class="arena-button" href="practice.html">RETRY THIS PROMPT</a></div>
+        <div class="overall"><p class="eyebrow">OVERALL</p><strong id="score"></strong><span id="letter"></span><p class="body-copy">OUT OF 100</p></div>
+      </section>
+      <div id="sections" class="section-scores" aria-label="Section scores"></div>
+      <div class="card-columns">
+        <section class="card-panel" aria-labelledby="fix-title"><p class="eyebrow">YOUR NEXT TAKE</p><h2 id="fix-title">FIX THESE FIRST</h2><ol id="fixes" class="fix-list body-copy"></ol><p class="small-copy">Rubric points are attributed before factor scores are clipped to 0–100. They show the size of each scoring issue, not a guaranteed score gain on your next take.</p></section>
+        <section class="card-panel" aria-labelledby="radar-title"><h2 id="radar-title">SPEECH RADAR</h2><p class="small-copy" id="radar-note"></p><div id="radar"></div></section>
+      </div>
+      <section class="card-panel" aria-labelledby="transcript-title"><h2 id="transcript-title">HEAR THE EVIDENCE</h2><audio id="audio" controls preload="metadata" aria-label="Your speech recording" hidden></audio><p id="audio-status" class="body-copy" role="status"></p><p id="transcript-note" class="small-copy"></p><div class="transcript-key body-copy"><span class="filler">Filler</span><span class="pause">Long pause</span><span class="monotone">Monotone</span><span class="emphasis">Emphasis</span></div><div id="transcript" class="transcript body-copy"></div><div id="pause-markers" class="body-copy"></div></section>
+      <section class="card-panel" aria-labelledby="logos-title"><h2 id="logos-title">LOGOS · YOUR REASONING</h2><div id="argument" class="body-copy"></div></section>
+      <section class="card-panel" aria-labelledby="pathos-title"><h2 id="pathos-title">PATHOS · YOUR APPEALS</h2><div id="appeals" class="body-copy"></div></section>
+      <section class="card-panel" aria-labelledby="rubric-title"><h2 id="rubric-title">EVERY POINT, EXPLAINED</h2><p class="body-copy">Open each part to see every metric, allowance and deduction, including zeros.</p><div id="metrics"></div><p id="rubric-version" class="small-copy"></p></section>
+    </div>
+    <noscript><p>This speech card needs JavaScript to load your private report.</p></noscript>
+  </main>
+  <script src="config.js"></script>
+  <script type="module" src="js/card.js"></script>
+</body>
+</html>
