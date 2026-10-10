@@ -1,68 +1,64 @@
 # Debate Arena implementation guide
 
-The [Build Plan](../../Build%20Plan.md) is the source of truth: match format, scoring, routes, a
-server sketch, screens and the schedule. This page is the short checklist for building it.
+The [Build Plan](../../Build%20Plan.md) is the source of truth: both stages, scoring, schema,
+routes, screens and the schedule. This page is the short checklist for starting the build.
 
 ## Phases
 
-| Phase | Builds | Lane | Hours | Needs |
+| Phase | Builds | Lane | Hours | Detailed steps |
 | --- | --- | --- | --- | --- |
-| 0. Foundations | `server/` FastAPI scaffold, `.env`, `.gitignore`, ffmpeg | B | 0-2 | - |
-| 1. Rate one speech | Recorder, `POST /api/speeches`, polling, speech card | A + B | 2-8 | 0 |
-| 2. Two-player match | Setup, turns, handoffs, prep with claims, reply toggle, `POST /api/verdict` | A + B | 8-16 | 1 |
-| 3. Verdict and rematch | Verdict screen, card detail, swapped rematch, `POST /api/series` | A | 16-24 | 2 |
-| 4. Calibrate | Team recordings, tune `standards.yaml`, check clash | C | 8-28 | 1 |
-| 5. Demo | Podium animation, rehearsal, backup video | All | 28-36 | all |
+| 0. Foundations | Supabase, server scaffold, deploy, sign-in on the static page | B + A | 0-3 | archive/phase-0, steps 1, 3, 4, 5, 7, 8, 9 |
+| 1. Record and grade | Prompts, practice screen, upload, grading worker, basic card | A + B | 3-9 | archive/phase-5, steps 2, 3, 7 |
+| 2. Make solo good | Full card, "fix these first", deltas, Me page | A + B | 9-16 | Build Plan, "The speech card" |
+| 2c. Calibrate | Team recordings, tune `standards.yaml`, tips | C | 4-16 | Build Plan, "What good means" |
+| 3. Prompt of the day | Featured prompt, publish, ranked attempts, grade leaderboard, tiers | B + A | 16-22 | archive/phase-5 step 4; Build Plan, "Stage 2" |
+| 4. Community rating | Judging flow, aggregation job, crowd scores and board | B + A + C | 20-29 | archive/phase-7, all steps |
+| 5. Demo | Seeding, rehearsal, backup video | All | 29-36 | Build Plan, "Demo script" |
 
-Lanes: **A** frontend, **B** server and judge, **C** grader and calibration. Feature freeze at
-hour 33. Each phase's "Done when" list is in the Build Plan's schedule table.
+**Gate:** Phases 3 and 4 start only after every row of the Build Plan's "What good means before
+stage 2 starts" passes. The Build Plan's "Which archived steps to take" table lists what to skip in
+each archived doc (Next.js, Speech Engine, voice mask, AI opponent, conversation XP).
 
 ## Target layout
 
 ```
 WahoosHackNC2026/
-  softskills-grader/      exists - rates one speech
-  Arena/match_judge.py    exists - match and series verdicts
-  web/                    exists - static home screen; add game.js, screens, recorder
-  server/                 Phase 0
-    app/main.py           routes from the Build Plan
-    uploads/              recordings (git-ignored)
-    tests/test_verdict.py stubbed grader, no network
-    requirements.txt      fastapi, uvicorn, python-multipart + the grader's requirements
+  softskills-grader/            exists - rates one speech
+  Arena/arena_ratings.py        exists - crowd scores (stage 2)
+  Arena/match_judge.py          exists - parked two-player duel
+  supabase/migrations/          0001_init.sql + 0002_prompts.sql
+  tools/checks/check_supabase.py  first-hour check
+  web/                          exists - static site on GitHub Pages; add practice, card, me, today, judge
+    js/radar.js                 exists - speech radar (first vs best per part); progress.html shows it
+  server/                       Phase 0 - FastAPI on Fly.io
+    app/main.py settings.py auth.py db.py storage.py tips.py safety.py
+    app/routes/                 prompts.py, speeches.py, me.py, leaderboard.py, judgments.py
+    app/workers/                grade.py, aggregate.py
+    scripts/                    seed_prompts.py, simulate_judges.py
+    tests/
 ```
-
-## Phase 0 steps
-
-1. Merge PR #4 (grader retries and fallback models).
-2. Add `.gitignore`: `.env`, `__pycache__/`, `server/uploads/`, `softskills-grader/cache/`.
-3. `cp softskills-grader/.env.example softskills-grader/.env` and add `ELEVENLABS_API_KEY` and
-   `GEMINI_API_KEY`. Never commit it; the repo is public.
-4. Install ffmpeg (the grader needs it to decode browser webm).
-5. Create `server/app/main.py` from the Build Plan sketch. Run with the grader and judge on the path:
-
-   ```bash
-   PYTHONPATH=softskills-grader:Arena uvicorn server.app.main:app --port 8000
-   python3 -m http.server 5173 --directory web
-   ```
-
-6. Grade one real 30-second webm through `POST /api/speeches` with live keys.
 
 ## Run all tests before every merge
 
 ```bash
-python softskills-grader/tests/test_pipeline.py && python Arena/test_match_judge.py \
-  && pytest server/tests -q
+python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratings.py \
+  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs && pytest server/tests -q
 ```
 
 ## Environment variables
 
 | Name | Where | Used for |
 | --- | --- | --- |
-| `ELEVENLABS_API_KEY` | server (`softskills-grader/.env`) | Scribe transcription |
-| `GEMINI_API_KEY` | server (`softskills-grader/.env`) | Argument extraction |
+| `ELEVENLABS_API_KEY` | server | Scribe transcription (in the grader) |
+| `GEMINI_API_KEY` | server | Argument extraction, safety check |
+| `SUPABASE_URL` | server, web | Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | server only | Database and storage |
+| `SUPABASE_ANON_KEY` | web (in a config script) | Anonymous sign-in only; RLS blocks every table |
+| `API_URL` | web (in a config script) | The FastAPI base URL |
+| `SIGNING_SECRET` | server | Matchup tokens (stage 2) |
 
 ## Archive
 
-`archive/` holds the NetworkMaxx phase docs, their ready-made tests and the old build plan. They
-describe cut features (personas, rapport, Speech Engine, online matches, community judging) and are
-kept for reference only.
+`archive/` holds the NetworkMaxx phase docs, their ready-made tests and the old build plan. Phases
+0, 5, 7 and part of 8 are reused as described above; the rest describe cut features (personas,
+rapport, Speech Engine, online matches).
