@@ -1,0 +1,94 @@
+"""Load and check the standards. A typo in the rubric fails loudly here, not mid-grade."""
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from pathlib import Path
+
+import yaml
+
+from .features import CATALOG
+
+LEXICONS = ("fillers", "hedges", "connectives", "audience_words", "emotion_words")
+
+
+class StandardsError(ValueError):
+    pass
+
+
+def _number(value, where: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise StandardsError(f"{where}: expected a number, got {value!r}")
+    return float(value)
+
+
+def _check_buckets(rule: dict, where: str) -> None:
+    buckets = rule.get("buckets")
+    if not isinstance(buckets, list) or not buckets:
+        raise StandardsError(f"{where}: needs a non-empty 'buckets' list")
+    spans = []
+    for i, bucket in enumerate(buckets):
+        spot = f"{where} bucket {i + 1}"
+        extra = set(bucket) - {"from", "to", "score"}
+        if extra:
+            raise StandardsError(f"{spot}: unknown keys {sorted(extra)} (use from / to / score)")
+        low = _number(bucket["from"], spot) if "from" in bucket else -math.inf
+        high = _number(bucket["to"], spot) if "to" in bucket else math.inf
+        score = _number(bucket.get("score"), spot)
+        if not low < high:
+            raise StandardsError(f"{spot}: 'from' must be below 'to'")
+        if not 0 <= score <= 100:
+            raise StandardsError(f"{spot}: score must be between 0 and 100")
+        spans.append((low, high, i + 1))
+    spans.sort()
+    for (_, high, a), (low, _, b) in zip(spans, spans[1:]):
+        if low < high:
+            raise StandardsError(f"{where}: buckets {a} and {b} overlap")
+    if "else" in rule and not 0 <= _number(rule["else"], where) <= 100:
+        raise StandardsError(f"{where}: 'else' must be between 0 and 100")
+
+
+def validate(standards: dict, lexicons: dict) -> None:
+    for section in ("session", "analysis", "apis", "grades", "factors"):
+        if section not in standards:
+            raise StandardsError(f"standards.yaml is missing the '{section}' section")
+    factors = standards["factors"]
+    if not isinstance(factors, dict) or not factors:
+        raise StandardsError("standards.yaml: 'factors' is empty")
+    for name, factor in factors.items():
+        where = f"factor '{name}'"
+        if _number(factor.get("weight"), where + " weight") <= 0:
+            raise StandardsError(f"{where}: weight must be above 0")
+        metrics = factor.get("metrics") or {}
+        if not metrics:
+            raise StandardsError(f"{where}: needs at least one metric")
+        for metric, rule in metrics.items():
+            spot = f"{where} metric '{metric}'"
+            if metric not in CATALOG:
+                raise StandardsError(f"{spot}: unknown metric. Known: {', '.join(sorted(CATALOG))}")
+            if _number(rule.get("weight"), spot + " weight") <= 0:
+                raise StandardsError(f"{spot}: weight must be above 0")
+            _check_buckets(rule, spot)
+        for i, rule in enumerate(factor.get("deductions") or []):
+            spot = f"{where} deduction {i + 1}"
+            if rule.get("metric") not in CATALOG:
+                raise StandardsError(f"{spot}: unknown metric {rule.get('metric')!r}")
+            if _number(rule.get("points_each"), spot) <= 0:
+                raise StandardsError(f"{spot}: points_each must be above 0")
+            if _number(rule.get("max_points"), spot) < rule["points_each"]:
+                raise StandardsError(f"{spot}: max_points must be at least points_each")
+            if _number(rule.get("free", 0), spot) < 0:
+                raise StandardsError(f"{spot}: free cannot be negative")
+    for name in LEXICONS:
+        if not isinstance(lexicons.get(name), list):
+            raise StandardsError(f"lexicons.yaml is missing the '{name}' list")
+
+
+def load_standards(config_dir: str) -> tuple[dict, dict, str]:
+    folder = Path(config_dir)
+    standards = yaml.safe_load((folder / "standards.yaml").read_text(encoding="utf-8"))
+    lexicons = yaml.safe_load((folder / "lexicons.yaml").read_text(encoding="utf-8"))
+    validate(standards, lexicons)
+    blob = json.dumps({"standards": standards, "lexicons": lexicons}, sort_keys=True, separators=(",", ":"))
+    return standards, lexicons, hashlib.sha256(blob.encode()).hexdigest()[:16]

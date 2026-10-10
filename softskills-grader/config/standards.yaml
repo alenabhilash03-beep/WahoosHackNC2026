@@ -1,0 +1,238 @@
+# ---------------------------------------------------------------------------
+# GRADING STANDARDS  -  this file is the rubric. Edit it; no code changes needed.
+#
+# How a grade is computed:
+#   1. Every metric below is MEASURED (by our code, from ElevenLabs word timings,
+#      the raw audio, or Gemini's extracted argument structure).
+#   2. The measured value falls into one BUCKET, which gives that metric 0-100.
+#        from = inclusive lower edge, to = exclusive upper edge.
+#        Leave "from" out for "anything below", leave "to" out for "anything above".
+#        A value that matches no bucket gets "else" (0 if you leave "else" out).
+#   3. Factor base   = weighted average of its metric scores.
+#   4. Factor score  = base minus DEDUCTIONS, clamped to 0-100.
+#        deduction = points_each x (count - free), capped at max_points.
+#   5. Overall score = weighted average of the factor scores.
+#
+# Weights are relative: they do not need to add up to 100. Delete a factor or a
+# metric and the rest re-balance automatically.
+# Every metric name must exist in the catalogue (run: python grade.py --list-metrics).
+# The numbers below are starting defaults. Calibrate them on a few real recordings.
+# ---------------------------------------------------------------------------
+
+version: "2026-10-10.1"
+
+session:
+  allotted_seconds: 60        # how long the speaker is given
+  min_words_to_grade: 40      # fewer words than this = not gradable
+
+apis:
+  elevenlabs:
+    model_id: scribe_v2
+    language_code: en
+    seed: 7
+  gemini:
+    model: gemini-3.8-flash
+    seed: 7
+    thinking_level: low
+
+# Definitions used while measuring. Changing these changes WHAT is counted.
+analysis:
+  pause_min_seconds: 0.5        # a silence this long counts as a pause
+  long_pause_seconds: 1.5       # a silence this long counts as a long pause
+  pace_window_seconds: 10       # window for pace variation and monotone stretches
+  pitch_floor_hz: 70
+  pitch_ceiling_hz: 400
+  uptalk_rise_semitones: 2.0    # sentence-final rise that counts as uptalk
+  monotone_semitones: 1.0       # a window with less pitch movement than this is monotone
+  vocabulary_window_words: 40   # window for vocabulary variety
+
+grades:
+  - {from: 93, letter: "A"}
+  - {from: 90, letter: "A-"}
+  - {from: 87, letter: "B+"}
+  - {from: 83, letter: "B"}
+  - {from: 80, letter: "B-"}
+  - {from: 77, letter: "C+"}
+  - {from: 73, letter: "C"}
+  - {from: 70, letter: "C-"}
+  - {from: 60, letter: "D"}
+  - {from: 0,  letter: "F"}
+
+factors:
+
+  # ------------------------------------------------------------------ PACE
+  pace:
+    weight: 20
+    metrics:
+      words_per_minute:
+        weight: 50
+        buckets:
+          - {from: 140, to: 170, score: 100}
+          - {from: 130, to: 140, score: 85}
+          - {from: 170, to: 180, score: 85}
+          - {from: 120, to: 130, score: 70}
+          - {from: 180, to: 195, score: 70}
+          - {from: 105, to: 120, score: 50}
+          - {from: 195, to: 210, score: 50}
+        else: 25
+      pace_variation_pct:          # how much speed changes between 10 s windows
+        weight: 20
+        buckets:
+          - {from: 8,  to: 25, score: 100}   # natural variety
+          - {to: 8,            score: 85}    # metronomic
+          - {from: 25, to: 40, score: 70}
+          - {from: 40,         score: 40}    # erratic
+      pause_time_pct:              # share of the speech spent in pauses
+        weight: 15
+        buckets:
+          - {from: 5,  to: 20, score: 100}
+          - {to: 5,            score: 85}    # no room to breathe
+          - {from: 20, to: 30, score: 70}
+          - {from: 30,         score: 40}
+      time_used_pct:               # share of the allotted time actually used
+        weight: 15
+        buckets:
+          - {from: 90,         score: 100}
+          - {from: 75, to: 90, score: 80}
+          - {from: 50, to: 75, score: 50}
+          - {to: 50,           score: 20}
+    deductions:
+      - {metric: long_pause_count, free: 1, points_each: 5, max_points: 20}
+
+  # --------------------------------------------------------------- DICTION
+  diction:
+    weight: 20
+    metrics:
+      fillers_per_100_words:
+        weight: 40
+        buckets:
+          - {to: 1,             score: 100}
+          - {from: 1,   to: 2.5, score: 85}
+          - {from: 2.5, to: 5,   score: 65}
+          - {from: 5,   to: 8,   score: 40}
+          - {from: 8,            score: 15}
+      vocabulary_variety_pct:      # distinct words per 40-word window
+        weight: 30
+        buckets:
+          - {from: 80,         score: 100}
+          - {from: 74, to: 80, score: 85}
+          - {from: 68, to: 74, score: 65}
+          - {to: 68,           score: 40}
+      clarity_pct:                 # how confidently each word was recognised
+        weight: 30
+        buckets:
+          - {from: 92,         score: 100}
+          - {from: 85, to: 92, score: 85}
+          - {from: 75, to: 85, score: 65}
+          - {to: 75,           score: 40}
+    deductions:
+      - {metric: repeated_word_count, free: 1, points_each: 3, max_points: 15}
+
+  # ------------------------------------------------------------------ TONE
+  tone:
+    weight: 20
+    metrics:
+      pitch_variation_semitones:   # inflection
+        weight: 40
+        buckets:
+          - {from: 2.5, to: 5.5, score: 100}
+          - {from: 2.0, to: 2.5, score: 80}
+          - {from: 5.5, to: 7.0, score: 80}
+          - {from: 1.5, to: 2.0, score: 60}
+          - {from: 7.0,          score: 60}
+          - {to: 1.5,            score: 35}   # monotone
+      loudness_variation_db:       # vocal emphasis
+        weight: 20
+        buckets:
+          - {from: 4, to: 9,  score: 100}
+          - {from: 3, to: 4,  score: 75}
+          - {from: 9, to: 12, score: 75}
+        else: 50
+      uptalk_pct:                  # statements that end on a rising pitch
+        weight: 20
+        buckets:
+          - {to: 15,           score: 100}
+          - {from: 15, to: 30, score: 80}
+          - {from: 30, to: 50, score: 55}
+          - {from: 50,         score: 30}
+      hedges_per_100_words:        # "I think", "maybe", "kind of"
+        weight: 20
+        buckets:
+          - {to: 1,              score: 100}
+          - {from: 1,   to: 2.5, score: 85}
+          - {from: 2.5, to: 4,   score: 65}
+          - {from: 4,            score: 40}
+    deductions:
+      - {metric: monotone_window_count, free: 1, points_each: 5, max_points: 15}
+
+  # ----------------------------------------------------------------- LOGIC
+  logic:
+    weight: 25
+    metrics:
+      supported_arguments:         # claims backed by reasoning or evidence
+        weight: 45
+        buckets:
+          - {from: 3,        score: 100}
+          - {from: 2, to: 3, score: 80}
+          - {from: 1, to: 2, score: 50}
+          - {to: 1,          score: 0}
+      structure_points:            # 1 for a clear thesis, 1 for a conclusion
+        weight: 20
+        buckets:
+          - {from: 2,        score: 100}
+          - {from: 1, to: 2, score: 60}
+          - {to: 1,          score: 20}
+      counterargument_level:       # 0 none, 1 acknowledged, 2 acknowledged and rebutted
+        weight: 20
+        buckets:
+          - {from: 2,        score: 100}
+          - {from: 1, to: 2, score: 65}
+          - {to: 1,          score: 30}
+      connectives_per_100_words:   # "because", "therefore", "for example"
+        weight: 15
+        buckets:
+          - {from: 3,        score: 100}
+          - {from: 2, to: 3, score: 80}
+          - {from: 1, to: 2, score: 60}
+          - {to: 1,          score: 35}
+    deductions:
+      - {metric: reasoning_fallacy_count, free: 0, points_each: 8,  max_points: 24}
+      - {metric: unsupported_claim_count, free: 1, points_each: 5,  max_points: 15}
+      - {metric: stance_mismatch,         free: 0, points_each: 40, max_points: 40}
+      - {metric: stance_unclear,          free: 0, points_each: 15, max_points: 15}
+
+  # --------------------------------------------------- APPEAL TO EMOTION
+  emotion:
+    weight: 15
+    metrics:
+      emotional_appeals:           # stories, imagery, shared values, human stakes
+        weight: 40
+        buckets:
+          - {from: 3,        score: 100}
+          - {from: 2, to: 3, score: 85}
+          - {from: 1, to: 2, score: 60}
+          - {to: 1,          score: 20}
+      appeal_variety:              # how many different kinds of appeal
+        weight: 20
+        buckets:
+          - {from: 3,        score: 100}
+          - {from: 2, to: 3, score: 80}
+          - {from: 1, to: 2, score: 55}
+          - {to: 1,          score: 20}
+      emotion_words_per_100_words:
+        weight: 20
+        buckets:
+          - {from: 2,  to: 7,  score: 100}
+          - {from: 1,  to: 2,  score: 75}
+          - {from: 7,  to: 10, score: 75}
+          - {to: 1,            score: 40}   # flat
+          - {from: 10,         score: 50}   # overwrought
+      audience_address_per_100_words:   # "you", "we", "our"
+        weight: 20
+        buckets:
+          - {from: 4,        score: 100}
+          - {from: 2, to: 4, score: 80}
+          - {from: 1, to: 2, score: 60}
+          - {to: 1,          score: 35}
+    deductions:
+      - {metric: manipulative_appeal_count, free: 0, points_each: 10, max_points: 20}

@@ -1,0 +1,511 @@
+{
+  "evidence": {
+    "argument": {
+      "arguments": [
+        {
+          "claim": "safety research needs time to catch up",
+          "status": "supported",
+          "support": "because right now we can build systems faster than we can test them",
+          "support_type": "reasoning"
+        },
+        {
+          "claim": "pacing protects ordinary people",
+          "status": "supported",
+          "support": "Imagine a nurse or a truck driver who wakes up one morning and finds that their job has disappeared overnight",
+          "support_type": "example"
+        },
+        {
+          "claim": "Third, trust matters",
+          "status": "supported",
+          "support": "A recent survey found that most people do not trust companies to regulate themselves",
+          "support_type": "statistic"
+        },
+        {
+          "claim": "Our families deserve time to adapt",
+          "status": "asserted without support",
+          "support": "",
+          "support_type": "none"
+        }
+      ],
+      "conclusion_found": true,
+      "counterargument_found": true,
+      "discarded_from_gemini": [
+        {
+          "kind": "argument",
+          "quote": "AI development is moving too fast for regulators to keep up",
+          "reason": "claim quote not found in transcript"
+        },
+        {
+          "kind": "emotional appeal",
+          "quote": "we must all set the pace together as one",
+          "reason": "quote not found in transcript"
+        }
+      ],
+      "emotional_appeals": [
+        {
+          "quote": "Imagine a nurse or a truck driver who wakes up one morning",
+          "type": "human_stakes"
+        },
+        {
+          "quote": "Our families deserve time to adapt",
+          "type": "shared_values"
+        },
+        {
+          "quote": "a race with no brakes does not have a winner",
+          "type": "vivid_imagery"
+        }
+      ],
+      "fallacies": [],
+      "rebuttal_found": true,
+      "side_chosen": "yes",
+      "stance_argued": "yes",
+      "thesis_found": true
+    },
+    "diction": {
+      "fillers": [
+        "um",
+        "uh",
+        "you know"
+      ],
+      "repeated_words": []
+    },
+    "pace": {
+      "long_pauses": [
+        {
+          "at_seconds": 18.21,
+          "seconds": 1.8
+        },
+        {
+          "at_seconds": 39.18,
+          "seconds": 1.6
+        }
+      ],
+      "speaking_seconds": 58.48,
+      "window_wpm": [
+        180.0,
+        114.0,
+        168.0,
+        150.0,
+        180.0,
+        162.8
+      ]
+    },
+    "tone": {
+      "hedges": [
+        "i think"
+      ],
+      "median_pitch_hz": 120.6,
+      "uptalk_sentences": [
+        {
+          "ends_at_seconds": 18.21,
+          "rise_semitones": 5.3,
+          "text": "Second, pacing protects ordinary people."
+        },
+        {
+          "ends_at_seconds": 53.46,
+          "rise_semitones": 5.4,
+          "text": "you know, set the pace together."
+        }
+      ]
+    },
+    "word_count": 155,
+    "word_lists": {
+      "audience_words": [
+        "we",
+        "we",
+        "our",
+        "we",
+        "our",
+        "we",
+        "together",
+        "we"
+      ],
+      "connectives": [
+        "first",
+        "because",
+        "for example",
+        "second",
+        "third",
+        "which means",
+        "however",
+        "in conclusion",
+        "because"
+      ],
+      "emotion_words": [
+        "safety",
+        "protects",
+        "imagine",
+        "families",
+        "deserve",
+        "trust",
+        "trust",
+        "trust",
+        "crash",
+        "future"
+      ]
+    }
+  },
+  "factors": {
+    "diction": {
+      "base": 94.0,
+      "deducted": 0.0,
+      "deductions": [
+        {
+          "free": 1,
+          "label": "Stumbles (word said twice in a row)",
+          "max_points": 15,
+          "metric": "repeated_word_count",
+          "points_each": 3,
+          "points_lost": 0.0,
+          "value": 0.0
+        }
+      ],
+      "metrics": [
+        {
+          "bucket": "1 to under 2.5",
+          "label": "Filler words",
+          "metric": "fillers_per_100_words",
+          "score": 85.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "per 100 words",
+          "value": 1.94,
+          "weight": 40
+        },
+        {
+          "bucket": "80 or more",
+          "label": "Vocabulary variety",
+          "metric": "vocabulary_variety_pct",
+          "score": 100.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "%",
+          "value": 89.67,
+          "weight": 30
+        },
+        {
+          "bucket": "92 or more",
+          "label": "Word clarity (recognition confidence)",
+          "metric": "clarity_pct",
+          "score": 100.0,
+          "source": "ElevenLabs word confidence + our code",
+          "unit": "%",
+          "value": 96.52,
+          "weight": 30
+        }
+      ],
+      "score": 94.0,
+      "weight": 20,
+      "weight_pct": 20.0
+    },
+    "emotion": {
+      "base": 100.0,
+      "deducted": 0.0,
+      "deductions": [
+        {
+          "free": 0,
+          "label": "Fear-mongering or personal attacks",
+          "max_points": 20,
+          "metric": "manipulative_appeal_count",
+          "points_each": 10,
+          "points_lost": 0.0,
+          "value": 0.0
+        }
+      ],
+      "metrics": [
+        {
+          "bucket": "3 or more",
+          "label": "Emotional appeals",
+          "metric": "emotional_appeals",
+          "score": 100.0,
+          "source": "Gemini extraction + our verification",
+          "unit": "count",
+          "value": 3.0,
+          "weight": 40
+        },
+        {
+          "bucket": "3 or more",
+          "label": "Kinds of emotional appeal",
+          "metric": "appeal_variety",
+          "score": 100.0,
+          "source": "Gemini extraction + our verification",
+          "unit": "count",
+          "value": 3.0,
+          "weight": 20
+        },
+        {
+          "bucket": "2 to under 7",
+          "label": "Emotionally charged words",
+          "metric": "emotion_words_per_100_words",
+          "score": 100.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "per 100 words",
+          "value": 6.45,
+          "weight": 20
+        },
+        {
+          "bucket": "4 or more",
+          "label": "Speaking to the audience (you / we / our)",
+          "metric": "audience_address_per_100_words",
+          "score": 100.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "per 100 words",
+          "value": 5.16,
+          "weight": 20
+        }
+      ],
+      "score": 100.0,
+      "weight": 15,
+      "weight_pct": 15.0
+    },
+    "logic": {
+      "base": 100.0,
+      "deducted": 0.0,
+      "deductions": [
+        {
+          "free": 0,
+          "label": "Reasoning fallacies",
+          "max_points": 24,
+          "metric": "reasoning_fallacy_count",
+          "points_each": 8,
+          "points_lost": 0.0,
+          "value": 0.0
+        },
+        {
+          "free": 1,
+          "label": "Claims with no support",
+          "max_points": 15,
+          "metric": "unsupported_claim_count",
+          "points_each": 5,
+          "points_lost": 0.0,
+          "value": 1.0
+        },
+        {
+          "free": 0,
+          "label": "Argued the opposite side",
+          "max_points": 40,
+          "metric": "stance_mismatch",
+          "points_each": 40,
+          "points_lost": 0.0,
+          "value": 0.0
+        },
+        {
+          "free": 0,
+          "label": "Side not clear",
+          "max_points": 15,
+          "metric": "stance_unclear",
+          "points_each": 15,
+          "points_lost": 0.0,
+          "value": 0.0
+        }
+      ],
+      "metrics": [
+        {
+          "bucket": "3 or more",
+          "label": "Arguments backed by reasoning or evidence",
+          "metric": "supported_arguments",
+          "score": 100.0,
+          "source": "Gemini extraction + our verification",
+          "unit": "count",
+          "value": 3.0,
+          "weight": 45
+        },
+        {
+          "bucket": "2 or more",
+          "label": "Thesis and conclusion present",
+          "metric": "structure_points",
+          "score": 100.0,
+          "source": "Gemini extraction + our verification",
+          "unit": "of 2",
+          "value": 2.0,
+          "weight": 20
+        },
+        {
+          "bucket": "2 or more",
+          "label": "Other side addressed",
+          "metric": "counterargument_level",
+          "score": 100.0,
+          "source": "Gemini extraction + our verification",
+          "unit": "0-2",
+          "value": 2.0,
+          "weight": 20
+        },
+        {
+          "bucket": "3 or more",
+          "label": "Reasoning connectives",
+          "metric": "connectives_per_100_words",
+          "score": 100.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "per 100 words",
+          "value": 5.81,
+          "weight": 15
+        }
+      ],
+      "score": 100.0,
+      "weight": 25,
+      "weight_pct": 25.0
+    },
+    "pace": {
+      "base": 100.0,
+      "deducted": 5.0,
+      "deductions": [
+        {
+          "free": 1,
+          "label": "Long pauses",
+          "max_points": 20,
+          "metric": "long_pause_count",
+          "points_each": 5,
+          "points_lost": 5.0,
+          "value": 2.0
+        }
+      ],
+      "metrics": [
+        {
+          "bucket": "140 to under 170",
+          "label": "Speaking rate",
+          "metric": "words_per_minute",
+          "score": 100.0,
+          "source": "ElevenLabs timings + our code",
+          "unit": "wpm",
+          "value": 159.03,
+          "weight": 50
+        },
+        {
+          "bucket": "8 to under 25",
+          "label": "Pace variation between windows",
+          "metric": "pace_variation_pct",
+          "score": 100.0,
+          "source": "ElevenLabs timings + our code",
+          "unit": "%",
+          "value": 14.25,
+          "weight": 20
+        },
+        {
+          "bucket": "5 to under 20",
+          "label": "Time spent in pauses",
+          "metric": "pause_time_pct",
+          "score": 100.0,
+          "source": "ElevenLabs timings + our code",
+          "unit": "%",
+          "value": 13.51,
+          "weight": 15
+        },
+        {
+          "bucket": "90 or more",
+          "label": "Allotted time used",
+          "metric": "time_used_pct",
+          "score": 100.0,
+          "source": "ElevenLabs timings + our code",
+          "unit": "%",
+          "value": 97.46,
+          "weight": 15
+        }
+      ],
+      "score": 95.0,
+      "weight": 20,
+      "weight_pct": 20.0
+    },
+    "tone": {
+      "base": 83.0,
+      "deducted": 0.0,
+      "deductions": [
+        {
+          "free": 1,
+          "label": "Monotone stretches",
+          "max_points": 15,
+          "metric": "monotone_window_count",
+          "points_each": 5,
+          "points_lost": 0.0,
+          "value": 0.0
+        }
+      ],
+      "metrics": [
+        {
+          "bucket": "2 to under 2.5",
+          "label": "Pitch variation (inflection)",
+          "metric": "pitch_variation_semitones",
+          "score": 80.0,
+          "source": "our audio analysis",
+          "unit": "semitones",
+          "value": 2.2,
+          "weight": 40
+        },
+        {
+          "bucket": "3 to under 4",
+          "label": "Loudness variation (emphasis)",
+          "metric": "loudness_variation_db",
+          "score": 75.0,
+          "source": "our audio analysis",
+          "unit": "dB",
+          "value": 3.63,
+          "weight": 20
+        },
+        {
+          "bucket": "15 to under 30",
+          "label": "Statements ending on a rising pitch",
+          "metric": "uptalk_pct",
+          "score": 80.0,
+          "source": "ElevenLabs timings + our audio analysis",
+          "unit": "%",
+          "value": 18.18,
+          "weight": 20
+        },
+        {
+          "bucket": "under 1",
+          "label": "Hedging phrases",
+          "metric": "hedges_per_100_words",
+          "score": 100.0,
+          "source": "ElevenLabs transcript + our word lists",
+          "unit": "per 100 words",
+          "value": 0.65,
+          "weight": 20
+        }
+      ],
+      "score": 83.0,
+      "weight": 20,
+      "weight_pct": 20.0
+    }
+  },
+  "gradable": true,
+  "inputs": {
+    "audio_sha256": "0d2878eb5ed0d81083ecf56639a60eff4d2cb4e1b58786ac65561a92ef5bc81f",
+    "side": "yes",
+    "standards_id": "de9f17e39ff4597c",
+    "standards_version": "2026-10-10.1",
+    "topic": "Should the frontier of AI be paced?",
+    "word_count": 155
+  },
+  "measurements": {
+    "appeal_variety": 3.0,
+    "audience_address_per_100_words": 5.16,
+    "clarity_pct": 96.52,
+    "connectives_per_100_words": 5.81,
+    "counterargument_level": 2.0,
+    "emotion_words_per_100_words": 6.45,
+    "emotional_appeals": 3.0,
+    "fillers_per_100_words": 1.94,
+    "hedges_per_100_words": 0.65,
+    "long_pause_count": 2.0,
+    "loudness_variation_db": 3.63,
+    "manipulative_appeal_count": 0.0,
+    "monotone_window_count": 0.0,
+    "pace_variation_pct": 14.25,
+    "pause_time_pct": 13.51,
+    "pitch_variation_semitones": 2.2,
+    "reasoning_fallacy_count": 0.0,
+    "repeated_word_count": 0.0,
+    "stance_mismatch": 0.0,
+    "stance_unclear": 0.0,
+    "structure_points": 2.0,
+    "supported_arguments": 3.0,
+    "time_used_pct": 97.46,
+    "unsupported_claim_count": 1.0,
+    "uptalk_pct": 18.18,
+    "vocabulary_variety_pct": 89.67,
+    "words_per_minute": 159.03
+  },
+  "overall": {
+    "letter": "A",
+    "score": 94.4
+  },
+  "reason": null,
+  "transcript": "I believe the frontier of AI should be paced. First, safety research needs time to catch up, because right now we can build systems faster than we can test them. For example, um, labs have released models and only later discovered serious flaws. Second, pacing protects ordinary people. Imagine a nurse or a truck driver who wakes up one morning and finds that their job has disappeared overnight. Our families deserve time to adapt. Third, trust matters. A recent survey found that most people, uh, do not trust companies to regulate themselves, which means moving slower is how we earn that trust. Some people argue that slowing down lets our rivals win the race. However, a race with no brakes does not have a winner, it just has a crash. So, I think we should, you know, set the pace together. In conclusion, we should pace the frontier, because the future is worth getting right."
+}
