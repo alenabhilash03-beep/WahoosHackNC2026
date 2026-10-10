@@ -1,0 +1,16 @@
+.git
+.github
+# Credentials are supplied at runtime (fly secrets), never baked into the image.
+.env
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+server/data
+softskills-grader/cache
+work
+docs

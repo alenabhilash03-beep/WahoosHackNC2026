@@ -34,6 +34,23 @@ Fixes have `{factor,metric,label,kind,lost_points,tip}`. Metric loss is `weight_
 
 `previous_best` is null or `{id,overall:{score,letter},factor_scores}`. Comparison candidates must be graded, on the same prompt and side, and strictly earlier than this recording. Highest overall wins, ties earliest. `deltas` is null or `{overall,logos,pathos,delivery,factors}` against that candidate. An unavailable or removed factor is omitted from numeric `factor_scores`, and its comparison delta is null if it was measurable on only one side. Delivery excludes unscored factors; section deltas are null when either section is unavailable. Later recordings cannot change an older card's baseline.
 
+## Deploy to Fly.io
+
+`Dockerfile`, `.dockerignore` and `fly.toml` at the repository root build one container that serves the API and `web/` from the same origin, so `/config.js` is filled from the server environment and `web/config.js` and `CORS_ORIGINS` can stay empty. The image installs FFmpeg, runs a single Uvicorn worker, and keeps `DATA_DIR` on a volume mounted at `/data`.
+
+Before deploying: create the Supabase project, enable anonymous sign-ins (raise the anonymous sign-in rate limit; a venue shares one IP), apply migrations 0001 to 0003, and have the ElevenLabs and Gemini keys ready. Then, from the repository root:
+
+```sh
+fly launch --no-deploy --copy-config        # keep fly.toml; choose the app name
+fly volumes create arena_data --size 1 --region iad
+fly secrets set SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_ANON_KEY=... ELEVENLABS_API_KEY=... GEMINI_API_KEY=...
+fly deploy
+```
+
+Open `https://<app>.fly.dev/practice.html`. Keep one machine: `fly.toml` disables auto-stop and scaling out is unsupported (see below). To also serve the GitHub Pages copy, set `API_URL`, `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `web/config.js` and add the Pages origin (`https://alenabhilash03-beep.github.io`) to `CORS_ORIGINS` with `fly secrets set`. Never set `DEMO_MODE` on the deployed server.
+
+The image has not been built end to end or deployed yet: no hosting account or live credentials were available.
+
 ## Deployment and verification limits
 
 Network-free route tests inject a repository and grader to exercise authentication failures, owner isolation, private URL generation, upload validation, grading success/failure, ungradable exclusion, calculations and explicit demo restrictions. `test_pipeline_integration.py` additionally uploads the same synthetic WAV twice through the production background grading path, replacing only external provider calls with canned responses. Real audio decoding, acoustics, feature extraction, scoring and persistence run unchanged; identical reports flow to full cards and ordered Me history. This is synthetic fixture validation, not a real speech or proof of deployed Supabase policies, provider availability or grading latency. Real recording and the plan's timing/quality calibration gate require configured live services and team recordings.
