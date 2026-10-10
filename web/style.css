@@ -1,0 +1,120 @@
+:root {
+  --bg: #0d0b14;
+  --ink: #f4ead2;
+  --gold: #f2b84b;
+  --gold-dark: #9a5b16;
+  --red: #c8423a;
+  --red-dark: #6e1d1a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Press Start 2P", monospace;
+}
+
+/* The scene renders at low resolution; the browser upscales it with hard pixel edges. */
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.title {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.kicker {
+  margin: 0 0 12px;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-shadow: 2px 2px 0 #000;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(22px, 4vw, 44px);
+  line-height: 1.25;
+  letter-spacing: 4px;
+  color: var(--ink);
+  text-shadow: 4px 4px 0 var(--red-dark), 8px 8px 0 #000;
+}
+
+.menu {
+  position: fixed;
+  bottom: 4vh;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.pixel-btn {
+  font-family: inherit;
+  font-size: clamp(16px, 2.2vw, 24px);
+  letter-spacing: 3px;
+  color: var(--ink);
+  background: var(--red);
+  border: none;
+  padding: 18px 40px 16px;
+  cursor: pointer;
+  /* Stepped pixel border: no rounded corners, chunky drop shadow. */
+  box-shadow:
+    0 -4px 0 0 #000, 0 4px 0 0 #000, -4px 0 0 0 #000, 4px 0 0 0 #000,
+    inset 0 -6px 0 0 var(--red-dark), inset 0 4px 0 0 #e8746b,
+    0 10px 0 0 #000;
+  transition: transform 60ms steps(1);
+  animation: pulse 1.2s steps(2) infinite;
+}
+
+.pixel-btn:hover { background: #d9534a; }
+
+.pixel-btn:active {
+  transform: translateY(6px);
+  box-shadow:
+    0 -4px 0 0 #000, 0 4px 0 0 #000, -4px 0 0 0 #000, 4px 0 0 0 #000,
+    inset 0 -2px 0 0 var(--red-dark), inset 0 4px 0 0 #e8746b;
+}
+
+.pixel-btn:focus-visible { outline: 4px solid var(--gold); outline-offset: 8px; }
+
+@keyframes pulse {
+  50% { filter: brightness(1.12); }
+}
+
+.hint {
+  margin: 22px 0 0;
+  font-size: 10px;
+  color: #b7a98a;
+  text-shadow: 2px 2px 0 #000;
+}
+
+@media (max-width: 600px) {
+  .title { top: 20px; width: calc(100% - 32px); }
+  .kicker { font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-btn { animation: none; }
+}

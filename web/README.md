@@ -1,0 +1,23 @@
+# Debate Arena home screen
+
+A static Three.js page. No build step; Three.js loads from a CDN via an import map.
+
+```bash
+python3 -m http.server 5173 --directory web
+```
+
+Then open http://localhost:5173.
+
+## How the pixel look works
+
+`main.js` renders the scene at roughly 200 rows tall (`TARGET_ROWS`), and CSS
+(`image-rendering: pixelated`) upscales the canvas without smoothing. Lower
+`TARGET_ROWS` for chunkier pixels. Every surface gets a tiny noisy 8×8 texture
+so blocks read as hand-placed pixels.
+
+## Hooks for what comes next
+
+- The **Argue** button fires a `window` `argue` event and plays a placeholder hop.
+  The walk-to-podium animation should replace that.
+- The centre aisle and stage steps lead to the podium (`PODIUM_X`, `STAGE_Z`),
+  so the walk path is already clear.

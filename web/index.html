@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Debate Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div class="vignette"></div>
+
+  <header class="title">
+    <p class="kicker">NetworkMaxx</p>
+    <h1>DEBATE<br />ARENA</h1>
+  </header>
+
+  <div class="menu">
+    <button id="argue" class="pixel-btn">ARGUE</button>
+    <p class="hint">The floor is yours.</p>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
