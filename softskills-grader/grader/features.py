@@ -29,7 +29,8 @@ CATALOG = {
     "vocabulary_variety_pct": ("Vocabulary variety", "%", TXT),
     "clarity_pct": ("Word clarity (recognition confidence)", "%", "ElevenLabs word confidence + our code"),
     "repeated_word_count": ("Stumbles (word said twice in a row)", "count", TXT),
-    "pitch_variation_semitones": ("Pitch variation (inflection)", "semitones", DSP),
+    "pitch_variation_pct": ("Pitch variation (PVQ: pitch SD / mean, per 10 s)", "%", DSP),
+    "pitch_variation_semitones": ("Pitch variation in semitones (reference only)", "semitones", DSP),
     "loudness_variation_db": ("Loudness variation (emphasis)", "dB", DSP),
     "uptalk_pct": ("Statements ending on a rising pitch", "%", "ElevenLabs timings + our audio analysis"),
     "hedges_per_100_words": ("Hedging phrases", "per 100 words", TXT),
@@ -174,8 +175,8 @@ def tone_metrics(words: list[dict], track, lexicons: dict, analysis: dict) -> tu
     tokens = [w["t"] for w in words]
     hedge_hits = find_phrases(tokens, lexicons["hedges"])
     metrics = {"hedges_per_100_words": _per_100(len(hedge_hits), len(tokens)),
-               "pitch_variation_semitones": None, "loudness_variation_db": None,
-               "uptalk_pct": None, "monotone_window_count": None}
+               "pitch_variation_pct": None, "pitch_variation_semitones": None,
+               "loudness_variation_db": None, "uptalk_pct": None, "monotone_window_count": None}
     evidence = {"hedges": [" ".join(tokens[s:s + n]) for s, n in hedge_hits], "uptalk_sentences": []}
     if track is None or int(track.voiced.sum()) < 100:       # under 1 s of voiced speech
         return metrics, evidence
@@ -185,14 +186,19 @@ def tone_metrics(words: list[dict], track, lexicons: dict, analysis: dict) -> tu
     metrics["loudness_variation_db"] = float(np.std(track.loudness_db[voiced]))
     evidence["median_pitch_hz"] = round(track.median_f0, 1)
 
-    # Monotone stretches: windows where the pitch barely moves.
-    window, monotone, start = analysis["pace_window_seconds"], 0, 0.0
+    # Pitch variation quotient (Hincks 2005): for each 10 s window, the standard deviation
+    # of pitch divided by its mean, in Hz. The speaker's score is the mean over windows.
+    window, quotients, start = analysis["pace_window_seconds"], [], 0.0
     while start < track.duration:
         inside = voiced & (track.times >= start) & (track.times < start + window)
-        if inside.sum() >= 100 and np.std(track.semitones[inside]) < analysis["monotone_semitones"]:
-            monotone += 1
+        if inside.sum() >= 100:                               # at least 1 s of voiced speech
+            pitch = track.f0[inside]
+            quotients.append(100.0 * float(np.std(pitch)) / float(np.mean(pitch)))
         start += window
-    metrics["monotone_window_count"] = monotone
+    if quotients:
+        metrics["pitch_variation_pct"] = sum(quotients) / len(quotients)
+        metrics["monotone_window_count"] = sum(q < analysis["monotone_pvq_pct"] for q in quotients)
+        evidence["window_pitch_variation_pct"] = [round(q, 1) for q in quotients]
 
     # Uptalk: a statement (ends in . or !) whose pitch rises over its last 0.8 s.
     eligible = 0

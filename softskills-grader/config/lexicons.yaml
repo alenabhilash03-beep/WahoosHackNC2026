@@ -17,21 +17,19 @@ fillers:
   - or something
   # - like        # ambiguous ("I like dogs"); enable only if you accept false hits
 
+# Colloquial hedges only. Durik et al. (2008) found that colloquial hedges
+# ("sort of", "kind of", "somewhat", "possibly") lowered ratings of the speaker
+# and the argument, while professional hedges ("may", "probably", "seem to",
+# "likely") did not, so professional hedges are deliberately NOT listed.
 hedges:
-  - i think
-  - i guess
-  - i feel like
-  - i suppose
-  - maybe
-  - perhaps
-  - probably
-  - possibly
-  - kind of
-  - sort of
-  - might
-  - somewhat
-  - not sure
-  - in my opinion
+  - sort of        # tested in Durik et al. 2008
+  - kind of        # tested
+  - somewhat       # tested
+  - possibly       # tested
+  - i guess        # same colloquial type; our extension, not tested
+  - i feel like    # our extension
+  - not sure       # our extension
+  - maybe          # our extension
 
 connectives:
   - because
@@ -54,6 +52,8 @@ connectives:
   - finally
   - in conclusion
 
+# First-person-plural and second-person words only, so the rate is comparable
+# with the published LIWC2015 norms for the "we" and "you" categories.
 audience_words:
   - you
   - your
@@ -64,8 +64,6 @@ audience_words:
   - ours
   - ourselves
   - let's
-  - everyone
-  - together
 
 emotion_words:
   - afraid

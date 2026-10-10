@@ -58,6 +58,11 @@ def test_pitch_tracker_matches_known_contour():
     assert abs(measured - FX["truth"]["pitch_sd_semitones"]) < 0.25, measured
 
 
+def test_pitch_variation_quotient_matches_known_contour():
+    measured = run()["measurements"]["pitch_variation_pct"]
+    assert abs(measured - FX["truth"]["pvq_pct"]) < 0.5, (measured, FX["truth"]["pvq_pct"])
+
+
 def test_uptalk_found_on_exactly_the_rising_sentences():
     report = run()
     found = report["evidence"]["tone"]["uptalk_sentences"]
@@ -68,7 +73,7 @@ def test_uptalk_found_on_exactly_the_rising_sentences():
 def test_speaking_rate_comes_from_word_timings():
     report = run()
     assert report["measurements"]["words_per_minute"] == round(FX["truth"]["wpm"], 2)
-    assert report["measurements"]["long_pause_count"] == 2
+    assert report["measurements"]["long_pause_count"] == 1      # one silence over 2 s in the fixture
 
 
 # ----------------------------------------------------------------------- scoring
@@ -76,14 +81,18 @@ def test_bucket_edges_lower_inclusive_upper_exclusive():
     rule = STANDARDS["factors"]["pace"]["metrics"]["words_per_minute"]
     assert bucket_score(140, rule)[0] == 100
     assert bucket_score(139.99, rule)[0] == 85
-    assert bucket_score(170, rule)[0] == 85
-    assert bucket_score(169.99, rule)[0] == 100
-    assert bucket_score(300, rule)[0] == 25      # falls through to "else"
+    assert bucket_score(195, rule)[0] == 85
+    assert bucket_score(194.99, rule)[0] == 100
+    assert bucket_score(113, rule)[0] == 65
+    assert bucket_score(112.99, rule)[0] == 40
+    assert bucket_score(300, rule)[0] == 40
+    pauses = STANDARDS["factors"]["pace"]["metrics"]["pause_time_pct"]
+    assert bucket_score(55, pauses)[0] == 65     # falls through to "else"
 
 
 def test_deduction_free_allowance_and_cap():
     factor = STANDARDS["factors"]["pace"]
-    base = {"words_per_minute": 150, "pace_variation_pct": 10, "pause_time_pct": 10, "time_used_pct": 95}
+    base = {"words_per_minute": 150, "pause_time_pct": 20, "time_used_pct": 95}
     assert score_factor(factor, {**base, "long_pause_count": 1})["deducted"] == 0     # first one is free
     assert score_factor(factor, {**base, "long_pause_count": 3})["deducted"] == 10    # 2 x 5
     assert score_factor(factor, {**base, "long_pause_count": 50})["deducted"] == 20   # capped
@@ -105,8 +114,8 @@ def test_overall_is_the_weighted_average_of_factor_scores():
 
 def test_unmeasurable_metric_is_left_out_and_the_rest_reweighted():
     factor = STANDARDS["factors"]["tone"]
-    result = score_factor(factor, {"pitch_variation_semitones": 3, "loudness_variation_db": 5,
-                                   "uptalk_pct": None, "hedges_per_100_words": 0})
+    result = score_factor(factor, {"pitch_variation_pct": 25, "uptalk_pct": None,
+                                   "hedges_per_100_words": 0, "monotone_window_count": 0})
     assert result["score"] == 100.0
     assert [r["score"] for r in result["metrics"] if r["metric"] == "uptalk_pct"] == [None]
 
@@ -192,6 +201,16 @@ def test_arguing_the_wrong_side_costs_the_configured_points():
     right, wrong = run(side="yes"), run(side="no")
     assert wrong["measurements"]["stance_mismatch"] == 1
     assert round(right["factors"]["logic"]["score"] - wrong["factors"]["logic"]["score"], 1) == 40.0
+
+
+def test_research_based_orderings():
+    logic = STANDARDS["factors"]["logic"]["metrics"]
+    counter = {level: bucket_score(level, logic["counterargument_level"])[0] for level in (0, 1, 2)}
+    assert counter[2] > counter[0] > counter[1]      # O'Keefe 1999: rebutted > one-sided > raised but unrebutted
+    conclusion = {n: bucket_score(n, logic["structure_points"])[0] for n in (0, 1, 2)}
+    assert conclusion[2] > conclusion[1] > conclusion[0]
+    # Durik et al. 2008: colloquial hedges count, professional hedges do not.
+    assert "kind of" in LEXICONS["hedges"] and "probably" not in LEXICONS["hedges"]
 
 
 def test_malformed_gemini_output_does_not_crash():

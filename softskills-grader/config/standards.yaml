@@ -13,13 +13,32 @@
 #        deduction = points_each x (count - free), capped at max_points.
 #   5. Overall score = weighted average of the factor scores.
 #
-# Weights are relative: they do not need to add up to 100. Delete a factor or a
-# metric and the rest re-balance automatically.
-# Every metric name must exist in the catalogue (run: python grade.py --list-metrics).
-# The numbers below are starting defaults. Calibrate them on a few real recordings.
+# WHERE THE NUMBERS COME FROM (full sources and caveats: README, "Research basis")
+#
+#   One score ladder is used for every metric:
+#     100  inside the range a study links to the best listener outcome,
+#          or inside the published range for fluent speakers
+#      85  normal for fluent speakers; no study shows harm
+#      65  outside the published normal range, or on the wrong side of a
+#          published threshold
+#      40  a range where a study MEASURED a negative effect on listeners,
+#          or outside everything the studies observed
+#       0  the element is missing altogether (logic only)
+#
+#   Metric weights follow the strength of the evidence:
+#     tier A = 3   an experiment or meta-analysis ties the metric to listener
+#                  judgments AND gives a number in our units
+#     tier B = 2   a published norm in our units, or an effect with no threshold;
+#                  tier B never scores below 65 because no study shows harm
+#     tier C = 1   no usable published number: placeholder, calibrate on your data
+#     RULE         a rule of the game, not a research finding
+#
+# Factor weights (20/20/20/25/15) and deduction sizes are team decisions, not
+# research findings. Weights are relative and re-balance if you delete anything.
+# Every metric name must exist in the catalogue (python grade.py --list-metrics).
 # ---------------------------------------------------------------------------
 
-version: "2026-10-10.1"
+version: "2026-10-10.2-research"
 
 session:
   allotted_seconds: 60        # how long the speaker is given
@@ -37,14 +56,14 @@ apis:
 
 # Definitions used while measuring. Changing these changes WHAT is counted.
 analysis:
-  pause_min_seconds: 0.5        # a silence this long counts as a pause
-  long_pause_seconds: 1.5       # a silence this long counts as a long pause
-  pace_window_seconds: 10       # window for pace variation and monotone stretches
+  pause_min_seconds: 0.25       # De Jong & Bosker 2013: 250 ms is the recommended silent-pause cut-off
+  long_pause_seconds: 2.0       # Campione & Veronis 2002: pauses over 2 s are 2.8% of spontaneous pauses, 0% of read speech
+  pace_window_seconds: 10       # Hincks 2005 measures pitch variation over 10 s windows
   pitch_floor_hz: 70
   pitch_ceiling_hz: 400
-  uptalk_rise_semitones: 2.0    # sentence-final rise that counts as uptalk
-  monotone_semitones: 1.0       # a window with less pitch movement than this is monotone
-  vocabulary_window_words: 40   # window for vocabulary variety
+  uptalk_rise_semitones: 2.0    # detector setting, not from research
+  monotone_pvq_pct: 11          # Hincks 2005: lowest speaker mean observed was .11
+  vocabulary_window_words: 40
 
 grades:
   - {from: 93, letter: "A"}
@@ -64,104 +83,85 @@ factors:
   pace:
     weight: 20
     metrics:
-      words_per_minute:
-        weight: 50
+      words_per_minute:            # TIER A. Guyer et al. 2025; norms from Wang 2021
+        weight: 3
         buckets:
-          - {from: 140, to: 170, score: 100}
+          - {from: 140, to: 195, score: 100}   # 148 and 192 wpm: high confidence ratings and best message processing
           - {from: 130, to: 140, score: 85}
-          - {from: 170, to: 180, score: 85}
-          - {from: 120, to: 130, score: 70}
-          - {from: 180, to: 195, score: 70}
-          - {from: 105, to: 120, score: 50}
-          - {from: 195, to: 210, score: 50}
-        else: 25
-      pace_variation_pct:          # how much speed changes between 10 s windows
-        weight: 20
+          - {from: 195, to: 205, score: 85}    # 197 wpm: still confident, processing starts to fall
+          - {from: 113, to: 130, score: 65}
+          - {from: 205, to: 218, score: 65}    # 202 wpm: argument processing significantly lower
+          - {to: 113,            score: 40}    # 113 wpm: confidence rated 2.95 of 7
+          - {from: 218,          score: 40}    # beyond the natural range the study covers
+      pause_time_pct:              # TIER B. Wang 2008 (21% silent); Nishizawa 2024 (about 26%, derived)
+        weight: 2
         buckets:
-          - {from: 8,  to: 25, score: 100}   # natural variety
-          - {to: 8,            score: 85}    # metronomic
-          - {from: 25, to: 40, score: 70}
-          - {from: 40,         score: 40}    # erratic
-      pause_time_pct:              # share of the speech spent in pauses
-        weight: 15
-        buckets:
-          - {from: 5,  to: 20, score: 100}
-          - {to: 5,            score: 85}    # no room to breathe
-          - {from: 20, to: 30, score: 70}
-          - {from: 30,         score: 40}
-      time_used_pct:               # share of the allotted time actually used
-        weight: 15
+          - {from: 15, to: 30, score: 100}
+          - {from: 10, to: 15, score: 85}
+          - {from: 30, to: 40, score: 85}
+        else: 65
+      time_used_pct:               # RULE. Share of the allotted time actually used.
+        weight: 1
         buckets:
           - {from: 90,         score: 100}
           - {from: 75, to: 90, score: 80}
           - {from: 50, to: 75, score: 50}
           - {to: 50,           score: 20}
     deductions:
+      # One pause over 2 s is within what spontaneous speech normally contains.
       - {metric: long_pause_count, free: 1, points_each: 5, max_points: 20}
 
   # --------------------------------------------------------------- DICTION
   diction:
     weight: 20
     metrics:
-      fillers_per_100_words:
-        weight: 40
+      fillers_per_100_words:       # TIER A. Bortfeld et al. 2001; Lee & Papafragou 2026
+        weight: 3
         buckets:
-          - {to: 1,             score: 100}
-          - {from: 1,   to: 2.5, score: 85}
-          - {from: 2.5, to: 5,   score: 65}
-          - {from: 5,   to: 8,   score: 40}
-          - {from: 8,            score: 15}
-      vocabulary_variety_pct:      # distinct words per 40-word window
-        weight: 30
+          - {to: 2.0,             score: 100}  # fewer than every speaker group in Bortfeld (lowest group mean 2.04)
+          - {from: 2.0, to: 2.9,  score: 85}   # the conversational norm (group means 2.04 to 2.88, overall 2.56)
+          - {from: 2.9, to: 7.9,  score: 65}   # above the norm
+          - {from: 7.9,           score: 40}   # 7.94 per 100: speakers rated less certain and less prepared
+      vocabulary_variety_pct:      # TIER C. No adult norm exists for this window and task.
+        weight: 1
         buckets:
           - {from: 80,         score: 100}
           - {from: 74, to: 80, score: 85}
-          - {from: 68, to: 74, score: 65}
-          - {to: 68,           score: 40}
-      clarity_pct:                 # how confidently each word was recognised
-        weight: 30
+        else: 65
+      clarity_pct:                 # TIER C. Transcriber confidence; specific to the speech engine.
+        weight: 1
         buckets:
           - {from: 92,         score: 100}
           - {from: 85, to: 92, score: 85}
-          - {from: 75, to: 85, score: 65}
-          - {to: 75,           score: 40}
+        else: 65
     deductions:
-      - {metric: repeated_word_count, free: 1, points_each: 3, max_points: 15}
+      # Bortfeld et al. 2001: 1.47 repeats per 100 words, about 2 in a 150-word speech.
+      - {metric: repeated_word_count, free: 2, points_each: 3, max_points: 15}
 
   # ------------------------------------------------------------------ TONE
   tone:
     weight: 20
     metrics:
-      pitch_variation_semitones:   # inflection
-        weight: 40
+      pitch_variation_pct:         # TIER A. Hincks 2005 pitch variation quotient (x100)
+        weight: 3
         buckets:
-          - {from: 2.5, to: 5.5, score: 100}
-          - {from: 2.0, to: 2.5, score: 80}
-          - {from: 5.5, to: 7.0, score: 80}
-          - {from: 1.5, to: 2.0, score: 60}
-          - {from: 7.0,          score: 60}
-          - {to: 1.5,            score: 35}   # monotone
-      loudness_variation_db:       # vocal emphasis
-        weight: 20
+          - {from: 20, to: 34, score: 100}   # upper part of the observed speaker range (.11 to .24)
+          - {from: 16, to: 20, score: 85}    # rated more lively than monotone
+          - {from: 11, to: 16, score: 65}    # below .16: rated more monotone than lively
+          - {to: 11,           score: 40}    # flatter than any speaker observed
+          - {from: 34,         score: 65}    # above any 10 s segment observed; likely tracking noise
+      hedges_per_100_words:        # TIER A. Durik et al. 2008 (colloquial hedges only)
+        weight: 3
         buckets:
-          - {from: 4, to: 9,  score: 100}
-          - {from: 3, to: 4,  score: 75}
-          - {from: 9, to: 12, score: 75}
-        else: 50
-      uptalk_pct:                  # statements that end on a rising pitch
-        weight: 20
+          - {to: 0.6,             score: 100}  # none in a 150-word speech
+          - {from: 0.6, to: 1.9,  score: 85}   # below the tested density
+          - {from: 1.9,           score: 40}   # 6 in about 310 words: lower source and argument ratings
+      uptalk_pct:                  # TIER B. Vaughan-Johnston et al. 2024; Linneman 2013
+        weight: 2
         buckets:
-          - {to: 15,           score: 100}
-          - {from: 15, to: 30, score: 80}
-          - {from: 30, to: 50, score: 55}
-          - {from: 50,         score: 30}
-      hedges_per_100_words:        # "I think", "maybe", "kind of"
-        weight: 20
-        buckets:
-          - {to: 1,              score: 100}
-          - {from: 1,   to: 2.5, score: 85}
-          - {from: 2.5, to: 4,   score: 65}
-          - {from: 4,            score: 40}
+          - {to: 10,           score: 100}
+          - {from: 10, to: 37, score: 85}
+          - {from: 37,         score: 65}    # the rate measured on a TV quiz show (weak anchor)
     deductions:
       - {metric: monotone_window_count, free: 1, points_each: 5, max_points: 15}
 
@@ -169,33 +169,32 @@ factors:
   logic:
     weight: 25
     metrics:
-      supported_arguments:         # claims backed by reasoning or evidence
-        weight: 45
+      supported_arguments:         # TIER A. O'Keefe 1998; Shu & Carlson 2014
+        weight: 3
         buckets:
-          - {from: 3,        score: 100}
-          - {from: 2, to: 3, score: 80}
-          - {from: 1, to: 2, score: 50}
-          - {to: 1,          score: 0}
-      structure_points:            # 1 for a clear thesis, 1 for a conclusion
-        weight: 20
-        buckets:
-          - {from: 2,        score: 100}
-          - {from: 1, to: 2, score: 60}
-          - {to: 1,          score: 20}
-      counterargument_level:       # 0 none, 1 acknowledged, 2 acknowledged and rebutted
-        weight: 20
-        buckets:
-          - {from: 2,        score: 100}
+          - {from: 3,        score: 100}   # three claims was the most persuasive number
+          - {from: 2, to: 3, score: 85}
           - {from: 1, to: 2, score: 65}
-          - {to: 1,          score: 30}
-      connectives_per_100_words:   # "because", "therefore", "for example"
-        weight: 15
+          - {to: 1,          score: 0}
+      structure_points:            # TIER A. O'Keefe 1997: stating the conclusion explicitly, r = .12
+        weight: 3
+        buckets:
+          - {from: 2,        score: 100}   # position stated and restated
+          - {from: 1, to: 2, score: 85}    # position stated explicitly once
+          - {to: 1,          score: 40}    # conclusion left unstated: measurably less persuasive
+      counterargument_level:       # TIER A. O'Keefe 1999. Note the order: 2 > 0 > 1.
+        weight: 3
+        buckets:
+          - {from: 2,        score: 100}   # raised and rebutted: r = +.077 vs one-sided
+          - {to: 1,          score: 85}    # one-sided: the baseline
+          - {from: 1, to: 2, score: 65}    # raised but not rebutted: r = -.049 vs one-sided
+      connectives_per_100_words:   # TIER C. No published rate for this word list.
+        weight: 1
         buckets:
           - {from: 3,        score: 100}
-          - {from: 2, to: 3, score: 80}
-          - {from: 1, to: 2, score: 60}
-          - {to: 1,          score: 35}
-    deductions:
+          - {from: 2, to: 3, score: 85}
+        else: 65
+    deductions:                    # RULES. Sizes are team decisions.
       - {metric: reasoning_fallacy_count, free: 0, points_each: 8,  max_points: 24}
       - {metric: unsupported_claim_count, free: 1, points_each: 5,  max_points: 15}
       - {metric: stance_mismatch,         free: 0, points_each: 40, max_points: 40}
@@ -205,34 +204,24 @@ factors:
   emotion:
     weight: 15
     metrics:
-      emotional_appeals:           # stories, imagery, shared values, human stakes
-        weight: 40
+      emotional_appeals:           # TIER B. Antonakis et al. 2012: the tactics work; no dose is published
+        weight: 2
         buckets:
           - {from: 3,        score: 100}
-          - {from: 2, to: 3, score: 85}
-          - {from: 1, to: 2, score: 60}
-          - {to: 1,          score: 20}
-      appeal_variety:              # how many different kinds of appeal
-        weight: 20
+          - {from: 1, to: 3, score: 85}
+          - {to: 1,          score: 65}
+      audience_address_per_100_words:   # TIER B. LIWC2015 norms for "we" + "you"
+        weight: 2
         buckets:
-          - {from: 3,        score: 100}
-          - {from: 2, to: 3, score: 80}
-          - {from: 1, to: 2, score: 55}
-          - {to: 1,          score: 20}
-      emotion_words_per_100_words:
-        weight: 20
+          - {from: 4.9,           score: 100}  # natural speech norm: 0.87 + 4.04
+          - {from: 2.4, to: 4.9,  score: 85}   # between the all-genre mean (0.72 + 1.70) and the speech norm
+          - {to: 2.4,             score: 65}
+      emotion_words_per_100_words: # TIER C. Our word list is not the LIWC dictionary, so LIWC norms do not transfer.
+        weight: 1
         buckets:
-          - {from: 2,  to: 7,  score: 100}
-          - {from: 1,  to: 2,  score: 75}
-          - {from: 7,  to: 10, score: 75}
-          - {to: 1,            score: 40}   # flat
-          - {from: 10,         score: 50}   # overwrought
-      audience_address_per_100_words:   # "you", "we", "our"
-        weight: 20
-        buckets:
-          - {from: 4,        score: 100}
-          - {from: 2, to: 4, score: 80}
-          - {from: 1, to: 2, score: 60}
-          - {to: 1,          score: 35}
-    deductions:
+          - {from: 2, to: 7,  score: 100}
+          - {from: 1, to: 2,  score: 85}
+          - {from: 7, to: 10, score: 85}
+        else: 65
+    deductions:                    # RULE.
       - {metric: manipulative_appeal_count, free: 0, points_each: 10, max_points: 20}
