@@ -1,12 +1,17 @@
 # WahoosHackNC2026
 
-## Speech grader
+## Debate Arena
 
-The spoken-argument grader lives in [`softskills-grader/`](softskills-grader/README.md). The research behind its grading standards is summarised in [Research basis for the standards](softskills-grader/README.md#research-basis-for-the-standards).
+A speech and rhetoric game for two players on one laptop: Player 1 argues a motion, Player 2 goes
+after and answers them, every speech is rated, and the game names a winner.
 
-## Building NetworkMaxx
+- [Build plan](Build%20Plan.md): the game, scoring, architecture, schedule and demo.
+- [`softskills-grader/`](softskills-grader/README.md): rates each speech (pace, diction, tone,
+  logic, emotion). The research behind its standards is in
+  [Research basis for the standards](softskills-grader/README.md#research-basis-for-the-standards).
+- [`Arena/match_judge.py`](Arena/match_judge.py): picks the winner of a match and a series from the
+  grader's reports.
+- [`web/`](web/README.md): the pixel-art home screen.
 
-- [Implementation guide](docs/implementation/README.md): the build plan as executable phases, from setup to demo.
-- [`Arena/`](Arena/): community rating aggregation (`arena_ratings.py`) and the machine judge for duels, team matches and free-for-all (`match_judge.py`).
-- [`conversation/`](conversation/): the conversation scorer that Phase 3 merges into the grader.
-- [`supabase/migrations/`](supabase/migrations/): the database schema for every phase.
+The earlier NetworkMaxx plan (networking personas, rapport, online matches, community judging) is
+archived in [`docs/implementation/archive/`](docs/implementation/archive/).
