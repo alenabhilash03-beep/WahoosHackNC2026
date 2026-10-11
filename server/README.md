@@ -11,7 +11,7 @@ python -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
 
 Activate the virtual environment before running these commands. Install `ffmpeg` on PATH for browser WebM/Ogg/MP4 audio; WAV needs no external decoder. The server also serves `web/` at `/`, with public configuration at `/config.js`.
 
-Copy `server/.env.example` to `server/.env`. Set the Supabase URL, service-role key, public anonymous key, ElevenLabs and Gemini keys. Apply `supabase/migrations/0001_init.sql`, `0002_prompts.sql`, then `0003_solo_feedback.sql` in order. Enable anonymous sign-ins in Supabase. The `audio` bucket stays private and all tables have RLS with no client policies. Run `python tools/checks/check_supabase.py` with real credentials to verify anonymous sessions and server token resolution. Credentials and infrastructure must be supplied by the deployment owner.
+Copy `server/.env.example` to `server/.env`. Set the Supabase URL, server-only service-role/secret key, public anon/publishable key, ElevenLabs and Gemini keys. Apply all four `supabase/migrations/` files in order. Enable email authentication and disable anonymous sign-ins. Configure confirmation/reset redirects and SMTP using the [email accounts guide](../docs/implementation/email-accounts.md). The `audio` bucket stays private and all tables have RLS with no client policies. Credentials and infrastructure must be supplied by the deployment owner.
 
 For a separate static host, set its exact origin in `CORS_ORIGINS`, and set `web/config.js` to the server API URL and public Supabase values. Same-origin serving fills public configuration from server environment automatically. Service-role and grading keys are never returned to the browser.
 
@@ -56,7 +56,7 @@ Fixes have `{factor,metric,label,kind,lost_points,tip}`. Metric loss is `weight_
 
 `Dockerfile`, `.dockerignore` and `fly.toml` at the repository root build one container that serves the API and `web/` from the same origin, so `/config.js` is filled from the server environment and `web/config.js` and `CORS_ORIGINS` can stay empty. The image installs FFmpeg, runs a single Uvicorn worker, and keeps `DATA_DIR` on a volume mounted at `/data`.
 
-Before deploying: create the Supabase project, enable anonymous sign-ins (raise the anonymous sign-in rate limit; a venue shares one IP), apply migrations 0001 to 0003, and have the ElevenLabs and Gemini keys ready. Then, from the repository root:
+Before deploying: create the Supabase project, configure email accounts using the [account guide](../docs/implementation/email-accounts.md), apply migrations 0001 to 0004, and have the ElevenLabs and Gemini keys ready. Then, from the repository root:
 
 ```sh
 fly launch --no-deploy --copy-config        # keep fly.toml; choose the app name

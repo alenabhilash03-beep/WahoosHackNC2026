@@ -1,11 +1,10 @@
 // Public config only. Supabase refreshes its stored session; the server resolves
 // the bearer token and never accepts a player id from this client.
+import {getAuthClient, accountSession, AuthRequiredError, redirectToLogin} from './auth.js';
 export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
   loadAuth, hostname = globalThis.location?.hostname ?? '', timeoutMs = 60000} = {}) {
   let clientPromise, sessionPromise;
-  const client = () => clientPromise ??= (loadAuth ? loadAuth() :
-    import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
-      .then(({createClient}) => createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY)));
+  const client = () => clientPromise ??= (loadAuth ? loadAuth() : getAuthClient());
   async function token(refresh = false) {
     if (config.DEMO_MODE || config.LOCAL_MODE) {
       // No accounts: the server only answers this computer.
@@ -15,13 +14,14 @@ export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
     if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) throw new Error('Sign-in is not configured. Set the public Supabase values and API_URL in config.js.');
     if (!sessionPromise) sessionPromise = (async () => {
       const {auth} = await client();
-      let result = refresh ? await auth.refreshSession() : await auth.getSession();
-      if (result.error) throw new Error(result.error.message);
-      if (!result.data?.session) result = await auth.signInAnonymously();
-      if (result.error) throw new Error(result.error.message);
-      const value = result.data?.session?.access_token;
-      if (!value) throw new Error('Sign-in returned no session. Enable anonymous sign-ins in Supabase.');
-      return value;
+      const result = refresh ? await auth.refreshSession() : await auth.getSession();
+      if (result.error) {
+        if (refresh) throw new AuthRequiredError();
+        throw new Error(result.error.message);
+      }
+      const session = accountSession(result.data?.session);
+      if (!session) throw new AuthRequiredError();
+      return session.access_token;
     })();
     try { return await sessionPromise; } finally { sessionPromise = null; }
   }
@@ -61,7 +61,11 @@ export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
 }
 
 let defaultClient;
-export function api(path,options) {
+export async function api(path,options) {
   defaultClient ??= createApiClient({config:globalThis.ARENA_CONFIG ?? {}});
-  return defaultClient(path,options);
+  try { return await defaultClient(path,options); }
+  catch (error) {
+    if (error.status === 401) redirectToLogin();
+    throw error;
+  }
 }

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Sign in · Debate Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="progress.css">
+  <link rel="stylesheet" href="auth.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="valance"><p class="kicker">DEBATE ARENA</p><h1>TAKE YOUR PLACE</h1></header>
+  <main class="page auth-page">
+    <a class="back" href="index.html">◀ ARENA</a>
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <p class="kicker">YOUR NEXT ROUND</p>
+      <h2 id="auth-title">SIGN IN</h2>
+      <p class="auth-copy" id="auth-copy">Keep your speeches and progress with you, wherever you sign in.</p>
+      <nav class="auth-tabs" aria-label="Account access">
+        <button type="button" data-mode="signin" aria-pressed="true">SIGN IN</button>
+        <button type="button" data-mode="signup" aria-pressed="false">CREATE ACCOUNT</button>
+      </nav>
+      <p id="auth-status" class="auth-copy" role="status" aria-live="polite">Connecting…</p>
+      <form id="auth-form" aria-busy="true">
+        <fieldset id="auth-fields" disabled>
+          <label id="email-field" for="email">EMAIL
+            <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+          </label>
+          <label id="password-field" for="password">PASSWORD
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <label id="confirm-field" for="confirm-password" hidden>CONFIRM PASSWORD
+            <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password">
+          </label>
+          <p class="auth-copy" id="password-help" hidden>Use at least 8 characters.</p>
+          <button class="auth-submit" id="auth-submit" type="submit">SIGN IN</button>
+        </fieldset>
+      </form>
+      <button class="auth-link" id="forgot-password" type="button">Forgot your password?</button>
+      <a class="auth-link" id="local-play" href="practice.html" hidden>Continue local practice</a>
+      <noscript><p>Enable JavaScript to sign in and load your private speeches.</p></noscript>
+    </section>
+  </main>
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

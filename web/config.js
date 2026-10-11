@@ -1,9 +1,8 @@
-// Static GitHub Pages deployment: set these to your deployed services.
-// These are PUBLIC values. Never place the service-role or grader API keys here.
+// Public values only. Server-only keys never belong in this file.
 globalThis.ARENA_CONFIG = {
-  API_URL: '',
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
-  DEMO_MODE: false,
-  LOCAL_MODE: false,
+  "SUPABASE_URL": "https://tzwfuwrppoqhfnznaxsu.supabase.co",
+  "DEMO_MODE": false,
+  "SUPABASE_ANON_KEY": "sb_publishable_wKI45TBNgOdLIZ43z5Dw4A_0V_h8BzI",
+  "API_URL": "",
+  "LOCAL_MODE": false
 };

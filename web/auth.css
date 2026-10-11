@@ -1,0 +1,23 @@
+/* Account screens share the arena's velvet, gold trim, and pixel headings. */
+.auth-page { max-width: 600px; }
+.auth-panel { padding: clamp(20px, 5vw, 36px); margin: 8px; background: var(--panel); box-shadow: 0 0 0 4px var(--gold-dark), 0 0 0 8px #000, 8px 12px 0 8px #0006; }
+.auth-copy, .auth-panel input, .auth-link { font-family: system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
+.auth-copy { color: var(--ink-dim); }
+#auth-status { min-height: 26px; overflow-wrap: anywhere; }
+#auth-status[data-error="true"] { color: #ffaaa3; }
+.auth-tabs { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0 12px; }
+.auth-tabs button, .auth-submit { font: inherit; cursor: pointer; border: 2px solid var(--gold-dark); padding: 12px; color: var(--ink); background: #100b13; min-height: 44px; }
+.auth-tabs button[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+.auth-panel fieldset { margin: 0; padding: 0; border: 0; }
+.auth-panel label { display: block; margin: 20px 0; }
+.auth-panel input { display: block; width: 100%; margin-top: 8px; padding: 12px; background: #100b13; color: var(--ink); border: 2px solid var(--panel-line); border-radius: 0; }
+.auth-submit { width: 100%; background: var(--red-dark); border-color: var(--red); margin: 8px 0 16px; box-shadow: 0 4px 0 #000; }
+.auth-link { display: inline-block; padding: 10px 0; color: var(--gold); border: 0; background: transparent; text-decoration: underline; cursor: pointer; min-height: 44px; }
+.auth-panel :focus-visible, .account-control:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+.auth-panel :disabled { opacity: .6; cursor: wait; }
+[hidden] { display: none !important; }
+.account-nav { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 14px 20px; flex-wrap: wrap; }
+.account-label { font: 14px/1.4 system-ui, sans-serif; max-width: 60vw; overflow-wrap: anywhere; }
+.account-control { font: inherit; font-size: 10px; color: var(--gold); border: 1px solid var(--gold-dark); background: #100b13; padding: 12px; text-decoration: none; min-height: 44px; cursor: pointer; }
+body[data-arena="home"] .account-nav { position: fixed; top: 12px; right: 12px; z-index: 10; max-width: 45vw; }
+@media (max-width: 680px) { body[data-arena="home"] .account-nav { top: 170px; max-width: 100%; } .auth-tabs button { flex: 1; font-size: 9px; } }

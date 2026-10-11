@@ -9,7 +9,7 @@ class SupabaseRepository:
 
     def resolve_token(self, token):
         user = self.client.auth.get_user(token).user
-        if not user:
+        if not user or getattr(user, 'is_anonymous', False):
             raise ValueError('Invalid session')
         return user.id
 

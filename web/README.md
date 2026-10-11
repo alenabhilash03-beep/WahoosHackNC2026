@@ -43,7 +43,8 @@ low-resolution renderer; check performance on your target devices.
 
   Real grading needs the server; see "Local mode" in `server/README.md`. On GitHub Pages the page explains that.
 - `card.html?id=...` shows the complete grader report, verified evidence, timed transcript playback, top-three authored tips, prior-best deltas and a speech radar. Signed recording URLs are refreshed by reloading the card. Legacy reports without word timings remain readable.
-- `config.js` contains only the public API URL and Supabase URL/anonymous key. Anonymous sign-in is shared across pages through the Supabase session. Never add service-role, ElevenLabs or Gemini keys to the browser. Same-origin FastAPI serving provides public configuration automatically; GitHub Pages needs those values configured in this file.
+- `login.html` supports email/password signup, confirmation, sign-in, and password reset. Account controls let users sign out from any screen. Signed-out and anonymous visitors are redirected to login before protected API requests. See the [email accounts guide](../docs/implementation/email-accounts.md) for dashboard settings and SMTP.
+- `config.js` contains only the public API URL, Supabase URL, and anon/publishable key. The account session is shared across pages and refreshed by Supabase. Never add service-role, ElevenLabs or Gemini keys to the browser. Same-origin FastAPI serving provides public configuration automatically; GitHub Pages needs those values configured in this file and a deployed API URL.
 - Start the backend using `server/README.md`. The static HTTP server above still serves the home screen; the other screens need the API configured.
 
 ## Progress page

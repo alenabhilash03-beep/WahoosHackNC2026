@@ -1,4 +1,5 @@
 import { WALK_SECONDS, showHome, walkToStage } from "./js/arena.js";
+import {requireAccount} from './js/auth.js';
 
 // ARGUE: the speaker walks down the aisle and up the stage steps, then the
 // practice screen opens on the same frame (see practice.html, data-arena="stage").
@@ -10,6 +11,12 @@ argue.addEventListener("click", async (event) => {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
   if (walking) return;
+  try {
+    if (!await requireAccount('practice.html')) return;
+  } catch (error) {
+    document.querySelector('.hint').textContent = error.message;
+    return;
+  }
   walking = true;
   document.body.classList.add("walking");
   // Animation frames pause in a hidden tab; the timer makes sure the page still moves on.

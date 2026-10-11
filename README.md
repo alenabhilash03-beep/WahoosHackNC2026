@@ -14,6 +14,8 @@ other's speeches head to head.
 - [`Arena/arena_ratings.py`](Arena/arena_ratings.py): turns community votes into crowd scores.
 - [`supabase/migrations/`](supabase/migrations/): the database schema.
 - [`web/`](web/README.md): the pixel-art home screen.
+- [Email accounts](docs/implementation/email-accounts.md): Supabase signup, login,
+  password reset, SMTP, and deployment setup.
 
 The two-player duel is parked (see the end of the Build Plan; `Arena/match_judge.py` scores it).
 The earlier NetworkMaxx plan is archived in [`docs/implementation/archive/`](docs/implementation/archive/).
