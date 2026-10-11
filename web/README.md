@@ -79,3 +79,6 @@ emotion, tone, diction, pace), drawn as pixel art in the arena style: the first 
 outline, with a tooltip per part and a table view. It now calls authenticated `GET /api/me`, supports individual prompts or all prompts, names the graded attempt each best came from, and shows gains, best overall and the last ten scores. Failed and ungradable takes are excluded. Tests: `node --test web/test/*.test.mjs`.
 
 The explicit local demo serves saved reports and matching synthetic buzz audio over the same HTTP routes; it does not grade real uploads. See [Phase 2 implementation](../docs/implementation/phase-2-solo.md) for acceptance coverage and remaining live-service checks.
+## Typography
+
+Headings and mode names use Press Start 2P. Supporting intro and account copy uses Pixelify Sans at regular weight for thinner pixel lettering. Both fonts are served from `fonts/` through `typography.css`; their SIL Open Font License files are included beside the font files. Sources: [Press Start 2P](https://github.com/google/fonts/tree/main/ofl/pressstart2p) and [Pixelify Sans](https://github.com/google/fonts/tree/main/ofl/pixelifysans).

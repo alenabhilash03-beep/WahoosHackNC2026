@@ -1,22 +1,24 @@
+@import url("typography.css");
+
 /* Account screens share the arena's velvet, gold trim, and pixel headings. */
 .auth-page { max-width: 600px; }
 .auth-panel { padding: clamp(20px, 5vw, 36px); margin: 8px; background: var(--panel); box-shadow: 0 0 0 4px var(--gold-dark), 0 0 0 8px #000, 8px 12px 0 8px #0006; }
-.auth-copy, .auth-link { font-family: system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
+.auth-copy, .auth-link { font-family: var(--font-copy); font-weight: 400; font-size: 20px; line-height: 1.5; }
 .auth-copy { color: var(--ink-dim); }
 #auth-status { min-height: 26px; overflow-wrap: anywhere; }
 #auth-status[data-error="true"] { color: #ffaaa3; }
 .auth-providers { display: grid; gap: 16px; margin: 28px 0 24px; }
-.auth-provider { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; border: 2px solid; padding: 14px 16px; font: 600 16px/1.4 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 0 #000; }
+.auth-provider { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 52px; border: 2px solid; padding: 14px 16px; font: 400 20px/1.4 var(--font-copy); cursor: pointer; box-shadow: 0 4px 0 #000; }
 .auth-provider svg { flex-shrink: 0; }
 .auth-github { color: #fff; background: #24292f; border-color: #586069; }
 .auth-provider:not(:disabled):hover { filter: brightness(.92); }
-.auth-note { font-size: 14px; margin-bottom: 0; }
+.auth-note { font-size: 18px; margin-bottom: 0; }
 .auth-link { display: inline-block; padding: 10px 0; color: var(--gold); border: 0; background: transparent; text-decoration: underline; cursor: pointer; min-height: 44px; }
 .auth-panel :focus-visible, .account-control:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
 .auth-panel :disabled { opacity: .6; cursor: not-allowed; }
 [hidden] { display: none !important; }
 .account-nav { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 14px 20px; flex-wrap: wrap; }
-.account-label { font: 14px/1.4 system-ui, sans-serif; max-width: 60vw; overflow-wrap: anywhere; }
+.account-label { font: 400 18px/1.4 var(--font-copy); max-width: 60vw; overflow-wrap: anywhere; }
 .account-control { font: inherit; font-size: 10px; color: var(--gold); border: 1px solid var(--gold-dark); background: #100b13; padding: 12px; text-decoration: none; min-height: 44px; cursor: pointer; }
 body[data-arena="home"] .account-nav { position: fixed; top: 12px; right: 12px; z-index: 10; max-width: 45vw; }
 @media (max-width: 680px) { body[data-arena="home"] .account-nav { top: 170px; max-width: 100%; } }
