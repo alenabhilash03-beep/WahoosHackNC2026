@@ -110,6 +110,12 @@ export const sfx = {
   },
   tick() { if (!ready()) return; tone({ freq: hz(74), dur: 0.1, vol: 0.08 }); },
   go() { if (!ready()) return; tone({ freq: hz(86), dur: 0.35, vol: 0.09 }); tone({ freq: hz(93), type: 'triangle', dur: 0.4, vol: 0.07 }); },
+  micDrop() {
+    if (!ready()) return;
+    noise({at: 0.42, dur: 0.3, vol: 0.05, band: 2400, q: 0.4});
+    tone({freq: 160, type: 'sine', at: 1.35, dur: 0.2, vol: 0.15, slide: 45});
+    noise({at: 1.35, dur: 0.12, vol: 0.12, band: 900, q: 0.6});
+  },
 
   /** A crowd of virtual clappers, full for 40% of the time, then fading out. */
   applause(seconds = 3) {

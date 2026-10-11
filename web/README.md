@@ -16,17 +16,27 @@ pixels stay crisp and attached to the model as it turns.
 
 The canvas renders at the viewport size with antialiasing, rather than enlarging
 a roughly 200-row image. This reduces the large outline jumps caused by moving
-geometry crossing a coarse screen pixel grid. On the home screen the camera stays
-fixed while head turns, breathing and blinking animate.
+geometry crossing a coarse screen pixel grid.
 
 The scene lives in `js/arena.js`, shared by the home screen and `practice.html`.
-**ARGUE** plays a 3-second walk (`WALK_SECONDS`): the speaker turns, walks down
-the aisle with the camera following, and climbs the stage steps. The practice
-screen then opens on the same frame: `<body data-arena="stage">` draws the speaker
-frozen at the foot of the stage before the first paint, and the pages cross-fade.
-The walk is a pure function of time, so `(await import("./js/arena.js")).poseAt(2.5)`
-in the browser console holds any moment for tuning. Reduced-motion users skip
-straight to the end pose.
+After loading, the home screen starts in the speaker's eyes on stage. Three
+on-stage viewpoints slowly sweep across the cheering house on a continuous
+36-second loop (`js/intro-motion.js`). A handheld microphone uses a faceted
+icosahedron grille and an eight-sided handle. Hover or keyboard-focus either
+mode card, then select it to lift, release, and tumble the mic across the screen
+before a 1.8-second fade into practice. Reduced-motion users get a static view
+and immediate navigation. Links remain usable if WebGL or the CDN fails.
+
+**Solo Speak** opens `practice.html?mode=solo`, keeping the difficulty and
+category picker. **Daily Prompt** opens `practice.html?mode=daily`, selecting the
+API prompt with `featured: true` (the backend's UTC prompt of the day), then
+asking for YES or NO without a topic picker. If none is published, the page
+offers retry and a return to the arena. Existing account requirements still
+apply in practice; the selected mode survives the sign-in return URL.
+
+The practice screen opens with the speaker at the foot of the stage. The
+existing walk and podium animations remain available; `poseAt(seconds)` in
+`js/arena.js` can hold the walk at any moment for tuning.
 
 `MAX_PIXEL_RATIO` caps the device pixel ratio at 2 to limit the rendering cost on
 high-density screens. This uses a larger drawing buffer than the original
@@ -34,7 +44,7 @@ low-resolution renderer; check performance on your target devices.
 
 ## Solo practice and feedback
 
-- **ARGUE** walks the speaker to the stage, then opens `practice.html`, the round:
+- **Solo Speak** opens `practice.html`, the round:
   1. Pick a difficulty (beginner, intermediate, expert) and a category: five random well-known ones (`js/topics.js`) or your own.
   2. The speaker climbs onto the stage and walks to the podium (~2 s) while the server writes a yes-or-no question (`POST /api/questions`). Choose YES or NO.
   3. A 5-second countdown through the speaker's eyes, gazing left to right across the audience and the stage lights.
@@ -43,10 +53,10 @@ low-resolution renderer; check performance on your target devices.
 
 ## Sound
 
-All audio is synthesised in `js/sound.js` (Web Audio, no files): the lobby's chiptune loop, click and
+All audio is synthesised in `js/sound.js` (Web Audio, no files): the intro's applause and mic-drop sound, click and
 hover sounds on every control (`wireSounds`), the question chime, countdown beeps, applause and grade
 fanfares. The ♪ ON / OFF button (`addSoundToggle`) is remembered in `localStorage`. Browsers allow
-sound only after a press on the page, so the music starts with the first click. Inside the stage page,
+sound only after a press on the page, so intro applause starts with the first click or key press. Inside the stage page,
 the speech card asks that page (`postMessage`) to play the fanfare, since it already has permission.
 
 ## Audience
@@ -54,7 +64,7 @@ the speech card asks that page (`postMessage`) to play the fanfare, since it alr
 Everyone in the hall comes from `createCrowd` in `js/arena.js`: one `InstancedMesh` per body part. Each
 person has a mood from neutral to beaming (mouth, smile corners, eyebrows), blinks on their own clock,
 and glances and nods; during applause the mood lifts and box hands clap under the chin. The front rows
-are always shown; the rest of the house and the balcony only from the podium.
+are always shown; the rest of the house and the balcony appear in the intro and from the podium.
 
   Real grading needs the server; see "Local mode" in `server/README.md`. On GitHub Pages the page explains that.
 - `card.html?id=...` shows the complete grader report, verified evidence, timed transcript playback, top-three authored tips, prior-best deltas and a speech radar. Signed recording URLs are refreshed by reloading the card. Legacy reports without word timings remain readable.
