@@ -13,6 +13,7 @@ changing the standards re-grades old recordings without calling any API.
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import audio
@@ -51,7 +52,14 @@ def grade(audio_path: str, topic: str, side: str, config_dir: str | None = None,
     standards, lexicons, standards_id = load_standards(config_dir)
 
     audio_sha = sha256_file(audio_path)
-    scribe = transcript or transcribe(audio_path, standards["apis"]["elevenlabs"], cache_dir, audio_sha)
+    # Our own pitch and loudness analysis needs only the audio, so it runs while
+    # ElevenLabs transcribes.
+    analysis = standards["analysis"]
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        voice = pool.submit(lambda: audio.track_voice(audio.decode(audio_path),
+                                                      analysis["pitch_floor_hz"], analysis["pitch_ceiling_hz"]))
+        scribe = transcript or transcribe(audio_path, standards["apis"]["elevenlabs"], cache_dir, audio_sha)
+        track = voice.result()
     words = words_from_scribe(scribe)
     text = scribe.get("text") or " ".join(w["raw"] for w in words)
 
@@ -70,8 +78,6 @@ def grade(audio_path: str, topic: str, side: str, config_dir: str | None = None,
                       reason=f"Only {len(words)} words were spoken; at least {minimum} are needed.")
         return report
 
-    analysis = standards["analysis"]
-    track = audio.track_voice(audio.decode(audio_path), analysis["pitch_floor_hz"], analysis["pitch_ceiling_hz"])
     annotations = extraction or extract(text, topic, standards["apis"]["gemini"], cache_dir)
     features, evidence = compute_features(scribe, track, annotations, lexicons, standards, side)
 

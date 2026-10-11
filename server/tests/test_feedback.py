@@ -35,6 +35,21 @@ class FeedbackTests(unittest.TestCase):
                 metric['score'] = 100
         self.assertEqual(top_fixes(report), [])
 
+    def test_every_critical_rule_has_a_tip(self):
+        for factor in SAMPLE['factors'].values():
+            for rule in factor['critical']:
+                self.assertIn(rule['metric'], TIPS)
+
+    def test_critical_failure_is_the_first_fix_and_losses_still_add_up(self):
+        standards, _, _ = load_standards(str(ROOT / 'softskills-grader/config'))
+        features = dict(SAMPLE['measurements'], off_topic=1)
+        report = dict(copy.deepcopy(SAMPLE), **score_all(features, standards))
+        self.assertEqual(report['overall']['score'], 25)
+        fixes = top_fixes(report)
+        self.assertEqual((fixes[0]['kind'], fixes[0]['metric']), ('critical', 'off_topic'))
+        self.assertAlmostEqual(fixes[0]['lost_points'], report['overall']['uncapped'] - 25)
+        self.assertAlmostEqual(sum(x['lost_points'] for x in losses(report)), 100 - 25, delta=0.1)
+
     def test_ungradable_has_no_scores_or_fixes(self):
         report = {'gradable': False, 'overall': {'score': 0, 'letter': 'F'}, 'factors': {}, 'reason': 'Too short'}
         row = speech(report=report)

@@ -71,7 +71,7 @@ class PipelineIntegrationTests(unittest.TestCase):
             self.assertTrue(all(word['end'] >= word['start'] >= 0 for word in card['report']['words']))
             rubric_rows = sum(len(factor['metrics']) + len(factor['deductions'])
                               for factor in card['report']['factors'].values())
-            self.assertEqual(rubric_rows, 24)
+            self.assertEqual(rubric_rows, 25)
             self.assertEqual(len(card['fixes']), 3)
             self.assertEqual(card['previous_best']['id'], ids[0])
             self.assertEqual(card['deltas']['overall'], 0)

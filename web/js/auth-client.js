@@ -5,7 +5,7 @@ let clientPromise;
 export function getAuthClient(config = globalThis.ARENA_CONFIG ?? {}) {
   if (!clientPromise) {
     const { url, key } = validateConfig(config);
-    clientPromise = import('https://esm.sh/@supabase/supabase-js@2.49.8')
+    clientPromise = import('https://esm.sh/@supabase/supabase-js@2.117.3')
       .then(({ createClient }) => createClient(url, key))
       .catch(error => { clientPromise = undefined; throw error; });
   }

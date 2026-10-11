@@ -15,10 +15,11 @@ import json
 import os
 from pathlib import Path
 
-from .http import post_with_retry
+from .http import OVERLOADED, first_success, post_with_retry
 
 URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
-PROMPT_VERSION = "2026-10-10.1"   # bump when the prompt or schema changes (invalidates cache)
+PROMPT_VERSION = "2026-10-11.1"   # bump when the prompt or schema changes (invalidates cache)
+HEDGE_AFTER = 8                   # seconds; a normal answer takes about 3
 
 SUPPORT_TYPES = ["none", "reasoning", "example", "statistic", "authority", "analogy"]
 REASONING_FALLACIES = ["straw_man", "false_dilemma", "slippery_slope", "hasty_generalization",
@@ -29,12 +30,26 @@ APPEAL_TYPES = ["personal_story", "vivid_imagery", "shared_values", "human_stake
 
 _QUOTE = "Copied word for word from the transcript. Empty string if there is none."
 
+TOPIC_LEVELS = ["yes", "partly", "no"]
+
 SCHEMA = {
     "type": "object",
     "properties": {
+        "on_topic": {
+            "type": "string", "enum": TOPIC_LEVELS,
+            "description": ("Does the speech answer the topic question? 'yes' if it argues about the "
+                            "question asked; 'partly' if much of it drifts to other subjects; 'no' if it "
+                            "is about something else, or never engages with the question at all."),
+        },
+        "position": {
+            "type": "string",
+            "description": "One short sentence in your own words: what does the speaker want to happen?",
+        },
         "stance": {
             "type": "string", "enum": ["yes", "no", "unclear"],
-            "description": "Which side of the topic question the speech argues for.",
+            "description": ("The speaker's answer to the topic question exactly as it is worded. Read "
+                            "the question literally: for 'Should homework be banned?', a speaker who "
+                            "wants to keep homework answers 'no'. 'unclear' if no answer can be told."),
         },
         "thesis_quote": {"type": "string", "description": "The sentence stating the speaker's position. " + _QUOTE},
         "conclusion_quote": {"type": "string", "description": "A closing sentence that restates or wraps up the position. " + _QUOTE},
@@ -81,7 +96,7 @@ SCHEMA = {
         },
     },
     "required": ["stance", "thesis_quote", "conclusion_quote", "arguments",
-                 "counterargument_quote", "rebuttal_quote", "fallacies", "emotional_appeals"],
+                 "counterargument_quote", "rebuttal_quote", "fallacies", "emotional_appeals", "on_topic", "position"],
 }
 
 SYSTEM = """You annotate transcripts of short spoken arguments. You extract structure; you do not grade.
@@ -92,7 +107,9 @@ Rules:
 - Do not judge whether claims are true. Record only whether the speaker backed them up.
 - Do not give scores, ratings or opinions on quality.
 - List each claim once. A claim and its support must be different passages.
-- Only flag a fallacy when it is clear-cut."""
+- Only flag a fallacy when it is clear-cut.
+- Judge on_topic by whether the speech engages with the topic question, not by how well it argues.
+- For stance, first state the speaker's position, then decide whether that position answers the topic question as literally worded with yes or with no."""
 
 
 def build_prompt(transcript: str, topic: str) -> str:
@@ -138,19 +155,21 @@ def extract(transcript: str, topic: str, cfg: dict, cache_dir: str) -> dict:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
-    # Try the configured model first. If it stays overloaded, try each fallback model.
-    # Whichever model answers, the result is cached under the same key, so this
-    # recording keeps the same annotations from then on.
+    # Try the configured model first. If it is rate limited, stays overloaded, or is
+    # much slower than usual, try the fallback models too and keep the first good
+    # answer. A rate limit is per model, so it moves on at once instead of waiting. Whichever
+    # model answers, the result is cached under the same key, so this recording
+    # keeps the same annotations from then on.
     models = [request["model"]] + [m for m in cfg.get("fallback_models") or [] if m != request["model"]]
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
-    problems = []
-    for model in models:
-        response = post_with_retry(URL, headers=headers, json={**request, "model": model}, timeout=180)
-        if response.status_code < 400:
-            break
-        problems.append(f"{model}: {response.status_code} {response.text[:300]}")
-    else:
-        raise RuntimeError("Gemini could not analyse the transcript.\n" + "\n".join(problems))
+    attempts = [(model, lambda over, model=model: post_with_retry(
+                    URL, retry_on=OVERLOADED, cancelled=over, headers=headers,
+                    json={**request, "model": model}))
+                for model in models]
+    try:
+        response, _ = first_success(attempts, hedge_after=HEDGE_AFTER)
+    except RuntimeError as error:
+        raise RuntimeError(f"Gemini could not analyse the transcript.\n{error}") from None
     result = parse_response(response.json())
 
     cache_file.parent.mkdir(parents=True, exist_ok=True)

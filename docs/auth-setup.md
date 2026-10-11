@@ -1,5 +1,9 @@
 # Account setup
 
+For the live GitHub Pages website and automated deployment, follow
+[website deployment](website-deployment.md). Its existing URL uses `/web/index.html`,
+so that production URL must be used for the confirmation redirect.
+
 The static frontend now supports email/password registration, email confirmation,
 login, session restoration/refresh, and logout through Supabase Auth. ARGUE prompts
 signed-out visitors to log in and retains the existing scene animation for signed-in
@@ -55,7 +59,7 @@ is also supported). Never commit server/.env. Keep anonymous sign-in enabled onl
 if you want the existing direct-link guest practice flow. Local DEMO_MODE remains
 available without Supabase: home ARGUE navigates to practice on loopback hosts.
 
-The SDK is pinned to Supabase JS 2.49.8 via esm.sh. The Three.js and font CDN behavior
+The SDK is pinned to Supabase JS 2.117.3 via esm.sh. The Three.js and font CDN behavior
 is unchanged. Without configuration or with an unreachable SDK CDN, the account
 dialog displays an unavailable message and the scene remains usable.
 

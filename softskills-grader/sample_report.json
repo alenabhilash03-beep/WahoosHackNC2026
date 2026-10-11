@@ -56,6 +56,8 @@
         }
       ],
       "fallacies": [],
+      "on_topic": "yes",
+      "position_read": "",
       "rebuttal_found": true,
       "side_chosen": "yes",
       "stance_argued": "yes",
@@ -89,6 +91,7 @@
     "tone": {
       "hedges": [],
       "median_pitch_hz": 120.7,
+      "monotone_ranges": [],
       "uptalk_sentences": [
         {
           "ends_at_seconds": 18.21,
@@ -149,6 +152,26 @@
   "factors": {
     "diction": {
       "base": 100.0,
+      "critical": [
+        {
+          "cap": 55.0,
+          "condition": "below 55",
+          "label": "Vocabulary variety",
+          "metric": "vocabulary_variety_pct",
+          "reason": "Extremely repetitive wording: the same few words over and over.",
+          "triggered": false,
+          "value": 89.67
+        },
+        {
+          "cap": 55.0,
+          "condition": "15 or more",
+          "label": "Filler words",
+          "metric": "fillers_per_100_words",
+          "reason": "One word in every seven is a filler: the argument gets lost in them.",
+          "triggered": false,
+          "value": 1.94
+        }
+      ],
       "deducted": 0.0,
       "deductions": [
         {
@@ -199,6 +222,17 @@
     },
     "emotion": {
       "base": 94.0,
+      "critical": [
+        {
+          "cap": 50.0,
+          "condition": "2 or more",
+          "label": "Fear-mongering or personal attacks",
+          "metric": "manipulative_appeal_count",
+          "reason": "Leans on fear-mongering or personal attacks instead of fair appeals.",
+          "triggered": false,
+          "value": 0.0
+        }
+      ],
       "deducted": 0.0,
       "deductions": [
         {
@@ -249,6 +283,44 @@
     },
     "logic": {
       "base": 100.0,
+      "critical": [
+        {
+          "cap": 25.0,
+          "condition": "1 or more",
+          "label": "Speech does not address the question",
+          "metric": "off_topic",
+          "reason": "The speech does not address the question.",
+          "triggered": false,
+          "value": 0.0
+        },
+        {
+          "cap": 40.0,
+          "condition": "1 or more",
+          "label": "Argued the opposite side",
+          "metric": "stance_mismatch",
+          "reason": "Argued the opposite side from the one chosen.",
+          "triggered": false,
+          "value": 0.0
+        },
+        {
+          "cap": 50.0,
+          "condition": "below 1",
+          "label": "Arguments backed by reasoning or evidence",
+          "metric": "supported_arguments",
+          "reason": "No argument for your side was backed by a reason or evidence.",
+          "triggered": false,
+          "value": 3.0
+        },
+        {
+          "cap": 60.0,
+          "condition": "below 50",
+          "label": "Logic score",
+          "metric": "logic_score",
+          "reason": "Logic scored below 50: a weak argument cannot be carried by delivery.",
+          "triggered": false,
+          "value": 100.0
+        }
+      ],
       "deducted": 0.0,
       "deductions": [
         {
@@ -284,6 +356,15 @@
           "max_points": 15,
           "metric": "stance_unclear",
           "points_each": 15,
+          "points_lost": 0.0,
+          "value": 0.0
+        },
+        {
+          "free": 0,
+          "label": "Speech drifts away from the question",
+          "max_points": 20,
+          "metric": "topic_drift",
+          "points_each": 20,
           "points_lost": 0.0,
           "value": 0.0
         }
@@ -336,6 +417,26 @@
     },
     "pace": {
       "base": 100.0,
+      "critical": [
+        {
+          "cap": 55.0,
+          "condition": "below 95",
+          "label": "Speaking rate",
+          "metric": "words_per_minute",
+          "reason": "Far too slow: under 95 words per minute, listeners lose the thread.",
+          "triggered": false,
+          "value": 157.95
+        },
+        {
+          "cap": 55.0,
+          "condition": "below 40",
+          "label": "Allotted time used",
+          "metric": "time_used_pct",
+          "reason": "Used under 40% of the time: too little was said to make the case.",
+          "triggered": false,
+          "value": 98.13
+        }
+      ],
       "deducted": 0.0,
       "deductions": [
         {
@@ -386,6 +487,26 @@
     },
     "tone": {
       "base": 83.1,
+      "critical": [
+        {
+          "cap": 60.0,
+          "condition": "below 10",
+          "label": "Pitch variation (PVQ: pitch SD / mean, per 10 s)",
+          "metric": "pitch_variation_pct",
+          "reason": "Very flat, meek delivery: flatter than any speaker in the research.",
+          "triggered": false,
+          "value": 11.79
+        },
+        {
+          "cap": 60.0,
+          "condition": "4 or more",
+          "label": "Hedging phrases",
+          "metric": "hedges_per_100_words",
+          "reason": "Constant hedging (maybe, I guess, sort of): the speech sounds unsure of itself.",
+          "triggered": false,
+          "value": 0.0
+        }
+      ],
       "deducted": 0.0,
       "deductions": [
         {
@@ -439,8 +560,8 @@
   "inputs": {
     "audio_sha256": "2cddba80d48dab93157b892daa4612c51cc24bb38814f5d38133a69732cbcf62",
     "side": "yes",
-    "standards_id": "a77efe3fa4a259e1",
-    "standards_version": "2026-10-10.2-research",
+    "standards_id": "fb601bca6093cfa7",
+    "standards_version": "2026-10-11.1-critical",
     "topic": "Should the frontier of AI be paced?",
     "word_count": 155
   },
@@ -458,6 +579,7 @@
     "loudness_variation_db": 2.14,
     "manipulative_appeal_count": 0.0,
     "monotone_window_count": 0.0,
+    "off_topic": 0.0,
     "pace_variation_pct": 14.85,
     "pause_time_pct": 15.52,
     "pitch_variation_pct": 11.79,
@@ -469,15 +591,950 @@
     "structure_points": 2.0,
     "supported_arguments": 3.0,
     "time_used_pct": 98.13,
+    "topic_drift": 0.0,
     "unsupported_claim_count": 1.0,
     "uptalk_pct": 18.18,
     "vocabulary_variety_pct": 89.67,
     "words_per_minute": 157.95
   },
   "overall": {
+    "capped_by": [],
     "letter": "A",
-    "score": 95.7
+    "score": 95.7,
+    "uncapped": 95.7
   },
   "reason": null,
-  "transcript": "I believe the frontier of AI should be paced. First, safety research needs time to catch up, because right now we can build systems faster than we can test them. For example, um, labs have released models and only later discovered serious flaws. Second, pacing protects ordinary people. Imagine a nurse or a truck driver who wakes up one morning and finds that their job has disappeared overnight. Our families deserve time to adapt. Third, trust matters. A recent survey found that most people, uh, do not trust companies to regulate themselves, which means moving slower is how we earn that trust. Some people argue that slowing down lets our rivals win the race. However, a race with no brakes does not have a winner, it just has a crash. So, I think we should, you know, set the pace together. In conclusion, we should pace the frontier, because the future is worth getting right."
+  "transcript": "I believe the frontier of AI should be paced. First, safety research needs time to catch up, because right now we can build systems faster than we can test them. For example, um, labs have released models and only later discovered serious flaws. Second, pacing protects ordinary people. Imagine a nurse or a truck driver who wakes up one morning and finds that their job has disappeared overnight. Our families deserve time to adapt. Third, trust matters. A recent survey found that most people, uh, do not trust companies to regulate themselves, which means moving slower is how we earn that trust. Some people argue that slowing down lets our rivals win the race. However, a race with no brakes does not have a winner, it just has a crash. So, I think we should, you know, set the pace together. In conclusion, we should pace the frontier, because the future is worth getting right.",
+  "words": [
+    {
+      "confidence": 0.9801986733067553,
+      "end": 0.52,
+      "start": 0.4,
+      "text": "I"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 0.942,
+      "start": 0.56,
+      "text": "believe"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 1.18,
+      "start": 0.982,
+      "text": "the"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 1.648,
+      "start": 1.22,
+      "text": "frontier"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 1.84,
+      "start": 1.688,
+      "text": "of"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 2.032,
+      "start": 1.88,
+      "text": "AI"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 2.408,
+      "start": 2.072,
+      "text": "should"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 2.6,
+      "start": 2.448,
+      "text": "be"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 2.93,
+      "start": 2.64,
+      "text": "paced."
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 3.72,
+      "start": 3.43,
+      "text": "First,"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 4.276,
+      "start": 3.94,
+      "text": "safety"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 4.744,
+      "start": 4.316,
+      "text": "research"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 5.074,
+      "start": 4.784,
+      "text": "needs"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 5.358,
+      "start": 5.114,
+      "text": "time"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 5.55,
+      "start": 5.398,
+      "text": "to"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 5.88,
+      "start": 5.59,
+      "text": "catch"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 6.072,
+      "start": 5.92,
+      "text": "up,"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 6.674,
+      "start": 6.292,
+      "text": "because"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 7.004,
+      "start": 6.714,
+      "text": "right"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 7.242,
+      "start": 7.044,
+      "text": "now"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 7.434,
+      "start": 7.282,
+      "text": "we"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 7.672,
+      "start": 7.474,
+      "text": "can"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 8.002,
+      "start": 7.712,
+      "text": "build"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 8.424,
+      "start": 8.042,
+      "text": "systems"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 8.8,
+      "start": 8.464,
+      "text": "faster"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 9.084,
+      "start": 8.84,
+      "text": "than"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 9.276,
+      "start": 9.124,
+      "text": "we"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 9.514,
+      "start": 9.316,
+      "text": "can"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 9.798,
+      "start": 9.554,
+      "text": "test"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 10.082,
+      "start": 9.838,
+      "text": "them."
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 10.78,
+      "start": 10.582,
+      "text": "For"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 11.202,
+      "start": 10.82,
+      "text": "example,"
+    },
+    {
+      "confidence": 0.7046880897187134,
+      "end": 11.774,
+      "start": 11.622,
+      "text": "um,"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 12.238,
+      "start": 11.994,
+      "text": "labs"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 12.522,
+      "start": 12.278,
+      "text": "have"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 12.99,
+      "start": 12.562,
+      "text": "released"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 13.366,
+      "start": 13.03,
+      "text": "models"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 13.604,
+      "start": 13.406,
+      "text": "and"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 13.888,
+      "start": 13.644,
+      "text": "only"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 14.218,
+      "start": 13.928,
+      "text": "later"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 14.758,
+      "start": 14.258,
+      "text": "discovered"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 15.18,
+      "start": 14.798,
+      "text": "serious"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 15.51,
+      "start": 15.22,
+      "text": "flaws."
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 16.346,
+      "start": 16.01,
+      "text": "Second,"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 16.902,
+      "start": 16.566,
+      "text": "pacing"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 17.37,
+      "start": 16.942,
+      "text": "protects"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 17.838,
+      "start": 17.41,
+      "text": "ordinary"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 18.214,
+      "start": 17.878,
+      "text": "people."
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 20.796,
+      "start": 20.414,
+      "text": "Imagine"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 20.956,
+      "start": 20.836,
+      "text": "a"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 21.286,
+      "start": 20.996,
+      "text": "nurse"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 21.478,
+      "start": 21.326,
+      "text": "or"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 21.638,
+      "start": 21.518,
+      "text": "a"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 21.968,
+      "start": 21.678,
+      "text": "truck"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 22.344,
+      "start": 22.008,
+      "text": "driver"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 22.582,
+      "start": 22.384,
+      "text": "who"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 22.912,
+      "start": 22.622,
+      "text": "wakes"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 23.104,
+      "start": 22.952,
+      "text": "up"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 23.342,
+      "start": 23.144,
+      "text": "one"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 23.764,
+      "start": 23.382,
+      "text": "morning"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 24.002,
+      "start": 23.804,
+      "text": "and"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 24.332,
+      "start": 24.042,
+      "text": "finds"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 24.616,
+      "start": 24.372,
+      "text": "that"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 24.946,
+      "start": 24.656,
+      "text": "their"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 25.184,
+      "start": 24.986,
+      "text": "job"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 25.422,
+      "start": 25.224,
+      "text": "has"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 25.962,
+      "start": 25.462,
+      "text": "disappeared"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 26.476,
+      "start": 26.002,
+      "text": "overnight."
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 27.174,
+      "start": 26.976,
+      "text": "Our"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 27.642,
+      "start": 27.214,
+      "text": "families"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 28.064,
+      "start": 27.682,
+      "text": "deserve"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 28.348,
+      "start": 28.104,
+      "text": "time"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 28.54,
+      "start": 28.388,
+      "text": "to"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 28.87,
+      "start": 28.58,
+      "text": "adapt."
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 29.66,
+      "start": 29.37,
+      "text": "Third,"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 30.17,
+      "start": 29.88,
+      "text": "trust"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 30.592,
+      "start": 30.21,
+      "text": "matters."
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 31.212,
+      "start": 31.092,
+      "text": "A"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 31.588,
+      "start": 31.252,
+      "text": "recent"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 31.964,
+      "start": 31.628,
+      "text": "survey"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 32.294,
+      "start": 32.004,
+      "text": "found"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 32.578,
+      "start": 32.334,
+      "text": "that"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 32.862,
+      "start": 32.618,
+      "text": "most"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 33.238,
+      "start": 32.902,
+      "text": "people,"
+    },
+    {
+      "confidence": 0.7046880897187134,
+      "end": 33.81,
+      "start": 33.658,
+      "text": "uh,"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 34.182,
+      "start": 34.03,
+      "text": "do"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 34.42,
+      "start": 34.222,
+      "text": "not"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 34.75,
+      "start": 34.46,
+      "text": "trust"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 35.264,
+      "start": 34.79,
+      "text": "companies"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 35.456,
+      "start": 35.304,
+      "text": "to"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 35.924,
+      "start": 35.496,
+      "text": "regulate"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 36.464,
+      "start": 35.964,
+      "text": "themselves,"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 36.974,
+      "start": 36.684,
+      "text": "which"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 37.304,
+      "start": 37.014,
+      "text": "means"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 37.68,
+      "start": 37.344,
+      "text": "moving"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 38.056,
+      "start": 37.72,
+      "text": "slower"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 38.248,
+      "start": 38.096,
+      "text": "is"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 38.486,
+      "start": 38.288,
+      "text": "how"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 38.678,
+      "start": 38.526,
+      "text": "we"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 38.962,
+      "start": 38.718,
+      "text": "earn"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 39.246,
+      "start": 39.002,
+      "text": "that"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 39.576,
+      "start": 39.286,
+      "text": "trust."
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 41.42,
+      "start": 41.176,
+      "text": "Some"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 41.796,
+      "start": 41.46,
+      "text": "people"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 42.126,
+      "start": 41.836,
+      "text": "argue"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 42.41,
+      "start": 42.166,
+      "text": "that"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 42.832,
+      "start": 42.45,
+      "text": "slowing"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 43.116,
+      "start": 42.872,
+      "text": "down"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 43.4,
+      "start": 43.156,
+      "text": "lets"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 43.638,
+      "start": 43.44,
+      "text": "our"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 44.014,
+      "start": 43.678,
+      "text": "rivals"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 44.252,
+      "start": 44.054,
+      "text": "win"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 44.49,
+      "start": 44.292,
+      "text": "the"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 44.774,
+      "start": 44.53,
+      "text": "race."
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 45.656,
+      "start": 45.274,
+      "text": "However,"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 45.996,
+      "start": 45.876,
+      "text": "a"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 46.28,
+      "start": 46.036,
+      "text": "race"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 46.564,
+      "start": 46.32,
+      "text": "with"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 46.756,
+      "start": 46.604,
+      "text": "no"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 47.132,
+      "start": 46.796,
+      "text": "brakes"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 47.416,
+      "start": 47.172,
+      "text": "does"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 47.654,
+      "start": 47.456,
+      "text": "not"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 47.938,
+      "start": 47.694,
+      "text": "have"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 48.098,
+      "start": 47.978,
+      "text": "a"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 48.474,
+      "start": 48.138,
+      "text": "winner,"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 48.846,
+      "start": 48.694,
+      "text": "it"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 49.13,
+      "start": 48.886,
+      "text": "just"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 49.368,
+      "start": 49.17,
+      "text": "has"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 49.528,
+      "start": 49.408,
+      "text": "a"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 49.858,
+      "start": 49.568,
+      "text": "crash."
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 50.51,
+      "start": 50.358,
+      "text": "So,"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 50.85,
+      "start": 50.73,
+      "text": "I"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 51.18,
+      "start": 50.89,
+      "text": "think"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 51.372,
+      "start": 51.22,
+      "text": "we"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 51.748,
+      "start": 51.412,
+      "text": "should,"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 52.166,
+      "start": 51.968,
+      "text": "you"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 52.45,
+      "start": 52.206,
+      "text": "know,"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 52.868,
+      "start": 52.67,
+      "text": "set"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 53.106,
+      "start": 52.908,
+      "text": "the"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 53.39,
+      "start": 53.146,
+      "text": "pace"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 53.858,
+      "start": 53.43,
+      "text": "together."
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 54.51,
+      "start": 54.358,
+      "text": "In"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 55.05,
+      "start": 54.55,
+      "text": "conclusion,"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 55.422,
+      "start": 55.27,
+      "text": "we"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 55.798,
+      "start": 55.462,
+      "text": "should"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 56.082,
+      "start": 55.838,
+      "text": "pace"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 56.32,
+      "start": 56.122,
+      "text": "the"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 56.788,
+      "start": 56.36,
+      "text": "frontier,"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 57.39,
+      "start": 57.008,
+      "text": "because"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 57.628,
+      "start": 57.43,
+      "text": "the"
+    },
+    {
+      "confidence": 0.9801986733067553,
+      "end": 58.004,
+      "start": 57.668,
+      "text": "future"
+    },
+    {
+      "confidence": 0.9685065820791976,
+      "end": 58.196,
+      "start": 58.044,
+      "text": "is"
+    },
+    {
+      "confidence": 0.9569539574730467,
+      "end": 58.526,
+      "start": 58.236,
+      "text": "worth"
+    },
+    {
+      "confidence": 0.9743350896087494,
+      "end": 58.948,
+      "start": 58.566,
+      "text": "getting"
+    },
+    {
+      "confidence": 0.9627129408911995,
+      "end": 59.278,
+      "start": 58.988,
+      "text": "right."
+    }
+  ]
 }
