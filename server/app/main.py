@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .feedback import me_card, speech_card
+from .leaderboard import UNNAMED, NameTaken, clean_name, rank
 from .questions import DIFFICULTIES, UnsuitableCategory, clean_category, generate_question
 from .settings import ROOT, Settings
 
@@ -35,6 +36,10 @@ def real_grade(path, prompt, side, cache_dir):
 class QuestionRequest(BaseModel):
     category: str
     difficulty: str
+
+
+class NameRequest(BaseModel):
+    display_name: str
 
 
 def create_app(settings=None, repository=None, grader=None, question_maker=None):
@@ -122,6 +127,28 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None)
     @app.get('/api/me')
     def me(uid=Depends(user), db=Depends(repo)):
         result = me_card(db.profile(uid), db.speeches(uid), db.prompts())
+        if settings.demo_mode:
+            result['demo'] = True
+        return result
+
+    @app.post('/api/me/name')
+    def name(body: NameRequest, uid=Depends(user), db=Depends(repo)):
+        if settings.demo_mode:
+            raise HTTPException(503, 'Local demo contains saved examples only. Configure live grading to play.')
+        try:
+            value = clean_name(body.display_name)
+            db.set_display_name(uid, value)
+        except ValueError as error:
+            raise HTTPException(422, str(error))
+        except NameTaken:
+            raise HTTPException(409, 'That name is taken. Try another one.')
+        return {'display_name': value}
+
+    @app.get('/api/leaderboard')
+    def leaderboard(uid=Depends(user), db=Depends(repo)):
+        display_name = db.profile(uid)['display_name']
+        result = rank(db.board_rows(), uid)
+        result['display_name'] = None if display_name == UNNAMED else display_name
         if settings.demo_mode:
             result['demo'] = True
         return result

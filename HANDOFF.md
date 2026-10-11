@@ -35,7 +35,7 @@ Storage), ElevenLabs Scribe and Gemini inside the grader.
 
 ## What to do next
 
-Follow [Phase 2 setup and acceptance](docs/implementation/phase-2-solo.md) and `server/README.md`: configure live services, apply the migrations, verify a real recording and retry, then complete Phase 2c calibration. Keep the community gate closed until the Build Plan's quality checks pass. Phases 3 and 4 are not implemented.
+Follow [Phase 2 setup and acceptance](docs/implementation/phase-2-solo.md) and `server/README.md`: configure live services, apply the migrations, verify a real recording and retry, then complete Phase 2c calibration. Keep the community gate closed until the Build Plan's quality checks pass. From Phase 3 only the grade leaderboard exists (`leaderboard.html`, `GET /api/leaderboard`): pick a name, unlimited tries, best score per player across all prompts. The prompt of the day, publishing, ranked attempts, season tiers and all of Phase 4 are not implemented.
 
 ## Decisions
 

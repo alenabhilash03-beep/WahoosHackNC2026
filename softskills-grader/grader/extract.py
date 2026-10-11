@@ -145,6 +145,27 @@ def parse_response(payload: dict) -> dict:
     return json.loads("".join(texts))
 
 
+def api_keys() -> list[str]:
+    """GEMINI_API_KEY, then any extra keys in GEMINI_API_KEYS (comma separated).
+
+    Quota is counted per Google Cloud project, so extra keys only add capacity
+    when each comes from a different project.
+    """
+    raw = f"{os.environ.get('GEMINI_API_KEY', '')},{os.environ.get('GEMINI_API_KEYS', '')}"
+    return list(dict.fromkeys(key.strip() for key in raw.split(",") if key.strip()))
+
+
+def key_attempts(models: list[str], post) -> list[tuple]:
+    """Attempts for first_success: every key on the first model, then on the next model.
+
+    post(model, headers, over) sends one request. Labels number the keys; they never show them.
+    """
+    keys = api_keys()
+    return [(model if len(keys) == 1 else f"{model}, key {number}",
+             lambda over, model=model, key=key: post(model, {"x-goog-api-key": key, "Content-Type": "application/json"}, over))
+            for model in models for number, key in enumerate(keys, 1)]
+
+
 def extract(transcript: str, topic: str, cfg: dict, cache_dir: str) -> dict:
     request = build_request(transcript, topic, cfg)
     key = hashlib.sha256(json.dumps([PROMPT_VERSION, request], sort_keys=True).encode()).hexdigest()[:32]
@@ -152,20 +173,16 @@ def extract(transcript: str, topic: str, cfg: dict, cache_dir: str) -> dict:
     if cache_file.exists():
         return json.loads(cache_file.read_text())
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
+    if not api_keys():
         raise RuntimeError("GEMINI_API_KEY is not set")
     # Try the configured model first. If it is rate limited, stays overloaded, or is
-    # much slower than usual, try the fallback models too and keep the first good
-    # answer. A rate limit is per model, so it moves on at once instead of waiting. Whichever
-    # model answers, the result is cached under the same key, so this recording
-    # keeps the same annotations from then on.
+    # much slower than usual, try the other keys and then the fallback models, and keep
+    # the first good answer. A rate limit is per key and model, so it moves on at once
+    # instead of waiting. Whichever attempt answers, the result is cached under the same
+    # key, so this recording keeps the same annotations from then on.
     models = [request["model"]] + [m for m in cfg.get("fallback_models") or [] if m != request["model"]]
-    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
-    attempts = [(model, lambda over, model=model: post_with_retry(
-                    URL, retry_on=OVERLOADED, cancelled=over, headers=headers,
-                    json={**request, "model": model}))
-                for model in models]
+    attempts = key_attempts(models, lambda model, headers, over: post_with_retry(
+        URL, retry_on=OVERLOADED, cancelled=over, headers=headers, json={**request, "model": model}))
     try:
         response, _ = first_success(attempts, hedge_after=HEDGE_AFTER)
     except RuntimeError as error:
