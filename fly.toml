@@ -1,6 +1,8 @@
 # Debate Arena on Fly.io: the FastAPI server plus the static site, same origin.
 # Deploy from the repository root with `fly deploy`. Steps: server/README.md, "Deploy to Fly.io".
-app = "debate-arena"
+# Temporary name: this is the app that is live now (https://wahoos-debate-arena.fly.dev).
+# When the project gets its final name, create that app and change this line.
+app = "wahoos-debate-arena"
 primary_region = "iad"
 
 [build]
