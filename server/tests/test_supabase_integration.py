@@ -168,6 +168,51 @@ class SupabaseIntegrationTests(unittest.TestCase):
         self.assertEqual({key: after[key] for key in ('id', 'created_at', 'audio_path', 'player_id')},
                          {key: before[key] for key in ('id', 'created_at', 'audio_path', 'player_id')})
 
+    def test_three_difficulty_boards_rank_best_scores_from_the_real_database(self):
+        owner, other = self.users['owner'], self.users['other']
+        tag = uuid4().hex[:6]
+        names = {'owner': f'Own_{tag}', 'other': f'Oth_{tag}'}
+        for who, name in names.items():
+            self.repository.set_display_name(self.users[who]['id'], name)
+        levels = {level: self.repository.create_motion(f'Should board test {tag} {level} pass?', category='Tests', difficulty=level)
+                  for level in ('beginner', 'intermediate', 'expert')}
+        self.motions.extend(levels.values())
+
+        def speech(who, motion, score):
+            response = self.client.post('/api/speeches', headers=self.users[who]['headers'], data={'motion_id': motion, 'side': 'yes'},
+                                        files={'audio': ('take.wav', self.audio, 'audio/wav')})
+            self.assertEqual(response.status_code, 202, response.text)
+            self.admin.table('speeches').update({'overall': score}).eq('id', response.json()['speech_id']).execute()
+            return response.json()['speech_id']
+
+        speech('owner', levels['expert'], 90)
+        speech('other', levels['expert'], 95)
+        speech('owner', levels['beginner'], 70)
+        speech('owner', levels['beginner'], 80)                # a second try: the best counts
+        speech('owner', self.motion, 99)                       # seed prompt, no difficulty: on no board
+        ungraded = speech('other', levels['intermediate'], 88)
+        self.admin.table('speeches').update({'status': 'ungradable', 'overall': None}).eq('id', ungraded).execute()
+
+        result = self.client.get('/api/leaderboard', headers=owner['headers']).json()
+        self.assertEqual(list(result['boards']), ['beginner', 'intermediate', 'expert'])
+        self.assertEqual(result['display_name'], names['owner'])
+        mine = lambda level: [row for row in result['boards'][level]['rows'] if row['display_name'] in names.values()]
+        letter = SAMPLE['overall']['letter']
+        self.assertEqual(mine('expert'), [
+            dict(place=mine('expert')[0]['place'], display_name=names['other'], score=95, letter=letter, attempts=1, you=False),
+            dict(place=mine('expert')[1]['place'], display_name=names['owner'], score=90, letter=letter, attempts=1, you=True)])
+        self.assertLess(mine('expert')[0]['place'], mine('expert')[1]['place'])
+        self.assertEqual([(row['display_name'], row['score'], row['attempts'], row['you']) for row in mine('beginner')],
+                         [(names['owner'], 80, 2, True)])
+        self.assertEqual(mine('intermediate'), [])             # an ungradable speech is not a score
+        self.assertEqual(result['boards']['expert']['you']['score'], 90)
+        self.assertIsNone(result['boards']['intermediate']['you'])
+        self.assertNotIn(99, [row['score'] for level in result['boards'].values() for row in level['rows']])
+        theirs = self.client.get('/api/leaderboard', headers=other['headers']).json()
+        self.assertEqual((theirs['boards']['expert']['you']['score'], theirs['boards']['beginner']['you']), (95, None))
+        for private in (owner['id'], other['id'], 'transcript', 'audio_path'):
+            self.assertNotIn(private, self.client.get('/api/leaderboard', headers=other['headers']).text)
+
     def test_concurrent_identical_questions_share_one_motion(self):
         text = f'Should integration test {uuid4().hex} pass?'
         with ThreadPoolExecutor(8) as pool:

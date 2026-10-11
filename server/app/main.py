@@ -1,4 +1,5 @@
 """Run: uvicorn server.app.main:app --host 127.0.0.1 --port 8000."""
+import contextlib
 import json
 import logging
 from pathlib import Path
@@ -15,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel
 
+from . import community
 from .feedback import me_card, speech_card
 from .leaderboard import UNNAMED, NameTaken, boards, clean_name
 from .questions import DIFFICULTIES, UnsuitableCategory, clean_category, generate_question
@@ -47,7 +49,25 @@ class NameRequest(BaseModel):
 
 def create_app(settings=None, repository=None, grader=None, question_maker=None, coach=None):
     settings = settings or Settings.from_env()
-    app = FastAPI(title='SpeakUp Solo API')
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app):
+        # Community upkeep: keeps a round open and deletes expired recordings while this one
+        # machine runs. What is visible never depends on it: round windows and expiry times do.
+        stop = threading.Event()
+        if community.available(settings) and settings.community_maintenance_seconds > 0:
+            def upkeep():
+                while not stop.is_set():
+                    try:
+                        community.maintain(repo())
+                    except Exception as exc:
+                        LOG.error('Community upkeep failed (%s)', type(exc).__name__)
+                    stop.wait(settings.community_maintenance_seconds)
+            threading.Thread(target=upkeep, name='community-upkeep', daemon=True).start()
+        yield
+        stop.set()
+
+    app = FastAPI(title='SpeakUp Solo API', lifespan=lifespan)
     if settings.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                            allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type', 'X-Demo-Mode'])
@@ -111,7 +131,8 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
         accountless = settings.demo_mode or settings.local_mode
         public = dict(API_URL='', SUPABASE_URL='' if accountless else settings.supabase_url,
                       SUPABASE_ANON_KEY='' if accountless else settings.supabase_anon_key,
-                      DEMO_MODE=settings.demo_mode, LOCAL_MODE=settings.local_mode and not settings.demo_mode)
+                      DEMO_MODE=settings.demo_mode, LOCAL_MODE=settings.local_mode and not settings.demo_mode,
+                      COMMUNITY_ENABLED=community.available(settings))
         return Response('window.ARENA_CONFIG = ' + json.dumps(public) + ';', media_type='application/javascript', headers={'Cache-Control': 'no-store'})
 
     @app.get('/api/health')
@@ -174,8 +195,11 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
         if row is None:
             raise HTTPException(404, 'Speech not found.')
         prompt = next((p for p in db.prompts() if p['id'] == row['motion_id']), {'id': row['motion_id'], 'text': row.get('prompt_text', 'Archived prompt')})
-        result = speech_card(row, db.speeches(uid), {key: prompt[key] for key in ('id', 'text')}, db.signed_audio(row['audio_path']) if row.get('audio_path') else None)
+        # A community recording is deleted soon after its round: the grade stays, the audio does not.
+        playable = community.audio_available(row, community.utcnow())
+        result = speech_card(row, db.speeches(uid), {key: prompt[key] for key in ('id', 'text')}, db.signed_audio(row['audio_path']) if playable else None)
         result['can_retry'] = retry_suffix(row) is not None and not settings.demo_mode
+        result.update(community.card_fields(row))
         if settings.demo_mode:
             result['demo'] = True
         return result
@@ -217,7 +241,8 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
             db.update_speech(id, {'status': 'failed', 'error': GRADING_FAILED})
 
     @app.post('/api/speeches', status_code=202)
-    async def upload(background: BackgroundTasks, motion_id: str = Form(...), side: str = Form(...), audio: UploadFile = File(...), uid=Depends(user), db=Depends(repo)):
+    async def upload(background: BackgroundTasks, motion_id: str = Form(...), side: str = Form(...), audio: UploadFile = File(...),
+                     community_round_id: str | None = Form(default=None), uid=Depends(user), db=Depends(repo)):
         if settings.demo_mode:
             raise HTTPException(503, 'Local demo contains saved examples only. Configure live grading to upload recordings.')
         if side not in ('yes', 'no'):
@@ -236,11 +261,14 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
         if len(data) > settings.max_audio_bytes:
             raise HTTPException(413, 'The recording exceeds 15 MB.')
         db.profile(uid)
+        # Recorded for the open community round: tagged with it, and its audio gets an expiry.
+        # Checked before anything is stored. Plain practice sends no round and is unchanged.
+        tagged = community.upload_fields(settings, db, uid, community_round_id, motion_id, len(data)) if community_round_id else {}
         id = str(uuid4())
         path = f'{uid}/{id}{suffix}'
         db.upload(path, data, mime)
         try:
-            db.create_speech(dict(id=id, player_id=uid, motion_id=motion_id, side=side, audio_path=path, status='queued'))
+            db.create_speech(dict(id=id, player_id=uid, motion_id=motion_id, side=side, audio_path=path, status='queued', **tagged))
         except Exception:
             if hasattr(db, 'remove_audio'):
                 db.remove_audio(path)
@@ -267,6 +295,8 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
             raise HTTPException(409, 'This speech is already being graded.')
         background.add_task(grade_background, db, speech_id, None, suffix, prompt['text'], row['side'], row['audio_path'])
         return {'speech_id': speech_id, 'status': 'queued'}
+
+    community.register(app, settings, repo, user)
 
     if settings.local_mode and not settings.demo_mode:
         @app.get('/api/local/audio/{path:path}')

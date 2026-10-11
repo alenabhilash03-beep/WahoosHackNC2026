@@ -77,7 +77,8 @@ async function fixture() {
 
 test('every application table has RLS, no browser policies, and the audio bucket is private', async () => {
   const tables = ['profiles', 'scenarios', 'sessions', 'turns', 'cards', 'ranks', 'motions', 'speeches',
-    'judgments', 'gold_pairs', 'arena_scores', 'matches', 'match_players', 'match_speeches', 'match_results', 'ratings'];
+    'judgments', 'gold_pairs', 'arena_scores', 'matches', 'match_players', 'match_speeches', 'match_results', 'ratings',
+    'community_rounds', 'community_entries', 'speech_reactions', 'community_reaction_limits'];
   const rows = (await db.query(`select relname, relrowsecurity from pg_class c
     join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and relkind = 'r'`)).rows;
   for (const name of tables) assert.equal(rows.find(r => r.relname === name)?.relrowsecurity, true, name);
@@ -138,6 +139,87 @@ test('anon and authenticated roles cannot read or write application data; servic
   }
   await db.query('set local role service_role');
   assert.equal((await db.query(`select id from public.profiles where id = $1`, [owner])).rows.length, 1);
+}));
+
+test('community rounds, entries and reactions enforce their rules in the database', async () => transaction(async () => {
+  const {owner, other, motion, speech} = await fixture();
+  const round = (await db.query(`insert into public.community_rounds (motion_id, starts_at, ends_at)
+    values ($1, now() - interval '1 hour', now() + interval '1 hour') returning id`, [motion])).rows[0].id;
+  // One open round at a time, and a window that runs forwards.
+  await rejects(`insert into public.community_rounds (motion_id, starts_at, ends_at) values ($1, now(), now() + interval '1 minute')`, [motion], '23P01');
+  await rejects(`insert into public.community_rounds (motion_id, starts_at, ends_at) values ($1, now() + interval '3 days', now() + interval '2 days')`, [motion], '23514');
+  await db.query(`insert into public.community_rounds (motion_id, starts_at, ends_at) values ($1, now() + interval '1 hour', now() + interval '2 hours')`, [motion]);
+
+  // An entry must be its own player's speech, recorded for that round; one per player per round.
+  const entry = `insert into public.community_entries (round_id, speech_id, player_id) values ($1, $2, $3)`;
+  await rejects(entry, [round, speech, owner], '23503');                       // private practice: not tagged with a round
+  const graded = {gradable: true, overall: {score: 90, letter: 'A-'}, transcript: 'private words'};
+  await db.query(`update public.speeches set community_round_id = $1, status = 'done', overall = 90, report = $2 where id = $3`, [round, graded, speech]);
+  await rejects(entry, [round, speech, other], '23503');                       // somebody else's speech
+  await db.query(entry, [round, speech, owner]);
+  const second = randomUUID();
+  await db.query(`insert into public.speeches (id, player_id, motion_id, side, audio_path, community_round_id) values ($1, $2, $3, 'no', 'x.wav', $4)`, [second, owner, motion, round]);
+  await rejects(entry, [round, second, owner], '23505');                       // a different speech in the same round
+  await rejects(entry, [round, speech, owner], '23505');
+
+  const board = async (user, sort = 'grade') => (await db.query(`select public.community_board($1, $2, $3, 20, 0) as rows`, [round, user, sort])).rows[0].rows;
+  const react = async (user, reaction, limit = 60) => (await db.query(`select public.community_react($1, $2, $3, $4) as r`, [speech, user, reaction, limit])).rows[0].r;
+  // Shared but not reviewed: invisible, silent and not reactable.
+  assert.deepEqual(await board(other), []);
+  assert.equal((await db.query(`select public.community_audio($1) as a`, [speech])).rows[0].a, null);
+  assert.equal((await react(other, 'fire')).status, 'not_found');
+  await db.query(`update public.speeches set moderation_status = 'approved' where id = $1`, [speech]);
+
+  const [row] = await board(other);
+  assert.deepEqual(row.counts, {love: 0, like: 0, fire: 0, amazing: 0});
+  assert.deepEqual([row.rank, row.total_reactions, row.my_reaction, row.is_owner, row.letter, Number(row.overall)], [1, 0, null, false, 'A-', 90]);
+  assert.deepEqual(Object.keys(row).sort(), ['counts', 'display_name', 'id', 'is_owner', 'letter', 'my_reaction', 'overall', 'rank', 'side', 'speech_id', 'total_reactions']);
+  assert.equal((await board(owner))[0].is_owner, true);
+  assert.equal((await db.query(`select public.community_audio($1) as a`, [speech])).rows[0].a.audio_path, `${owner}/${speech}.wav`);
+
+  // One reaction per account: set, repeat, change, remove. Never your own speech, never an unknown emoji.
+  assert.deepEqual([(await react(other, 'fire')).total_reactions, (await react(other, 'fire')).total_reactions], [1, 1]);
+  const changed = await react(other, 'amazing');
+  assert.deepEqual([changed.status, changed.total_reactions, changed.my_reaction, changed.counts.fire, changed.counts.amazing], ['ok', 1, 'amazing', 0, 1]);
+  assert.equal((await board(other, 'favorites'))[0].my_reaction, 'amazing');
+  assert.equal((await react(owner, 'love')).status, 'own');
+  assert.equal((await react(other, 'clap')).status, 'invalid');
+  assert.equal((await react(other, 'love', 0)).status, 'limited');
+  assert.equal((await db.query(`select public.community_react($1, $2, 'love', 60) as r`, [randomUUID(), other])).rows[0].r.status, 'not_found');
+  await rejects(`insert into public.speech_reactions (speech_id, user_id, reaction) values ($1, $2, 'clap')`, [speech, owner], '23514');
+  await rejects(`insert into public.speech_reactions (speech_id, user_id, reaction) values ($1, $2, 'love')`, [speech, other], '23505');
+  assert.deepEqual([(await react(other, null)).total_reactions, (await react(other, null)).status], [0, 'ok']);
+
+  // Withdrawn, expired or closed: gone from the board; the reaction says why.
+  await react(other, 'like');
+  await db.query(`update public.community_entries set withdrawn_at = now() where speech_id = $1`, [speech]);
+  assert.deepEqual([await board(other), (await react(other, 'fire')).status], [[], 'not_found']);
+  await db.query(`update public.community_entries set withdrawn_at = null where speech_id = $1`, [speech]);
+  assert.equal((await board(other))[0].total_reactions, 1);
+  await db.query(`update public.speeches set audio_expires_at = now() - interval '1 second' where id = $1`, [speech]);
+  assert.deepEqual(await board(other), []);
+  await db.query(`update public.speeches set audio_expires_at = null where id = $1`, [speech]);
+  await db.query(`delete from public.community_rounds where id <> $1`, [round]);
+  await db.query(`update public.community_rounds set starts_at = now() - interval '2 hours', ends_at = now() - interval '1 minute' where id = $1`, [round]);
+  assert.deepEqual([await board(other), (await react(other, 'fire')).status], [[], 'closed']);
+
+  // The public and account roles can neither call the functions nor see the rows.
+  for (const role of ['anon', 'authenticated']) {
+    await db.query(`set local role ${role}`);
+    await rejects(`select public.community_board($1, $2, 'grade', 20, 0)`, [round, other], '42501');
+    await rejects(`select public.community_react($1, $2, 'love', 60)`, [speech, other], '42501');
+    await rejects(`select public.community_audio($1)`, [speech], '42501');
+    await rejects(`select * from public.community_eligible_entries($1)`, [round], '42501');
+    for (const table of ['community_rounds', 'community_entries', 'speech_reactions', 'community_reaction_limits']) {
+      assert.equal((await db.query(`select * from public.${table}`)).rows.length, 0, `${role} ${table}`);
+    }
+    await rejects(`insert into public.speech_reactions (speech_id, user_id, reaction) values ($1, $2, 'love')`, [speech, owner], '42501');
+    await db.query('reset role');
+  }
+  // Deleting a speech takes its entry and reactions with it.
+  await db.query(`delete from public.speeches where id = $1`, [speech]);
+  assert.equal((await db.query(`select count(*)::int as n from public.community_entries where speech_id = $1`, [speech])).rows[0].n, 0);
+  assert.equal((await db.query(`select count(*)::int as n from public.speech_reactions where speech_id = $1`, [speech])).rows[0].n, 0);
 }));
 
 test('incremental upgrade preserves old names/speeches and repairs an existing public audio bucket', async () => {

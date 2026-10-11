@@ -58,9 +58,10 @@ sign-in, and 404 for the other account on the speech, its retry and its coaching
   attempts, season tiers and all of Phase 4 are not implemented. A lighter alternative, emoji
   reactions on shared speeches, is planned in
   [`docs/plans/2026-10-11-community-reactions.md`](docs/plans/2026-10-11-community-reactions.md).
-  Its browser side is in `web/` (PR #28,
-  [notes](docs/implementation/community-frontend.md)) and stays hidden while `COMMUNITY_ENABLED`
-  is false.
+  Its browser side (PR #28, [notes](docs/implementation/community-frontend.md)) and its backend
+  ([guide](docs/implementation/community-backend.md): migration 0006, `/api/community/*`, review,
+  rotation and cleanup) are both built. It stays off until the server sets `COMMUNITY_ENABLED=true`;
+  review is by hand unless `COMMUNITY_AUTO_APPROVE=true`.
 - **Phase 5.** No backup video, saved card or rehearsal notes are in the repository.
 
 ## What to do next

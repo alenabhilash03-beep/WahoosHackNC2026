@@ -4,10 +4,13 @@ from supabase import create_client
 from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
+from .community import EntryConflict
 from .leaderboard import UNNAMED, NameTaken, level
 from .session import InvalidSession
 
 PENDING = ('queued', 'grading')
+ROUND = 'id,motion_id,starts_at,ends_at,motion:motions(text)'
+ENTRY = 'id,round_id,speech_id,player_id,shared_at,withdrawn_at'
 
 
 class SupabaseRepository:
@@ -103,8 +106,8 @@ class SupabaseRepository:
         rows = self.client.table('speeches').select('*').eq('id', id).eq('player_id', user).limit(1).execute().data
         return rows[0] if rows else None
 
-    def signed_audio(self, path):
-        return self.client.storage.from_('audio').create_signed_url(path, 300)['signedURL']
+    def signed_audio(self, path, seconds=300):
+        return self.client.storage.from_('audio').create_signed_url(path, seconds)['signedURL']
 
     def upload(self, path, data, content_type):
         self.client.storage.from_('audio').upload(path, data, {'content-type': content_type})
@@ -138,3 +141,140 @@ class SupabaseRepository:
         rows = (self.client.table('speeches').update({'status': 'failed', 'error': message})
                 .in_('status', PENDING).execute().data)
         return len(rows)
+
+    # ---- community rounds, shared entries and reactions (migration 0006) ----
+    # Ranking, playback and reactions are decided by SQL functions, so every caller
+    # applies the same eligibility rule and counts cannot be raced from here.
+
+    @staticmethod
+    def _round(row):
+        return dict(id=row['id'], motion_id=row['motion_id'], starts_at=row['starts_at'], ends_at=row['ends_at'],
+                    text=(row.get('motion') or {}).get('text'))
+
+    def current_round(self, now=None):
+        moment = (now or datetime.now(timezone.utc)).isoformat()
+        rows = (self.client.table('community_rounds').select(ROUND)
+                .lte('starts_at', moment).gt('ends_at', moment).limit(1).execute().data)
+        return self._round(rows[0]) if rows else None
+
+    def community_round(self, id):
+        rows = self.client.table('community_rounds').select(ROUND).eq('id', id).limit(1).execute().data
+        return self._round(rows[0]) if rows else None
+
+    def rounds_from(self, start):
+        """Rounds that end after this moment, earliest first."""
+        rows = (self.client.table('community_rounds').select(ROUND).gt('ends_at', start.isoformat())
+                .order('starts_at').execute().data)
+        return [self._round(row) for row in rows]
+
+    def create_round(self, motion_id, starts_at, ends_at):
+        """A new round's id, or None when another round already covers part of that window."""
+        row = dict(motion_id=motion_id, starts_at=starts_at.isoformat(), ends_at=ends_at.isoformat())
+        try:
+            return self.client.table('community_rounds').insert(row).execute().data[0]['id']
+        except APIError as error:
+            if error.code == '23P01':        # the no-overlap exclusion constraint
+                return None
+            raise
+
+    def curated_motions(self):
+        """Hand-written prompts (no category): the pool community rounds rotate through."""
+        return (self.client.table('motions').select('id,text').eq('active', True)
+                .is_('category', 'null').order('text').execute().data)
+
+    def motion_featured_on(self, day):
+        rows = (self.client.table('motions').select('id').eq('featured_on', day.isoformat())
+                .eq('active', True).limit(1).execute().data)
+        return rows[0]['id'] if rows else None
+
+    def feature_motion(self, motion_id, day):
+        """Make this the Daily Prompt for a day. featured_on is unique, so the previous holder is cleared first."""
+        (self.client.table('motions').update({'featured_on': None})
+         .eq('featured_on', day.isoformat()).neq('id', motion_id).execute())
+        self.client.table('motions').update({'featured_on': day.isoformat()}).eq('id', motion_id).execute()
+
+    def community_attempts(self, round_id, user):
+        return (self.client.table('speeches').select('id', count='exact').eq('community_round_id', round_id)
+                .eq('player_id', user).limit(1).execute().count or 0)
+
+    def entry_for(self, round_id, user):
+        rows = (self.client.table('community_entries').select(ENTRY).eq('round_id', round_id)
+                .eq('player_id', user).limit(1).execute().data)
+        return rows[0] if rows else None
+
+    def entry(self, id, user):
+        rows = (self.client.table('community_entries').select(ENTRY).eq('id', id)
+                .eq('player_id', user).limit(1).execute().data)
+        return rows[0] if rows else None
+
+    def create_entry(self, round_id, speech_id, user):
+        row = dict(round_id=round_id, speech_id=speech_id, player_id=user)
+        try:
+            return self.client.table('community_entries').insert(row).execute().data[0]
+        except APIError as error:
+            # One entry per player per round and per speech: the database settles a double submit.
+            if error.code == '23505':
+                raise EntryConflict() from error
+            raise
+
+    def set_entry_visibility(self, id, user, shared):
+        moment = None if shared else datetime.now(timezone.utc).isoformat()
+        rows = (self.client.table('community_entries').update({'withdrawn_at': moment})
+                .eq('id', id).eq('player_id', user).execute().data)
+        return rows[0] if rows else None
+
+    def set_published(self, speech_id, user, published):
+        (self.client.table('speeches').update({'published': published})
+         .eq('id', speech_id).eq('player_id', user).execute())
+
+    def review(self, speech_id, status):
+        """Record a moderation decision. True if the speech exists."""
+        values = {'moderation_status': status}
+        if status == 'rejected':
+            values['published'] = False
+        return bool(self.client.table('speeches').update(values).eq('id', speech_id).execute().data)
+
+    def pending_reviews(self):
+        """Shared entries waiting for review, oldest first, with what a reviewer needs to listen."""
+        entries = (self.client.table('community_entries').select(ENTRY).is_('withdrawn_at', 'null')
+                   .order('shared_at').execute().data)
+        if not entries:
+            return []
+        speeches = {row['id']: row for row in self.client.table('speeches')
+                    .select('id,audio_path,overall,side,status')
+                    .in_('id', [entry['speech_id'] for entry in entries])
+                    .eq('moderation_status', 'pending').execute().data}
+        names = {row['id']: row['display_name'] for row in self.client.table('profiles').select('id,display_name')
+                 .in_('id', list({entry['player_id'] for entry in entries})).execute().data}
+        return [dict(entry, display_name=names.get(entry['player_id']),
+                     **{key: speeches[entry['speech_id']][key] for key in ('audio_path', 'overall', 'side', 'status')})
+                for entry in entries if entry['speech_id'] in speeches]
+
+    def community_board(self, round_id, user, sort, limit, offset):
+        return self.client.rpc('community_board', dict(p_round=round_id, p_user=user, p_sort=sort,
+                                                       p_limit=limit, p_offset=offset)).execute().data or []
+
+    def community_audio(self, speech_id):
+        """{audio_path, ends_at} for a recording the community may hear right now, else None."""
+        return self.client.rpc('community_audio', {'p_speech': speech_id}).execute().data or None
+
+    def react(self, speech_id, user, reaction, per_minute):
+        return self.client.rpc('community_react', dict(p_speech=speech_id, p_user=user, p_reaction=reaction,
+                                                       p_per_minute=per_minute)).execute().data
+
+    def expired_community_audio(self, now, limit):
+        """Community recordings past their expiry whose file has not been removed yet."""
+        return (self.client.table('speeches').select('id,audio_path').not_.is_('community_round_id', 'null')
+                .not_.is_('audio_path', 'null').lt('audio_expires_at', now.isoformat())
+                .order('audio_expires_at').limit(limit).execute().data)
+
+    def finish_audio_cleanup(self, speech_id, path, now):
+        """After the file is gone: drop the entry with its reactions, then forget the path and unpublish.
+
+        The path is cleared last. If any step fails, the speech is still listed as expired
+        and the next run repeats all of them; each one is harmless to repeat.
+        """
+        self.client.table('community_entries').delete().eq('speech_id', speech_id).execute()
+        (self.client.table('speeches')
+         .update({'audio_path': None, 'audio_deleted_at': now.isoformat(), 'published': False})
+         .eq('id', speech_id).eq('audio_path', path).execute())
