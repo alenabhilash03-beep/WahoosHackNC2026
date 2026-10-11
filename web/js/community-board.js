@@ -14,7 +14,8 @@ export function mountCommunityBoard({api, root=document.getElementById('communit
   }
   function counts(row, entry) {
     row.name.textContent = `#${entry.rank} · ${entry.display_name}${entry.is_owner ? ' (you)' : ''}`;
-    row.detail.textContent = `${String(entry.side).toUpperCase()} · ${entry.overall} / 100${entry.letter ? ` · ${entry.letter}` : ''} · ${entry.total_reactions ?? 0} reactions`;
+    const score = entry.reaction_score ?? ((entry.total_reactions ?? 0) - 2 * (entry.counts?.downvote ?? 0));
+    row.detail.textContent = `${String(entry.side).toUpperCase()} · ${entry.overall} / 100${entry.letter ? ` · ${entry.letter}` : ''} · ${entry.total_reactions ?? 0} reactions · Community score: ${score}`;
     const active = roundState(state.round,now()) === 'active';
     for (const [id, button] of row.buttons) {
       const reaction = REACTIONS.find(r=>r.id===id), count = entry.counts?.[id] ?? 0;
@@ -76,7 +77,7 @@ export function mountCommunityBoard({api, root=document.getElementById('communit
     const status=roundState(state.round,now());
     if(status!=='active') { clear(); if(status==='closed')closedRound=current; $('community-status').textContent=closingLine(state.round,now()); }
     else {
-      $('community-status').textContent=state.entries.length ? 'One reaction per listener. Select your emoji again to remove it.' : 'No shared speeches yet. Record this prompt to be the first.';
+      $('community-status').textContent=state.entries.length ? 'One reaction per listener. Positive reactions add 1; downvotes subtract 1 from Community favorites. Select your reaction again to remove it.' : 'No shared speeches yet. Record this prompt to be the first.';
       const ids=new Set(state.entries.map(e=>e.speech_id));
       for(const [id,row] of rows) if(!ids.has(id)) {row.audio.pause();row.audio.removeAttribute('src');row.audio.load();row.li.remove();rows.delete(id);}
       state.entries.forEach((entry,index)=>{

@@ -171,9 +171,9 @@ test('community rounds, entries and reactions enforce their rules in the databas
   await db.query(`update public.speeches set moderation_status = 'approved' where id = $1`, [speech]);
 
   const [row] = await board(other);
-  assert.deepEqual(row.counts, {love: 0, like: 0, fire: 0, amazing: 0});
+  assert.deepEqual(row.counts, {love: 0, like: 0, fire: 0, amazing: 0, downvote: 0});
   assert.deepEqual([row.rank, row.total_reactions, row.my_reaction, row.is_owner, row.letter, Number(row.overall)], [1, 0, null, false, 'A-', 90]);
-  assert.deepEqual(Object.keys(row).sort(), ['counts', 'display_name', 'id', 'is_owner', 'letter', 'my_reaction', 'overall', 'rank', 'side', 'speech_id', 'total_reactions']);
+  assert.deepEqual(Object.keys(row).sort(), ['counts', 'display_name', 'id', 'is_owner', 'letter', 'my_reaction', 'overall', 'rank', 'reaction_score', 'side', 'speech_id', 'total_reactions']);
   assert.equal((await board(owner))[0].is_owner, true);
   assert.equal((await db.query(`select public.community_audio($1) as a`, [speech])).rows[0].a.audio_path, `${owner}/${speech}.wav`);
 
@@ -221,6 +221,73 @@ test('community rounds, entries and reactions enforce their rules in the databas
   assert.equal((await db.query(`select count(*)::int as n from public.community_entries where speech_id = $1`, [speech])).rows[0].n, 0);
   assert.equal((await db.query(`select count(*)::int as n from public.speech_reactions where speech_id = $1`, [speech])).rows[0].n, 0);
 }));
+
+test('downvotes count once, replace positives, and lower favorites without changing grade order', async () => transaction(async () => {
+  const {owner, other, motion, speech} = await fixture();
+  const round = (await db.query(`insert into public.community_rounds (motion_id, starts_at, ends_at)
+    values ($1, now() - interval '1 hour', now() + interval '1 hour') returning id`, [motion])).rows[0].id;
+  await db.query(`update public.speeches set community_round_id = $1, status = 'done', overall = 90,
+    moderation_status = 'approved' where id = $2`, [round, speech]);
+  const lower = randomUUID();
+  await db.query(`insert into public.speeches (id, player_id, motion_id, side, audio_path, community_round_id, status, overall, moderation_status)
+    values ($1, $2, $3, 'no', 'other.wav', $4, 'done', 60, 'approved')`, [lower, other, motion, round]);
+  await db.query(`insert into public.community_entries (round_id, speech_id, player_id) values ($1, $2, $3), ($1, $4, $5)`, [round, speech, owner, lower, other]);
+  const react = async value => (await db.query(`select public.community_react($1, $2, $3) as r`, [speech, other, value])).rows[0].r;
+  const board = async (sort, limit = 20, offset = 0) => (await db.query(`select public.community_board($1, $2, $3, $4, $5) as r`, [round, other, sort, limit, offset])).rows[0].r;
+  await react('fire');
+  const down = await react('downvote');
+  assert.deepEqual([down.status, down.total_reactions, down.reaction_score, down.my_reaction, down.counts.downvote, down.counts.fire], ['ok', 1, -1, 'downvote', 1, 0]);
+  assert.deepEqual(await react('downvote'), down);
+  assert.deepEqual((await board('favorites')).map(e => [e.speech_id, e.reaction_score]), [[lower, 0], [speech, -1]]);
+  assert.deepEqual((await board('favorites', 1, 1)).map(e => [e.speech_id, e.rank, e.my_reaction]), [[speech, 2, 'downvote']]);
+  assert.deepEqual((await board('grade')).map(e => e.speech_id), [speech, lower]);
+  assert.equal((await db.query(`select public.community_react($1, $2, 'downvote') as r`, [speech, owner])).rows[0].r.status, 'own');
+  const removed = await react(null);
+  assert.deepEqual([removed.total_reactions, removed.reaction_score, removed.my_reaction, removed.counts.downvote], [0, 0, null, 0]);
+  await react('downvote');
+  const liked = await react('like');
+  assert.deepEqual([liked.total_reactions, liked.reaction_score, liked.counts.like, liked.counts.downvote], [1, 1, 1, 0]);
+  // Equal net scores use the grade tie breaker, even when one speech has more reactions.
+  await react('downvote');
+  const listener = randomUUID();
+  await db.query('insert into auth.users (id) values ($1)', [listener]);
+  await db.query('insert into public.profiles (id) values ($1)', [listener]);
+  await db.query(`select public.community_react($1, $2, 'love')`, [speech, listener]);
+  assert.deepEqual((await board('favorites')).map(e => [e.speech_id, e.reaction_score]), [[speech, 0], [lower, 0]]);
+  await db.query(`update public.community_entries set withdrawn_at = now() where speech_id = $1`, [speech]);
+  assert.equal((await react('downvote')).status, 'not_found');
+}));
+
+test('incremental downvote migration preserves existing positive reactions and server-only access', async () => {
+  const upgrade = await embedded();
+  try {
+    const names = (await readdir(migrations)).filter(n => n.endsWith('.sql')).sort();
+    await apply(upgrade, names.filter(n => n < '0007'));
+    const owner = randomUUID(), listener = randomUUID(), motion = randomUUID(), speech = randomUUID();
+    await upgrade.query('insert into auth.users (id) values ($1), ($2)', [owner, listener]);
+    await upgrade.query('insert into public.profiles (id) values ($1), ($2)', [owner, listener]);
+    await upgrade.query(`insert into public.motions (id, text) values ($1, 'Upgrade prompt')`, [motion]);
+    const round = (await upgrade.query(`insert into public.community_rounds (motion_id, starts_at, ends_at)
+      values ($1, now() - interval '1 hour', now() + interval '1 hour') returning id`, [motion])).rows[0].id;
+    await upgrade.query(`insert into public.speeches (id, player_id, motion_id, side, audio_path, community_round_id, status, overall, moderation_status)
+      values ($1, $2, $3, 'yes', 'saved.wav', $4, 'done', 90, 'approved')`, [speech, owner, motion, round]);
+    await upgrade.query(`insert into public.community_entries (round_id, speech_id, player_id) values ($1, $2, $3)`, [round, speech, owner]);
+    await upgrade.query(`select public.community_react($1, $2, 'love')`, [speech, listener]);
+    await apply(upgrade, names.filter(n => n >= '0007'));
+    await upgrade.query('set role service_role');
+    const [row] = (await upgrade.query(`select public.community_board($1, $2, 'favorites', 20, 0) as r`, [round, listener])).rows[0].r;
+    assert.deepEqual([row.counts.love, row.counts.downvote, row.total_reactions, row.reaction_score, row.my_reaction], [1, 0, 1, 1, 'love']);
+    const down = (await upgrade.query(`select public.community_react($1, $2, 'downvote') as r`, [speech, listener])).rows[0].r;
+    assert.deepEqual([down.total_reactions, down.reaction_score, down.counts.downvote], [1, -1, 1]);
+    await upgrade.query('reset role');
+    for (const role of ['anon', 'authenticated']) {
+      await upgrade.query(`set role ${role}`);
+      await assert.rejects(upgrade.query(`select public.community_react($1, $2, 'downvote')`, [speech, listener]), e => e.code === '42501');
+      await assert.rejects(upgrade.query(`select public.community_board($1, $2, 'favorites', 20, 0)`, [round, listener]), e => e.code === '42501');
+      await upgrade.query('reset role');
+    }
+  } finally { await upgrade.close(); }
+});
 
 test('incremental upgrade preserves old names/speeches and repairs an existing public audio bucket', async () => {
   const upgrade = await embedded();

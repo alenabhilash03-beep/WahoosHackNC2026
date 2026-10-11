@@ -171,9 +171,9 @@ class CommunityDatabaseTests(unittest.TestCase):
                          [(1, first, SAMPLE['overall']['score']), (2, theirs, 61.5)])
         top = board['entries'][0]
         self.assertEqual((top['counts'], top['total_reactions'], top['my_reaction'], top['is_owner'], top['letter']),
-                         ({'love': 0, 'like': 0, 'fire': 0, 'amazing': 0}, 0, None, False, SAMPLE['overall']['letter']))
+                         ({'love': 0, 'like': 0, 'fire': 0, 'amazing': 0, 'downvote': 0}, 0, None, False, SAMPLE['overall']['letter']))
         self.assertEqual(set(top), {'id', 'speech_id', 'rank', 'display_name', 'side', 'overall', 'letter',
-                                    'counts', 'total_reactions', 'my_reaction', 'is_owner'})
+                                    'counts', 'total_reactions', 'reaction_score', 'my_reaction', 'is_owner'})
         self.assertEqual(top['id'], entry['id'])
         page = self.board('linus', sort='grade', limit=1, offset=1)
         self.assertEqual(([e['rank'] for e in page['entries']], page['has_more']), ([2], False))
@@ -181,7 +181,7 @@ class CommunityDatabaseTests(unittest.TestCase):
         self.assertTrue(self.board('ada')['entries'][0]['is_owner'])
 
         # Reactions: one per account however many requests race; changing keeps the total; removal lowers it.
-        emoji = ['love', 'like', 'fire', 'amazing'] * 3
+        emoji = ['love', 'like', 'fire', 'amazing', 'downvote'] * 3
         with ThreadPoolExecutor(12) as pool:
             results = list(pool.map(lambda value: self.repository.react(theirs, linus, value, 600), emoji))
         self.assertEqual({result['status'] for result in results}, {'ok'})
@@ -189,10 +189,10 @@ class CommunityDatabaseTests(unittest.TestCase):
         self.assertEqual([r['user_id'] for r in rows], [linus])
         liked = self.react(theirs, 'like', 'linus').json()
         self.assertEqual((liked['counts'], liked['total_reactions'], liked['my_reaction']),
-                         ({'love': 0, 'like': 1, 'fire': 0, 'amazing': 0}, 1, 'like'))
+                         ({'love': 0, 'like': 1, 'fire': 0, 'amazing': 0, 'downvote': 0}, 1, 'like'))
         both = self.react(theirs, 'fire', 'ada').json()
         self.assertEqual((both['counts'], both['total_reactions'], both['my_reaction']),
-                         ({'love': 0, 'like': 1, 'fire': 1, 'amazing': 0}, 2, 'fire'))
+                         ({'love': 0, 'like': 1, 'fire': 1, 'amazing': 0, 'downvote': 0}, 2, 'fire'))
         self.assertEqual(self.react(theirs, 'amazing', 'ada').json()['total_reactions'], 2)       # changed, not added
         self.assertEqual(self.react(theirs, 'fire', 'mallory').json()['total_reactions'], 3)      # no name needed to react
         self.assertEqual(self.react(theirs, 'fire', 'grace').status_code, 403)                    # her own speech
@@ -204,9 +204,23 @@ class CommunityDatabaseTests(unittest.TestCase):
         favorites = self.board('linus', sort='favorites')['entries']
         self.assertEqual([(e['rank'], e['speech_id'], e['total_reactions'], e['my_reaction']) for e in favorites],
                          [(1, theirs, 3, 'like'), (2, first, 0, None)])
-        self.assertEqual(favorites[0]['counts'], {'love': 0, 'like': 1, 'fire': 1, 'amazing': 1})
+        self.assertEqual(favorites[0]['counts'], {'love': 0, 'like': 1, 'fire': 1, 'amazing': 1, 'downvote': 0})
         removed = self.react(theirs, None, 'linus').json()
         self.assertEqual((removed['total_reactions'], removed['my_reaction']), (2, None))
+
+        # Negative reactions persist once and lower favorites, without changing grade ranks.
+        self.react(theirs, 'downvote', 'ada')
+        negative = self.react(theirs, 'downvote', 'mallory').json()
+        self.assertEqual((negative['total_reactions'], negative['reaction_score'], negative['counts']['downvote']), (2, -2, 2))
+        self.assertEqual(self.react(theirs, 'downvote', 'mallory').json(), negative)
+        self.assertEqual([e['speech_id'] for e in self.board('linus', sort='favorites')['entries']], [first, theirs])
+        self.assertEqual(self.board('linus', sort='favorites', limit=1, offset=1)['entries'][0]['rank'], 2)
+        self.assertEqual([e['speech_id'] for e in self.board('linus', sort='grade')['entries']], [first, theirs])
+        self.assertEqual(self.react(theirs, 'downvote', 'grace').status_code, 403)
+        self.react(theirs, None, 'ada')
+        self.assertEqual(self.react(theirs, None, 'mallory').json()['reaction_score'], 0)
+        self.react(theirs, 'amazing', 'ada')
+        self.react(theirs, 'fire', 'mallory')
 
         # The per-account limit is counted in the database, across requests.
         statuses = [self.repository.react(first, linus, 'fire', 2)['status'] for _ in range(3)]

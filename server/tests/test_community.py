@@ -154,13 +154,13 @@ class CommunityRepository(Repository):
     def _counts(self, speech_id, user):
         votes = self.reactions.get(speech_id, {})
         return dict(counts={name: list(votes.values()).count(name) for name in community.REACTIONS},
-                    total_reactions=len(votes), my_reaction=votes.get(user))
+                    total_reactions=len(votes), reaction_score=len(votes) - 2 * list(votes.values()).count('downvote'), my_reaction=votes.get(user))
 
     def community_board(self, round_id, user, sort, limit, offset):
         rows = [dict(id=e['id'], speech_id=e['speech_id'], display_name=self.names[e['player_id']], side=s['side'],
                      overall=s['overall'], letter=s['report']['overall']['letter'], is_owner=e['player_id'] == user,
                      shared_at=e['shared_at'], **self._counts(e['speech_id'], user)) for e, s in self._eligible(round_id)]
-        rows.sort(key=lambda r: (-(r['total_reactions'] if sort == 'favorites' else 0), -r['overall'], r['shared_at'], r['id']))
+        rows.sort(key=lambda r: (-(r['reaction_score'] if sort == 'favorites' else 0), -r['overall'], r['shared_at'], r['id']))
         for place, row in enumerate(rows, 1):
             row['rank'] = place
         return rows[offset:offset + limit]
@@ -423,10 +423,10 @@ class CommunityTests(unittest.TestCase):
         favorites = self.board('linus', sort='favorites').json()
         self.assertEqual([e['display_name'] for e in favorites['entries']], ['Grace', 'Ada_1'])
         top = favorites['entries'][0]
-        self.assertEqual(top['counts'], {'love': 1, 'like': 0, 'fire': 1, 'amazing': 0})
+        self.assertEqual(top['counts'], {'love': 1, 'like': 0, 'fire': 1, 'amazing': 0, 'downvote': 0})
         self.assertEqual((top['total_reactions'], top['my_reaction'], top['is_owner']), (2, 'love', False))
         self.assertEqual(set(top), {'id', 'speech_id', 'rank', 'display_name', 'side', 'overall', 'letter',
-                                    'counts', 'total_reactions', 'my_reaction', 'is_owner'})
+                                    'counts', 'total_reactions', 'reaction_score', 'my_reaction', 'is_owner'})
         mine = self.board('grace', sort='favorites').json()['entries'][0]
         self.assertEqual((mine['is_owner'], mine['my_reaction']), (True, None))
         text = self.board('linus').text
@@ -477,16 +477,33 @@ class CommunityTests(unittest.TestCase):
     def test_one_reaction_per_account_can_be_changed_and_removed(self):
         speech_id, _ = self.shared()
         first = self.react(speech_id, 'fire')
-        self.assertEqual(first.json(), {'counts': {'love': 0, 'like': 0, 'fire': 1, 'amazing': 0}, 'total_reactions': 1, 'my_reaction': 'fire'})
+        self.assertEqual(first.json(), {'counts': {'love': 0, 'like': 0, 'fire': 1, 'amazing': 0, 'downvote': 0}, 'total_reactions': 1, 'reaction_score': 1, 'my_reaction': 'fire'})
         self.assertEqual(self.react(speech_id, 'fire').json()['total_reactions'], 1)        # a repeat is still one vote
         changed = self.react(speech_id, 'amazing').json()
         self.assertEqual((changed['counts'], changed['total_reactions'], changed['my_reaction']),
-                         ({'love': 0, 'like': 0, 'fire': 0, 'amazing': 1}, 1, 'amazing'))
+                         ({'love': 0, 'like': 0, 'fire': 0, 'amazing': 1, 'downvote': 0}, 1, 'amazing'))
         self.repo.names[USERS['linus']] = 'Linus'
         self.assertEqual(self.react(speech_id, 'like', 'linus').json()['total_reactions'], 2)
         removed = self.react(speech_id, None).json()
         self.assertEqual((removed['total_reactions'], removed['my_reaction'], removed['counts']['like']), (1, None, 1))
         self.assertEqual(self.react(speech_id, None).json()['total_reactions'], 1)          # removing twice is harmless
+
+    def test_downvotes_replace_positive_reactions_and_favorites_uses_net_score(self):
+        speech_id, _ = self.shared('ada')
+        other_id, _ = self.shared('grace')
+        self.react(speech_id, 'love', 'linus')
+        down = self.react(speech_id, 'downvote', 'linus').json()
+        self.assertEqual((down['total_reactions'], down['reaction_score'], down['my_reaction']), (1, -1, 'downvote'))
+        self.assertEqual((down['counts']['love'], down['counts']['downvote']), (0, 1))
+        self.assertEqual(self.react(speech_id, 'downvote', 'linus').json(), down)
+        self.assertEqual([e['speech_id'] for e in self.board('linus', sort='favorites').json()['entries']], [other_id, speech_id])
+        self.assertEqual([e['speech_id'] for e in self.board('linus', sort='grade').json()['entries']], [speech_id, other_id])
+        self.assertEqual(self.react(speech_id, 'downvote', 'ada').status_code, 403)
+        removed = self.react(speech_id, None, 'linus').json()
+        self.assertEqual((removed['total_reactions'], removed['reaction_score'], removed['my_reaction']), (0, 0, None))
+        self.react(speech_id, 'downvote', 'linus')
+        liked = self.react(speech_id, 'like', 'linus').json()
+        self.assertEqual((liked['counts']['downvote'], liked['counts']['like'], liked['reaction_score']), (0, 1, 1))
 
     def test_reaction_refusals(self):
         speech_id, _ = self.shared()

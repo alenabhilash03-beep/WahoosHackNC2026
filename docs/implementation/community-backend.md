@@ -18,10 +18,11 @@ listen and react.
   and shared again, never swapped for another.
 - A shared speech is hidden until **review** approves it.
 - Listeners with an account play it through a short private link and leave **one reaction**:
-  love, like, fire or amazing. Choosing another changes it; choosing the same one removes it.
+  love, like, fire, amazing or downvote. Choosing another changes it; choosing the same one removes it.
   Nobody can react to their own speech.
-- Two rankings over the same speeches: **highest graded** and **community favorites** (number of
-  accounts that reacted).
+- Two rankings over the same speeches: **highest graded** and **community favorites** (positive
+  reactions minus downvotes). Each positive emoji adds one; a downvote subtracts one. Scores can
+  be negative. The total reaction count still includes every listener, including downvoters.
 - Recordings of a round are **deleted** five minutes after it ends. Grades, reports and progress stay.
 
 The three difficulty leaderboards (`GET /api/leaderboard`) are separate and unchanged. A community
@@ -34,12 +35,18 @@ prompt usually has no difficulty, so its speeches are not ranked there.
 (`community_round_id`, `audio_expires_at`, `audio_deleted_at`; `audio_path` becomes nullable).
 Existing speeches are untouched.
 
+`0007_community_downvotes.sql` extends the reaction constraint and replaces the board/reaction
+functions without deleting existing entries or votes. Apply it before deploying the downvote
+backend and frontend. It uses the same eligibility, self-reaction protection, rate limits, locks,
+grade/time/id tie breakers and server-only permissions. This branch does not apply migrations
+to the hosted database or deploy the website.
+
 | Rule | Enforced by |
 | --- | --- |
 | Two rounds never overlap, even if created at once | Exclusion constraint on the round window |
 | One entry per speaker per round; a speech is entered once | Unique constraints |
 | An entry is its own speaker's speech from its own round | Composite foreign key to `speeches` |
-| One reaction per account per speech; only the four emoji | Primary key and check constraint |
+| One reaction per account per speech; only the five supported reactions | Primary key and check constraint |
 | What the community may see, hear and react to | `community_eligible_entries()`, the single definition used by the board, playback and reactions: round open, entry shared, review approved, graded, recording present |
 | A reaction cannot race a withdrawal, a round closing or a second click | `community_react()` locks the entry row, checks, writes and counts in one transaction |
 | 60 reaction requests per account per minute | Counted in `community_reaction_limits` inside the same transaction |
@@ -61,11 +68,13 @@ return 503. Ids that are not UUIDs are 404.
 | `POST /api/community/entries/{id}/visibility` `{shared}` | `{entry}`. Withdrawing always works; sharing again needs the round open |
 | `GET /api/community/leaderboard?sort=grade\|favorites&limit=&offset=&round_id=` | `{round, entries, has_more}`; ranks are absolute across pages; a closed round has no entries |
 | `GET /api/community/speeches/{id}/audio` | `{audio_url, expires_at}`; the link lasts five minutes or until the round ends, whichever is sooner. 404 unless eligible |
-| `POST /api/community/speeches/{id}/reaction` `{reaction}` | `{counts, total_reactions, my_reaction}`. 403 own speech, 404 not eligible, 409 round closed, 422 unknown emoji, 429 with `Retry-After` |
+| `POST /api/community/speeches/{id}/reaction` `{reaction}` | `{counts, total_reactions, reaction_score, my_reaction}`; `reaction` can be `downvote` or null to remove. 403 own speech, 404 not eligible, 409 round closed, 422 unknown emoji, 429 with `Retry-After` |
 
 The owner's `GET /api/speeches/{id}` also returns `community_round_id`, `moderation_status`,
 `audio_expires_at` and `audio_deleted_at` (null for private practice), and `audio_url` is null once
 the recording has expired. Board rows carry ids, display name, side, grade, letter and counts only.
+Both board rows and reaction responses include `counts.downvote` and the signed `reaction_score`.
+Favorites uses `reaction_score`; grade ranking continues to use the grader's overall score.
 
 ## Settings
 
