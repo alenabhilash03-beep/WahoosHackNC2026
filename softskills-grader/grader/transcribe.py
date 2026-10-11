@@ -11,9 +11,10 @@ import json
 import os
 from pathlib import Path
 
-from .http import post_with_retry
+from .http import first_success, post_with_retry
 
 URL = "https://api.elevenlabs.io/v1/speech-to-text"
+HEDGE_AFTER = 6       # seconds
 
 
 def sha256_file(path: str) -> str:
@@ -49,15 +50,18 @@ def transcribe(audio_path: str, cfg: dict, cache_dir: str, audio_sha: str | None
 
     with open(audio_path, "rb") as handle:
         audio_bytes = handle.read()          # read once so a retry can resend it
-    response = post_with_retry(
-        URL,
-        headers={"xi-api-key": api_key},
-        data=form,
-        files={"file": (os.path.basename(audio_path), audio_bytes)},
-        timeout=180,
-    )
-    if response.status_code >= 400:
-        raise RuntimeError(f"ElevenLabs returned {response.status_code}: {response.text[:400]}")
+
+    def send(over) -> object:
+        return post_with_retry(URL, cancelled=over, headers={"xi-api-key": api_key}, data=form,
+                               files={"file": (os.path.basename(audio_path), audio_bytes)})
+
+    # A minute of speech normally transcribes in about 1 s. If this request is
+    # much slower, send the same request again and keep whichever answers first.
+    try:
+        response, _ = first_success([("ElevenLabs", send), ("ElevenLabs (second try)", send)],
+                                    hedge_after=HEDGE_AFTER, on_failure=False)
+    except RuntimeError as error:
+        raise RuntimeError(f"ElevenLabs could not transcribe the recording.\n{error}") from None
     result = response.json()
     if "words" not in result:
         raise RuntimeError(f"ElevenLabs response has no 'words': {str(result)[:400]}")

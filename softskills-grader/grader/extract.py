@@ -15,10 +15,11 @@ import json
 import os
 from pathlib import Path
 
-from .http import post_with_retry
+from .http import OVERLOADED, first_success, post_with_retry
 
 URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
 PROMPT_VERSION = "2026-10-10.1"   # bump when the prompt or schema changes (invalidates cache)
+HEDGE_AFTER = 8                   # seconds; a normal answer takes about 3
 
 SUPPORT_TYPES = ["none", "reasoning", "example", "statistic", "authority", "analogy"]
 REASONING_FALLACIES = ["straw_man", "false_dilemma", "slippery_slope", "hasty_generalization",
@@ -138,19 +139,21 @@ def extract(transcript: str, topic: str, cfg: dict, cache_dir: str) -> dict:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
-    # Try the configured model first. If it stays overloaded, try each fallback model.
-    # Whichever model answers, the result is cached under the same key, so this
-    # recording keeps the same annotations from then on.
+    # Try the configured model first. If it is rate limited, stays overloaded, or is
+    # much slower than usual, try the fallback models too and keep the first good
+    # answer. A rate limit is per model, so it moves on at once instead of waiting. Whichever
+    # model answers, the result is cached under the same key, so this recording
+    # keeps the same annotations from then on.
     models = [request["model"]] + [m for m in cfg.get("fallback_models") or [] if m != request["model"]]
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
-    problems = []
-    for model in models:
-        response = post_with_retry(URL, headers=headers, json={**request, "model": model}, timeout=180)
-        if response.status_code < 400:
-            break
-        problems.append(f"{model}: {response.status_code} {response.text[:300]}")
-    else:
-        raise RuntimeError("Gemini could not analyse the transcript.\n" + "\n".join(problems))
+    attempts = [(model, lambda over, model=model: post_with_retry(
+                    URL, retry_on=OVERLOADED, cancelled=over, headers=headers,
+                    json={**request, "model": model}))
+                for model in models]
+    try:
+        response, _ = first_success(attempts, hedge_after=HEDGE_AFTER)
+    except RuntimeError as error:
+        raise RuntimeError(f"Gemini could not analyse the transcript.\n{error}") from None
     result = parse_response(response.json())
 
     cache_file.parent.mkdir(parents=True, exist_ok=True)

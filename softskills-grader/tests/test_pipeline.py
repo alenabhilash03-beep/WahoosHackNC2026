@@ -14,6 +14,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -341,9 +343,15 @@ def _gemini_with(statuses_by_model):
 
 
 def test_busy_gemini_is_retried_then_succeeds():
-    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503, 429, 200]})
+    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503, 503, 200]})
     assert result == FX["annotations"]
     assert calls == ["gemini-3.8-flash"] * 3 and sleeps == [2, 5]
+
+
+def test_rate_limited_model_hands_over_at_once():
+    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [429], "gemini-3.6-flash": [200]})
+    assert result == FX["annotations"]
+    assert calls == ["gemini-3.8-flash", "gemini-3.6-flash"] and sleeps == []
 
 
 def test_overloaded_model_falls_back_to_the_next_one():
@@ -365,6 +373,86 @@ def test_every_model_failing_gives_one_readable_error():
 
 
 # ---------------------------------------------------------------------- standards
+def test_slow_gemini_model_is_raced_by_the_fallback():
+    # The first model hangs; after HEDGE_AFTER the fallback starts and its answer wins.
+    hang, original_post, original_hedge = threading.Event(), http.requests.post, extract.HEDGE_AFTER
+    calls = []
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls.append(json["model"])
+        if json["model"] == "gemini-3.8-flash":
+            hang.wait(5)
+        return FakeResponse(FX["gemini_response"])
+
+    os.environ["GEMINI_API_KEY"] = "test-gm"
+    http.requests.post, extract.HEDGE_AFTER = fake_post, 0.1
+    try:
+        started = time.monotonic()
+        result = extract.extract(FX["scribe"]["text"], FX["topic"], STANDARDS["apis"]["gemini"],
+                                 tempfile.mkdtemp(dir=TMP))
+        elapsed = time.monotonic() - started
+    finally:
+        hang.set()
+        http.requests.post, extract.HEDGE_AFTER = original_post, original_hedge
+    assert result == FX["annotations"] and elapsed < 2, elapsed
+    assert calls == ["gemini-3.8-flash", "gemini-3.6-flash"]
+
+
+def test_slow_elevenlabs_is_sent_again_but_errors_are_not():
+    original_post, original_hedge = http.requests.post, transcribe.HEDGE_AFTER
+    hang, calls = threading.Event(), []
+
+    def slow_then_fast(url, headers=None, data=None, files=None, timeout=None):
+        calls.append(url)
+        if len(calls) == 1:
+            hang.wait(5)
+        return FakeResponse(FX["scribe"])
+
+    def unauthorised(url, headers=None, data=None, files=None, timeout=None):
+        calls.append(url)
+        return FakeResponse({"detail": "invalid key"}, 401)
+
+    os.environ["ELEVENLABS_API_KEY"] = "test-el"
+    cfg = STANDARDS["apis"]["elevenlabs"]
+    transcribe.HEDGE_AFTER = 0.1
+    try:
+        http.requests.post = slow_then_fast
+        started = time.monotonic()
+        result = transcribe.transcribe(FX["audio"], cfg, tempfile.mkdtemp(dir=TMP))
+        assert result == FX["scribe"] and len(calls) == 2 and time.monotonic() - started < 2
+        hang.set()
+
+        calls.clear()
+        http.requests.post = unauthorised
+        try:
+            transcribe.transcribe(FX["audio"], cfg, tempfile.mkdtemp(dir=TMP))
+        except RuntimeError as error:
+            assert "401" in str(error)
+        else:
+            raise AssertionError("expected a RuntimeError")
+        assert len(calls) == 1                      # a 401 is not worth sending twice
+    finally:
+        hang.set()
+        http.requests.post, transcribe.HEDGE_AFTER = original_post, original_hedge
+
+
+def test_retries_stop_at_the_deadline():
+    calls, sleeps = [], []
+    original_post, original_sleep = http.requests.post, http.time.sleep
+
+    def busy(url, **kwargs):
+        calls.append(kwargs.get("timeout"))
+        return FakeResponse({}, 503)
+
+    http.requests.post, http.time.sleep = busy, sleeps.append
+    try:
+        response = http.post_with_retry("https://example.test", deadline=3)
+    finally:
+        http.requests.post, http.time.sleep = original_post, original_sleep
+    assert response.status_code == 503
+    assert sleeps == [2] and calls == [http.TIMEOUT, http.TIMEOUT]   # the 5 s wait would pass the deadline
+
+
 def test_bad_standards_are_rejected_with_a_clear_message():
     overlapping = copy.deepcopy(STANDARDS)
     overlapping["factors"]["pace"]["metrics"]["words_per_minute"]["buckets"] = [
