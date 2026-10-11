@@ -252,45 +252,14 @@ const SKINS = ["#f1c7a0", "#e8b48a", "#c98f66", "#a86f48", "#7a4c2f", "#5a3824"]
 const SHIRTS = ["#3c6e71", "#8a4f7d", "#c97b2a", "#4b5d9b", "#5f7f3a", "#9b3b3b", "#d4c9a8", "#2f3b4a", "#6f5a9b", "#2c6e8f"];
 const pick = (arr) => arr[Math.floor(rand() * arr.length)];
 
-const audience = [];
 const ROW_Z = [-3.2, -4.2, -5.2, -6.2, -7.2];
-for (let r = 0; r < ROW_Z.length; r++) {
-  const z = ROW_Z[r];
+const frontSeats = [];
+for (const z of ROW_Z) {
   for (const side of [-1, 1]) {
-    for (let i = 0; i < 6; i++) {
-      const x = side * (1.35 + i * 0.86);
-      // Seat: back faces the camera.
-      box(scene, 0.74, 0.92, 0.12, x, 0.46, z + 0.34, "#5e1b22");
-      box(scene, 0.74, 0.12, 0.6, x, 0.42, z, "#4a141a");
-      box(scene, 0.78, 0.08, 0.16, x, 0.95, z + 0.34, "#7a262d"); // seat top roll
-      if (rand() < 0.1) continue; // a few empty seats
-
-      const person = new THREE.Group();
-      person.position.set(x, 0, z - 0.04);
-      const shirt = pick(SHIRTS);
-      const skin = pick(SKINS);
-      const hair = pick(HAIRS);
-      const torsoH = 0.6 + rand() * 0.14;
-      box(person, 0.56, torsoH, 0.34, 0, 0.5 + torsoH / 2, 0, shirt);
-      box(person, 0.2, 0.08, 0.2, 0, 0.54 + torsoH, 0, skin); // neck
-      const headG = new THREE.Group();
-      headG.position.y = 0.58 + torsoH;
-      box(headG, 0.42, 0.42, 0.42, 0, 0.21, 0, skin);
-      // Hair covers the back and top; length varies.
-      const hairLen = 0.18 + rand() * 0.34;
-      box(headG, 0.46, 0.14, 0.46, 0, 0.42, 0, hair);
-      box(headG, 0.46, hairLen, 0.08, 0, 0.42 - hairLen / 2, 0.2, hair);
-      for (const s of [-1, 1]) box(headG, 0.06, hairLen * 0.8, 0.3, 0.22 * s, 0.42 - hairLen * 0.4, 0.06, hair);
-      if (rand() < 0.12) box(headG, 0.22, 0.2, 0.22, 0, 0.56, 0.06, hair); // bun
-      // Faces look toward the stage: seen from the podium during the speech.
-      for (const e of [-1, 1]) box(headG, 0.07, 0.08, 0.02, 0.09 * e, 0.23, -0.215, "#1a1210", { shadow: false });
-      box(headG, 0.12, 0.03, 0.02, 0, 0.11, -0.215, "#7a3b30", { shadow: false }); // mouth
-      person.add(headG);
-      scene.add(person);
-      audience.push({ person, headG, phase: rand() * Math.PI * 2, speed: 0.4 + rand() * 0.6, lean: (rand() - 0.5) * 0.25 });
-    }
+    for (let i = 0; i < 6; i++) frontSeats.push({ x: side * (1.35 + i * 0.86), y: 0, z, empty: rand() < 0.1 });
   }
 }
+const frontCrowd = createCrowd(frontSeats, scene, { shadows: true });
 
 // Stage.
 const STAGE_Z = -9.4; // front edge
@@ -373,71 +342,148 @@ box(house, 24.2, 0.12, 0.36, 0, BALCONY_Y + 0.9, BALCONY_Z, "#d9a640", { shadow:
 box(house, 24, 0.5, 0.3, 0, BALCONY_Y - 0.4, BALCONY_Z, "#2a141c", { shadow: false });
 for (const x of [-6.5, 6.5]) box(house, 0.4, BALCONY_Y - 0.3, 0.4, x, (BALCONY_Y - 0.3) / 2, BALCONY_Z + 0.2, "#4a2a33", { shadow: false });
 
-const crowd = (() => {
-  const seats = crowdSeats();
+const crowd = createCrowd(crowdSeats(), house);
+
+/**
+ * A seated crowd. Each body part is one InstancedMesh, so hundreds of people cost
+ * a draw call per part rather than per box. Everyone has a mood from neutral to
+ * happy, blinks on their own clock, glances and nods; during applause the mood
+ * lifts and little box hands clap. seats: [{x, y, z, empty?}].
+ */
+function createCrowd(seats, parent, { shadows = false } = {}) {
   const n = seats.length;
   const white = mat("#ffffff", { noise: 0.06 });
-  const part = (material, colored) => {
+  const lips = mat("#6e2a24", { noise: 0 });
+  const part = (material) => {
     const mesh = new THREE.InstancedMesh(boxGeo, material, n);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
-    house.add(mesh);
-    return { mesh, colored };
+    mesh.castShadow = shadows;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    return mesh;
   };
-  const parts = {
-    seatBack: part(mat("#5e1b22"), false), seat: part(mat("#4a141a"), false),
-    torso: part(white, true), neck: part(white, true),
-    head: part(white, true), hairTop: part(white, true), hairBack: part(white, true),
-    hairL: part(white, true), hairR: part(white, true),
-    eyeL: part(mat("#1a1210", { noise: 0 }), false), eyeR: part(mat("#1a1210", { noise: 0 }), false),
-    mouth: part(mat("#7a3b30", { noise: 0 }), false),
+  const P = {
+    seatBack: part(mat("#5e1b22")), seat: part(mat("#4a141a")), seatRoll: part(mat("#7a262d")),
+    torso: part(white), neck: part(white), head: part(white),
+    hairTop: part(white), hairBack: part(white), hairL: part(white), hairR: part(white), bun: part(white),
+    eyeL: part(mat("#1a1210", { noise: 0 })), eyeR: part(mat("#1a1210", { noise: 0 })),
+    browL: part(white), browR: part(white), mouth: part(lips), cornerL: part(lips), cornerR: part(lips),
+    forearmL: part(white), forearmR: part(white), handL: part(white), handR: part(white),
   };
   const local = (x, y, z, w, h, d) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(w, h, d));
+  const NONE = new THREE.Matrix4().makeScale(0, 0, 0);
+  const F = -0.215;                          // the face side of the head (toward the stage)
+  // Expressions, by mood: 0 neutral line, 1 smile with raised corners, 2 open grin.
+  const MOUTH = [local(0, 0.11, F, 0.12, 0.03, 0.02), local(0, 0.1, F, 0.1, 0.03, 0.02), local(0, 0.1, F, 0.13, 0.07, 0.02)];
+  const CORNER = [[NONE, NONE], [local(-0.065, 0.12, F, 0.03, 0.03, 0.02), local(0.065, 0.12, F, 0.03, 0.03, 0.02)],
+                  [local(-0.075, 0.135, F, 0.03, 0.03, 0.02), local(0.075, 0.135, F, 0.03, 0.03, 0.02)]];
+  const BROW = [[local(-0.09, 0.3, F, 0.09, 0.025, 0.02), local(0.09, 0.3, F, 0.09, 0.025, 0.02)],
+                [local(-0.09, 0.31, F, 0.09, 0.025, 0.02), local(0.09, 0.31, F, 0.09, 0.025, 0.02)],
+                [local(-0.09, 0.325, F, 0.09, 0.025, 0.02), local(0.09, 0.325, F, 0.09, 0.025, 0.02)]];
+  const EYE_OPEN = [local(-0.09, 0.23, F, 0.07, 0.08, 0.02), local(0.09, 0.23, F, 0.07, 0.08, 0.02)];
+  const EYE_SHUT = [local(-0.09, 0.21, F, 0.07, 0.015, 0.02), local(0.09, 0.21, F, 0.07, 0.015, 0.02)];
+
   const people = seats.map((seat, i) => {
     const torsoH = 0.6 + rand() * 0.14;
     const hairLen = 0.18 + rand() * 0.34;
-    const colors = { torso: pick(SHIRTS), skin: pick(SKINS), hair: pick(HAIRS) };
-    const set = (key, color) => parts[key].mesh.setColorAt(i, new THREE.Color(color));
-    set("torso", colors.torso); set("neck", colors.skin); set("head", colors.skin);
-    for (const key of ["hairTop", "hairBack", "hairL", "hairR"]) set(key, colors.hair);
+    const shirt = pick(SHIRTS), skin = pick(SKINS), hair = pick(HAIRS);
+    const color = (key, value) => P[key].setColorAt(i, new THREE.Color(value));
+    for (const key of ["torso", "forearmL", "forearmR"]) color(key, shirt);
+    for (const key of ["neck", "head", "handL", "handR"]) color(key, skin);
+    for (const key of ["hairTop", "hairBack", "hairL", "hairR", "bun", "browL", "browR"]) color(key, hair);
+    const at = new THREE.Matrix4().makeTranslation(seat.x, seat.y, seat.z);
+    P.seatBack.setMatrixAt(i, at.clone().multiply(local(0, 0.46, 0.34, 0.74, 0.92, 0.12)));
+    P.seat.setMatrixAt(i, at.clone().multiply(local(0, 0.42, 0, 0.74, 0.12, 0.6)));
+    P.seatRoll.setMatrixAt(i, at.clone().multiply(local(0, 0.95, 0.34, 0.78, 0.08, 0.16)));
+    const roll = rand();
     return {
-      seat, torsoH, phase: rand() * Math.PI * 2, speed: 0.4 + rand() * 0.6, lean: (rand() - 0.5) * 0.25,
-      body: { // relative to the seat
-        seatBack: local(0, 0.46, 0.34, 0.74, 0.92, 0.12), seat: local(0, 0.42, 0, 0.74, 0.12, 0.6),
-        torso: local(0, 0.5 + torsoH / 2, -0.04, 0.56, torsoH, 0.34), neck: local(0, 0.54 + torsoH, -0.04, 0.2, 0.08, 0.2),
-      },
-      face: { // relative to the head pivot
+      seat, empty: Boolean(seat.empty), torsoH,
+      mood: roll < 0.3 ? 0 : roll < 0.75 ? 0.5 : 0.9,      // neutral, smiling, beaming
+      phase: rand() * Math.PI * 2, speed: 0.4 + rand() * 0.6, lean: (rand() - 0.5) * 0.25,
+      blinkEvery: 2.5 + rand() * 4, blinkAt: rand() * 6, clapRate: 3 + rand() * 1.6,
+      torso: local(0, 0.5 + torsoH / 2, 0, 0.56, torsoH, 0.34),
+      neck: local(0, 0.54 + torsoH, 0, 0.2, 0.08, 0.2),
+      face: {
         head: local(0, 0.21, 0, 0.42, 0.42, 0.42), hairTop: local(0, 0.42, 0, 0.46, 0.14, 0.46),
         hairBack: local(0, 0.42 - hairLen / 2, 0.2, 0.46, hairLen, 0.08),
         hairL: local(-0.22, 0.42 - hairLen * 0.4, 0.06, 0.06, hairLen * 0.8, 0.3),
         hairR: local(0.22, 0.42 - hairLen * 0.4, 0.06, 0.06, hairLen * 0.8, 0.3),
-        eyeL: local(-0.09, 0.23, -0.215, 0.07, 0.08, 0.02), eyeR: local(0.09, 0.23, -0.215, 0.07, 0.08, 0.02),
-        mouth: local(0, 0.11, -0.215, 0.12, 0.03, 0.02),
+        bun: rand() < 0.12 ? local(0, 0.56, 0.06, 0.22, 0.2, 0.22) : NONE,
       },
     };
   });
-  for (const { mesh, colored } of Object.values(parts)) if (colored) mesh.instanceColor.needsUpdate = true;
+  for (const mesh of Object.values(P)) if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  for (const key of ["seatBack", "seat", "seatRoll"]) P[key].instanceMatrix.needsUpdate = true;
 
-  const pivot = new THREE.Object3D();
-  const base = new THREE.Matrix4();
+  const body = new THREE.Object3D();
+  const head = new THREE.Object3D();
   const out = new THREE.Matrix4();
-  return {
-    update(t, clap, m) {
-      people.forEach((p, i) => {
-        const bounce = clap * Math.max(0, Math.sin(t * 14 + p.phase * 3)) * 0.07;
-        base.makeTranslation(p.seat.x, p.seat.y, p.seat.z);
-        for (const key of ["seatBack", "seat"]) parts[key].mesh.setMatrixAt(i, out.multiplyMatrices(base, p.body[key]));
-        base.makeTranslation(p.seat.x, p.seat.y + bounce, p.seat.z);
-        for (const key of ["torso", "neck"]) parts[key].mesh.setMatrixAt(i, out.multiplyMatrices(base, p.body[key]));
-        pivot.position.set(p.seat.x, p.seat.y + bounce + 0.58 + p.torsoH, p.seat.z - 0.04);
-        pivot.rotation.set(0, Math.sin(t * p.speed * 0.5 + p.phase) * 0.15 * m, (p.lean + Math.sin(t * p.speed + p.phase) * 0.06) * m);
-        pivot.updateMatrix();
-        for (const key in p.face) parts[key].mesh.setMatrixAt(i, out.multiplyMatrices(pivot.matrix, p.face[key]));
-      });
-      for (const { mesh } of Object.values(parts)) mesh.instanceMatrix.needsUpdate = true;
-    },
-  };
-})();
+  const arm = new THREE.Object3D();
+  const elbow = new THREE.Vector3();
+  const hand = new THREE.Vector3();
+  const put = (key, i, frame, m) => P[key].setMatrixAt(i, out.multiplyMatrices(frame, m));
+
+  function update(t, clap, m) {
+    people.forEach((p, i) => {
+      if (p.empty) {
+        for (const key in P) if (!key.startsWith("seat")) P[key].setMatrixAt(i, NONE);
+        return;
+      }
+      const bounce = clap * Math.max(0, Math.sin(t * 9 + p.phase * 3)) * 0.04;
+      body.position.set(p.seat.x, p.seat.y + bounce, p.seat.z - 0.04);
+      body.rotation.set(0, 0, Math.sin(t * 0.5 * p.speed + p.phase) * 0.03 * m);
+      body.updateMatrix();
+      put("torso", i, body.matrix, p.torso);
+      put("neck", i, body.matrix, p.neck);
+
+      // Heads glance, tilt and nod on their own clocks; applause brings a happy nod.
+      head.position.set(0, 0.58 + p.torsoH, 0);
+      head.rotation.set(
+        (Math.sin(t * p.speed * 1.3 + p.phase) * 0.05 - clap * 0.08 * Math.max(0, Math.sin(t * 6 + p.phase))) * m,
+        (Math.sin(t * p.speed * 0.5 + p.phase) * 0.12 + Math.sin(t * 0.23 + p.phase * 2) * 0.08) * m,
+        (p.lean + Math.sin(t * p.speed + p.phase) * 0.06) * m);
+      head.updateMatrix();
+      head.matrix.premultiply(body.matrix);
+      for (const key in p.face) put(key, i, head.matrix, p.face[key]);
+
+      const mood = Math.min(1, p.mood + clap * 0.7);
+      const shape = mood < 0.33 ? 0 : mood < 0.72 ? 1 : 2;
+      put("mouth", i, head.matrix, MOUTH[shape]);
+      put("cornerL", i, head.matrix, CORNER[shape][0]);
+      put("cornerR", i, head.matrix, CORNER[shape][1]);
+      put("browL", i, head.matrix, BROW[shape][0]);
+      put("browR", i, head.matrix, BROW[shape][1]);
+      const shut = m && (t + p.blinkAt) % p.blinkEvery < 0.13;
+      put("eyeL", i, head.matrix, (shut ? EYE_SHUT : EYE_OPEN)[0]);
+      put("eyeR", i, head.matrix, (shut ? EYE_SHUT : EYE_OPEN)[1]);
+
+      // Clapping: forearms come up from the sides and the hands meet just under the chin,
+      // high enough to show over the heads of the row in front.
+      if (clap > 0.02) {
+        const open = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * p.clapRate + p.phase);
+        const y = 0.5 + p.torsoH * 1.02;
+        for (const [s, handKey, armKey] of [[-1, "handL", "forearmL"], [1, "handR", "forearmR"]]) {
+          hand.set(s * (0.04 + 0.09 * open), y, -0.4);
+          elbow.set(s * 0.3, y - 0.3, -0.08);
+          // A box stretched from elbow to hand: yaw toward the hand, then pitch up to it.
+          arm.position.copy(hand).add(elbow).multiplyScalar(0.5);
+          arm.scale.set(0.09, 0.09, hand.distanceTo(elbow));
+          arm.rotation.set(-Math.atan2(hand.y - elbow.y, Math.hypot(hand.z - elbow.z, hand.x - elbow.x)),
+                           Math.atan2(hand.x - elbow.x, hand.z - elbow.z), 0, "YXZ");
+          arm.updateMatrix();
+          put(armKey, i, body.matrix, arm.matrix);
+          put(handKey, i, body.matrix, local(hand.x, hand.y, hand.z, 0.08, 0.15, 0.11));
+        }
+      } else {
+        for (const key of ["handL", "handR", "forearmL", "forearmR"]) P[key].setMatrixAt(i, NONE);
+      }
+    });
+    for (const [key, mesh] of Object.entries(P)) if (!key.startsWith("seat")) mesh.instanceMatrix.needsUpdate = true;
+  }
+  update(0, 0, 0);
+  return { update };
+}
 
 // Side walls with warm sconces, so the edges of the hall read as a theatre.
 const sconce = mat("#ffd58a", { emissive: "#c98a2a", noise: 0 });
@@ -945,13 +991,9 @@ function animate() {
 
   // The audience keeps fidgeting in every mode.
   const m = reduceMotion ? 0 : 1;
-  // Applause: everyone bounces in their seat, fading out with the sound.
+  // Applause: everyone claps and bounces, fading out with the sound.
   const clap = t < cheerUntil ? Math.min(1, (cheerUntil - t) / 1.2) * m : 0;
-  for (const a of audience) {
-    a.headG.rotation.z = (a.lean + Math.sin(t * a.speed + a.phase) * 0.06) * m;
-    a.headG.rotation.y = Math.sin(t * a.speed * 0.5 + a.phase) * 0.15 * m;
-    a.person.position.y = clap * Math.max(0, Math.sin(t * 14 + a.phase * 3)) * 0.07;
-  }
+  frontCrowd.update(t, clap, m);
   if (house.visible) crowd.update(t, clap, m);
 
   renderer.render(scene, camera);
