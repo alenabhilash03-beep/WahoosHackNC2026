@@ -43,6 +43,7 @@ FALLBACKS = {
 }
 
 STARTS = ('should', 'is', 'are', 'does', 'do', 'can', 'will', 'would')
+QUESTION_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.6-flash']   # fastest first
 
 
 class UnsuitableCategory(ValueError):
@@ -75,7 +76,7 @@ def generate_question(category, difficulty):
         sys.path.insert(0, grader_dir)
     from grader.config import load_standards
     from grader.extract import URL, api_keys, key_attempts, parse_response
-    from grader.http import OVERLOADED, first_success, post_with_retry
+    from grader.http import RETRY_SAME_MODEL, first_success, post_with_retry
     from grader.pipeline import load_env
 
     load_env()
@@ -92,11 +93,13 @@ def generate_question(category, difficulty):
         'response_format': {'type': 'text', 'mime_type': 'application/json', 'schema': SCHEMA},
         'store': False,
     }
-    models = [cfg['model']] + [m for m in cfg.get('fallback_models') or [] if m != cfg['model']]
+    # A short question needs no big model: Flash-Lite answers in about a second, and the
+    # grading models stay available as backups.
+    models = list(dict.fromkeys(QUESTION_MODELS + [cfg['model']] + list(cfg.get('fallback_models') or [])))
     attempts = key_attempts(models, lambda model, headers, over: post_with_retry(
-        URL, deadline=12, retry_on=OVERLOADED, cancelled=over, headers=headers, json={**request, 'model': model}))
+        URL, deadline=12, retry_on=RETRY_SAME_MODEL, cancelled=over, headers=headers, json={**request, 'model': model}))
     try:
-        response, _ = first_success(attempts, hedge_after=5)
+        response, _ = first_success(attempts, hedge_after=2)
         answer = parse_response(response.json())
     except Exception:
         return fallback(category, difficulty)

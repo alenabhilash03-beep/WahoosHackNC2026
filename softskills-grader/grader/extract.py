@@ -15,11 +15,11 @@ import json
 import os
 from pathlib import Path
 
-from .http import OVERLOADED, first_success, post_with_retry
+from .http import RETRY_SAME_MODEL, first_success, post_with_retry
 
 URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
 PROMPT_VERSION = "2026-10-11.1"   # bump when the prompt or schema changes (invalidates cache)
-HEDGE_AFTER = 8                   # seconds; a normal answer takes about 3
+HEDGE_AFTER = 4                   # seconds; a normal answer takes about 3, so race a backup soon after
 
 SUPPORT_TYPES = ["none", "reasoning", "example", "statistic", "authority", "analogy"]
 REASONING_FALLACIES = ["straw_man", "false_dilemma", "slippery_slope", "hasty_generalization",
@@ -182,7 +182,7 @@ def extract(transcript: str, topic: str, cfg: dict, cache_dir: str) -> dict:
     # key, so this recording keeps the same annotations from then on.
     models = [request["model"]] + [m for m in cfg.get("fallback_models") or [] if m != request["model"]]
     attempts = key_attempts(models, lambda model, headers, over: post_with_retry(
-        URL, retry_on=OVERLOADED, cancelled=over, headers=headers, json={**request, "model": model}))
+        URL, retry_on=RETRY_SAME_MODEL, cancelled=over, headers=headers, json={**request, "model": model}))
     try:
         response, _ = first_success(attempts, hedge_after=HEDGE_AFTER)
     except RuntimeError as error:
