@@ -1,6 +1,6 @@
-# WahoosHackNC2026
+# SpeakUp
 
-## Debate Arena
+A HackNC 2026 project by team Wahoos.
 
 Rates how well you argue out loud. Stage 1 is single player: pick a prompt and a side, speak for 60
 seconds, and get a speech card with the three changes worth the most points. Stage 2 is community:

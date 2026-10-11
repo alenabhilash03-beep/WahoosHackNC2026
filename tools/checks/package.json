@@ -1,5 +1,5 @@
 {
-  "name": "debate-arena-browser-checks",
+  "name": "speakup-browser-checks",
   "private": true,
   "scripts": {"test:solo": "node check_solo_browser.cjs"},
   "devDependencies": {"playwright": "1.62.1"}
