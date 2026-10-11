@@ -41,6 +41,12 @@ Failed callback -> clear callback details -> retry buttons
 - [x] Update account setup docs and prepare an ignored `server/.env.oauth` for
   provider client IDs and secrets. Check configured-provider status using the
   already approved saved Supabase credential; never print credentials.
-- [ ] Run `git diff --check`, inspect the diff for secrets and ownership regressions,
+- [x] Run `git diff --check`, inspect the diff for secrets and ownership regressions,
   commit and push to the existing draft PR. Update PR title/body to match social
   accounts and explicitly state unconfigured providers and deployment status.
+
+Verified after integrating main through `22d7439`: 42 frontend tests, 42 backend
+tests, and the mocked OAuth browser acceptance pass. Leaderboard return paths and
+account controls are included. Public provider discovery succeeds against the live
+project and returns no enabled social providers. OAuth app registration, real user
+consent, and production deployment remain pending.
