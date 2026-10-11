@@ -16,8 +16,11 @@ export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
       const {auth} = await client();
       const result = refresh ? await auth.refreshSession() : await auth.getSession();
       if (result.error) {
-        if (refresh) throw new AuthRequiredError();
-        throw new Error(result.error.message);
+        if (!refresh) throw new Error(result.error.message);
+        // Only a refusal from Auth ends the session. An outage keeps it, so the player can retry.
+        const {status, name} = result.error;
+        if (name !== 'AuthRetryableFetchError' && status >= 400 && status < 500 && status !== 429) throw new AuthRequiredError();
+        const outage = new Error('Sign-in is temporarily unavailable. Try again.'); outage.status = 503; throw outage;
       }
       const session = accountSession(result.data?.session);
       if (!session) throw new AuthRequiredError();

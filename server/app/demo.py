@@ -5,6 +5,7 @@ import json
 import math
 import shutil
 from .leaderboard import board_row
+from .session import InvalidSession
 from .settings import ROOT
 
 
@@ -54,7 +55,7 @@ class DemoRepository:
 
     def resolve_token(self, token):
         if token != 'local-demo':
-            raise ValueError('Invalid demo session')
+            raise InvalidSession('Invalid demo session')
         return 'demo-player'
 
     def profile(self, user):
