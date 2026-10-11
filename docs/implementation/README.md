@@ -1,4 +1,4 @@
-# Debate Arena implementation guide
+# SpeakUp implementation guide
 
 The [Build Plan](../../Build%20Plan.md) is the source of truth: both stages, scoring, schema,
 routes, screens and the schedule. This page is the short checklist for starting the build.

@@ -6,7 +6,7 @@
 //   applause  applause while the speech uploads; the speech card fades in as it dies away
 import {api} from './api.js';
 import {createRecording} from './recorder.js';
-import {createApplause} from './applause.js';
+import {addSoundToggle, sfx, unlock, wireSounds} from './sound.js';
 import {pickCategories} from './topics.js';
 import {cheer, pauseRendering, startPov, walkToPodium} from './arena.js';
 
@@ -18,7 +18,6 @@ const STATS_FADE_SECONDS = 1.6;
 const OWN = '__own';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const applause = createApplause();
 
 const round = {difficulty: null, motion: null, side: null, atPodium: false, started: false, recorded: null, speechStart: 0};
 
@@ -36,7 +35,11 @@ async function checkService() {
       $('preview').hidden = false;
       return;
     }
-    $('status').textContent = 'Private practice. Your recording and report stay on this computer.';
+    // Only local mode keeps everything on this computer; the deployed server stores each
+    // recording privately for its player.
+    $('status').textContent = globalThis.ARENA_CONFIG?.LOCAL_MODE
+      ? 'Private practice. Your recording and report stay on this computer.'
+      : 'Private practice. Your recording and report are visible only to you.';
     $('levels').disabled = false;
     // "Retry this prompt" from a speech card: skip the picker, same question and side.
     const retry = prompts.find(p => p.id === params.get('motion_id'));
@@ -84,7 +87,6 @@ $('own-text').addEventListener('keydown', event => { if (event.key === 'Enter') 
 function begin(motion, side, category) {
   if (round.started) return;
   round.started = true;
-  applause.prime();
   phase('walk');
   $('round').hidden = false;
   $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : 'THE QUESTION';
@@ -114,13 +116,15 @@ function showQuestion(motion, side) {
   round.motion = motion;
   $('question').textContent = motion.text;
   $('question-card').classList.add('revealed');
+  sfx.reveal();
   if (side) chooseSide(side);
   else { $('side-pick').hidden = false; say('Choose the side you will argue.'); }
 }
 
 function chooseSide(side) {
-  applause.prime();
+  unlock();
   round.side = side;
+  sfx.confirm();
   $('side-pick').hidden = true;
   $('side-chosen').hidden = false;
   $('side-chosen').textContent = `YOU ARGUE ${side.toUpperCase()}`;
@@ -151,7 +155,8 @@ const recorder = createRecording({
     if (state === 'countdown') {
       if (document.body.dataset.phase !== 'countdown') { phase('countdown'); startPov(COUNTDOWN_SECONDS); say(''); }
       $('countdown').hidden = false;
-      $('countdown').textContent = String(Math.max(1, seconds));
+      const number = String(Math.max(1, seconds));
+      if ($('countdown').textContent !== number) { $('countdown').textContent = number; sfx.tick(); }
     } else if (state === 'recording') {
       if (document.body.dataset.phase !== 'speaking') {
         phase('speaking');
@@ -159,6 +164,7 @@ const recorder = createRecording({
         $('speaking').hidden = false;
         $('timebar').hidden = false;
         round.speechStart = performance.now();
+        sfx.go();
         barFrame = requestAnimationFrame(drawBar);
       }
       $('clock').textContent = String(seconds);
@@ -188,7 +194,8 @@ async function finishSpeech() {
   phase('applause');
   $('speaking').hidden = true;
   say('');
-  applause.play(APPLAUSE_SECONDS);
+  round.applauseStart = performance.now();
+  sfx.applause(APPLAUSE_SECONDS);
   cheer(APPLAUSE_SECONDS);
   const settle = new Promise(resolve => setTimeout(resolve, STATS_AFTER_SECONDS * 1000));
   try {
@@ -237,8 +244,16 @@ async function upload() {
   return result;
 }
 
-// Browsers only play sound after the player has pressed something on this page.
-for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, () => applause.prime(), {capture: true});
+wireSounds();
+addSoundToggle();
+// The speech card fades in inside this page; it asks us to play the grade fanfare,
+// because this page already has permission to make sound.
+// It waits for the applause to die down, even when a cached grade comes back at once.
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || event.data?.type !== 'arena:grade') return;
+  const wait = round.applauseStart ? Math.max(0, round.applauseStart + APPLAUSE_SECONDS * 900 - performance.now()) : 0;
+  setTimeout(() => sfx.grade(event.data.letter), wait);
+});
 $('reload').addEventListener('click', checkService);
 window.addEventListener('pagehide', () => recorder.destroy());
 checkService();

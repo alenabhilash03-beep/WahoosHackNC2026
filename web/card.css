@@ -6,7 +6,9 @@
 .small-copy { font:9px/1.9 "Press Start 2P",monospace; color:var(--ink-dim); }
 .eyebrow { color:var(--gold); font-size:9px; line-height:2; }
 .overview { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:32px; align-items:center; }
-.overall { text-align:center; min-width:150px; }
+.overall { text-align:center; min-width:150px; max-width:260px; }
+/* The cap explanation wraps under the score instead of widening the column. */
+.overall #capped { margin:12px 0 0; line-height:1.9; overflow-wrap:break-word; }
 .overall strong { display:block; font-size:36px; color:var(--gold); text-shadow:3px 3px #000; }
 .overall #letter { font-size:22px; }
 .arena-button { display:inline-block; margin:10px 4px; padding:14px 16px; background:var(--red); color:var(--ink); box-shadow:0 0 0 3px #000,inset 0 -4px var(--red-dark),0 6px #000; border:0; font:10px/1.8 "Press Start 2P",monospace; text-decoration:none; cursor:pointer; max-width:100%; overflow-wrap:anywhere; }

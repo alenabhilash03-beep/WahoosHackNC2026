@@ -1,4 +1,4 @@
-# Handoff: Debate Arena
+# Handoff: SpeakUp
 
 State after the Phase 2 solo implementation on Saturday, October 10, 2026. Read this first, then the
 [Build Plan](Build%20Plan.md).

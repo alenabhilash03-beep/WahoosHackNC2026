@@ -1,11 +1,11 @@
-# Debate Arena Build Plan
+# SpeakUp Build Plan
 
 Oct 10, 2026 · single player first, then community. The two-player duel is parked (last section);
 the NetworkMaxx plan is archived in `docs/implementation/archive/`.
 
 ## Summary
 
-Debate Arena rates how well you argue out loud. It is built in two stages, and stage 2 does not
+SpeakUp rates how well you argue out loud. It is built in two stages, and stage 2 does not
 start until stage 1 meets its bar.
 
 **Stage 1, single player.** Pick a prompt and a side, speak for 60 seconds, and get a speech card in

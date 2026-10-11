@@ -44,7 +44,7 @@ class NameRequest(BaseModel):
 
 def create_app(settings=None, repository=None, grader=None, question_maker=None):
     settings = settings or Settings.from_env()
-    app = FastAPI(title='Debate Arena Solo API')
+    app = FastAPI(title='SpeakUp Solo API')
     if settings.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                            allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type', 'X-Demo-Mode'])
