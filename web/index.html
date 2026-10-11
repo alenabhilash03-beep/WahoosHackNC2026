@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="intro.css" />
   <script src="config.js"></script>
   <link rel="prefetch" href="practice.html" />
   <script type="importmap">
@@ -16,20 +17,41 @@
   </script>
 </head>
 <body data-arena="home">
-  <canvas id="scene"></canvas>
+  <canvas id="scene" aria-hidden="true"></canvas>
   <div class="vignette"></div>
+  <div id="intro-loading" class="intro-loading" role="status">
+    <span class="loading-bars" aria-hidden="true">▂ ▅ █ ▅ ▂</span>
+    <p>SETTING THE STAGE…</p>
+  </div>
 
   <header class="title">
-    <p class="kicker">SpeakUp</p>
-    <h1>SPEAK<br />UP</h1>
+    <p class="kicker">YOUR AUDIENCE IS READY</p>
+    <h1>SPEAK UP</h1>
+    <p class="intro-copy">Take the mic. Make your case.</p>
   </header>
 
-  <div class="menu">
-    <a id="argue" class="pixel-btn" href="practice.html">ARGUE</a>
-    <p class="hint">The floor is yours.</p>
-    <a class="hint" href="progress.html">YOUR PROGRESS</a>
-    <a class="hint" href="leaderboard.html">LEADERBOARD</a>
-  </div>
+  <main class="menu" aria-label="Choose a speaking mode">
+    <p class="mode-label">CHOOSE YOUR MOMENT</p>
+    <div class="mode-choices">
+      <a class="pixel-btn mode-btn" data-mode="solo" href="practice.html?mode=solo">
+        <span class="mode-number" aria-hidden="true">01 / YOUR CALL</span>
+        <span class="mode-name">SOLO SPEAK <span aria-hidden="true">↗</span></span>
+        <span class="mode-copy">Pick a topic. Find your voice.</span>
+      </a>
+      <a class="pixel-btn mode-btn daily-btn" data-mode="daily" href="practice.html?mode=daily">
+        <span class="mode-number" aria-hidden="true">02 / TODAY'S CHALLENGE</span>
+        <span class="mode-name">DAILY PROMPT <span aria-hidden="true">↗</span></span>
+        <span class="mode-copy">One question. Your perspective.</span>
+      </a>
+    </div>
+    <p id="intro-status" class="hint" role="status">The floor is yours. Choose a mode to begin.</p>
+    <nav class="intro-links" aria-label="Explore">
+      <a class="hint" href="progress.html">YOUR PROGRESS</a>
+      <a class="hint" href="leaderboard.html">LEADERBOARD</a>
+    </nav>
+  </main>
+  <div class="intro-transition" aria-hidden="true"></div>
+  <noscript><style>#intro-loading { display: none; }</style></noscript>
 
   <script type="module" src="main.js"></script>
   <script type="module" src="js/account.js"></script>

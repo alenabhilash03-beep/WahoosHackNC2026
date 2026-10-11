@@ -18,6 +18,14 @@ const STATS_FADE_SECONDS = 1.6;
 const OWN = '__own';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
+const dailyMode = params.get('mode') === 'daily';
+if (dailyMode) {
+  document.title = 'Daily Prompt · SpeakUp';
+  $('setup-title').textContent = 'DAILY PROMPT';
+  document.querySelector('.lede').textContent = 'The question of the day. Choose your side, then make your case in 60 seconds.';
+  $('levels').hidden = true;
+  $('round-leave').href = 'practice.html?mode=daily';
+}
 
 const round = {difficulty: null, motion: null, side: null, atPodium: false, started: false, recorded: null, speechStart: 0};
 
@@ -40,10 +48,18 @@ async function checkService() {
     $('status').textContent = globalThis.ARENA_CONFIG?.LOCAL_MODE
       ? 'Private practice. Your recording and report stay on this computer.'
       : 'Private practice. Your recording and report are saved to your account and visible only to you.';
-    $('levels').disabled = false;
     // "Retry this prompt" from a speech card: skip the picker, same question and side.
     const retry = prompts.find(p => p.id === params.get('motion_id'));
-    if (retry) begin({id: retry.id, text: retry.text}, ['yes', 'no'].includes(params.get('side')) ? params.get('side') : null);
+    if (retry) {
+      begin({id: retry.id, text: retry.text}, ['yes', 'no'].includes(params.get('side')) ? params.get('side') : null);
+    } else if (dailyMode) {
+      const daily = prompts.find(p => p.featured);
+      if (daily) begin(daily, null);
+      else {
+        $('status').textContent = 'No daily prompt has been published yet. Try again later, or choose Solo Speak in the arena.';
+        $('reload').hidden = false;
+      }
+    } else $('levels').disabled = false;
   } catch (error) {
     $('status').textContent = error.message;
     $('reload').hidden = false;
@@ -89,7 +105,7 @@ function begin(motion, side, category) {
   round.started = true;
   phase('walk');
   $('round').hidden = false;
-  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : 'THE QUESTION';
+  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : dailyMode ? 'DAILY PROMPT' : 'THE QUESTION';
   // The speaker walks on while the question is written; both take about 2 seconds.
   walkToPodium().then(() => { round.atPodium = true; maybeStartCountdown(); });
   if (motion) showQuestion(motion, side);

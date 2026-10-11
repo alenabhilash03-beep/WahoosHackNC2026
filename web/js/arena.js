@@ -1,7 +1,8 @@
 // The 3D arena shared by the home screen and the practice screen.
-//   home  : the speaker idles in the aisle; walkToStage() plays the ~3 s walk.
+//   home  : a looping speaker POV across the cheering audience; dropMic() exits.
 //   stage : the speaker stands frozen at the foot of the stage, where the walk ends.
 import * as THREE from "three";
+import {introPose, micDropPose} from './intro-motion.js';
 
 // ---------------------------------------------------------------------------
 // Render silhouettes at screen resolution so animation does not jump between
@@ -828,6 +829,37 @@ function applyCamera(t) {
 // Modes and the render loop.
 // ---------------------------------------------------------------------------
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// A handheld, faceted mic sits in the foreground, attached to the speaker's
+// view. Flat-shaded triangles retain the hall's chunky voxel style.
+const handheld = new THREE.Group();
+const micMetal = new THREE.MeshStandardMaterial({color: '#abb4c5', roughness: 0.65, metalness: 0.35, flatShading: true, fog: false});
+const micGrip = new THREE.MeshStandardMaterial({color: '#202432', roughness: 0.85, flatShading: true, fog: false});
+const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 0.62, 8), micGrip);
+handheld.add(handle);
+const grille = new THREE.Mesh(new THREE.IcosahedronGeometry(0.19, 1), micMetal);
+grille.position.y = 0.44;
+handheld.add(grille);
+const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.10, 0.07, 8), micMetal);
+collar.position.y = 0.29;
+handheld.add(collar);
+const seam = new THREE.Mesh(new THREE.TorusGeometry(0.185, 0.012, 4, 12), micGrip);
+seam.rotation.x = Math.PI / 2;
+seam.position.y = 0.44;
+handheld.add(seam);
+box(handheld, 0.035, 0.1, 0.015, 0, 0.06, 0.091, '#d9a640', {shadow: false});
+// Foreground objects must stay visible over the podium at every camera angle.
+handheld.traverse(object => {
+  if (!object.isMesh) return;
+  object.renderOrder = 10;
+  object.material.depthTest = false;
+  object.material.depthWrite = false;
+});
+handheld.visible = false;
+camera.add(handheld);
+const micLight = new THREE.PointLight('#fff0d8', 2, 3);
+micLight.position.set(-0.3, 0.7, -1);
+camera.add(micLight);
+scene.add(camera);
 const clock = new THREE.Clock();
 let mode = "idle"; // idle | walking | stage | podium | atPodium | pov | paused
 let phaseStart = 0;
@@ -839,9 +871,39 @@ let walkDone = null;
 let nextBlink = 2;
 let blinkUntil = 0;
 
+function introCamera(seconds) {
+  const pose = introPose(seconds, reduceMotion);
+  camera.position.fromArray(pose.position);
+  camera.lookAt(...pose.look);
+}
+
+const micHorizontal = () => Math.min(0.55, Math.max(0.2, camera.aspect * 0.35));
+
+/** The landing screen opens in the speaker's eyes, facing a cheering house. */
+export function showIntro() {
+  mode = 'intro';
+  phaseStart = clock.getElapsedTime();
+  speaker.root.visible = false;
+  house.visible = true;
+  handheld.visible = true;
+  introCamera(0);
+  handheld.position.set(micHorizontal(), -0.65, -1.9);
+  handheld.rotation.set(0, 0, -0.18);
+  frontCrowd.update(0, reduceMotion ? 0 : 0.8, reduceMotion ? 0 : 1);
+  crowd.update(0, reduceMotion ? 0 : 0.8, reduceMotion ? 0 : 1);
+  renderer.render(scene, camera);
+}
+
+/** Lift the mic into view, release it, tumble down, then fade to the mode. */
+export function dropMic() {
+  if (reduceMotion) return Promise.resolve();
+  return play('micDrop');
+}
+
 /** Home screen: the speaker idles in the aisle. */
 export function showHome() {
   mode = "idle";
+  handheld.visible = false;
   house.visible = false;
   speaker.root.visible = true;
   applyPose(walkPose(0));
@@ -851,6 +913,7 @@ export function showHome() {
 /** Practice screen: the speaker stands frozen at the foot of the stage. */
 export function showStage() {
   mode = "stage";
+  handheld.visible = false;
   house.visible = false;
   speaker.root.visible = true;
   applyPose(walkPose(WALK_SECONDS));
@@ -966,7 +1029,20 @@ function animate() {
   const t = clock.getElapsedTime();
   if (mode === "covered") return;
 
-  if (mode === "idle") {
+  if (mode === 'intro') {
+    introCamera(t - phaseStart);
+    handheld.position.set(micHorizontal(), -0.65 + (reduceMotion ? 0 : Math.sin(t * 1.4) * 0.015), -1.9);
+  } else if (mode === 'micDrop') {
+    const pose = micDropPose(t - phaseStart);
+    handheld.position.set(pose.x * micHorizontal() / 0.55, pose.y, pose.z);
+    handheld.rotation.set((t - phaseStart) * 0.4, 0, pose.rotation);
+    if (pose.done) {
+      handheld.visible = false;
+      mode = 'introHold';
+      phaseDone?.();
+      phaseDone = null;
+    }
+  } else if (mode === "idle") {
     idle(t);
   } else if (mode === "walking") {
     const w = Math.min(t - walkStart, WALK_SECONDS);
@@ -992,7 +1068,9 @@ function animate() {
   // The audience keeps fidgeting in every mode.
   const m = reduceMotion ? 0 : 1;
   // Applause: everyone claps and bounces, fading out with the sound.
-  const clap = t < cheerUntil ? Math.min(1, (cheerUntil - t) / 1.2) * m : 0;
+  const introClap = ['intro', 'micDrop', 'introHold'].includes(mode);
+  const clap = introClap ? (0.75 + Math.sin(t * 0.7) * 0.15) * m
+    : t < cheerUntil ? Math.min(1, (cheerUntil - t) / 1.2) * m : 0;
   frontCrowd.update(t, clap, m);
   if (house.visible) crowd.update(t, clap, m);
 
@@ -1010,7 +1088,8 @@ window.addEventListener("pageswap", (event) => event.viewTransition?.ready.catch
 window.addEventListener("pagereveal", (event) => event.viewTransition?.ready.catch(() => {}));
 
 // A page can ask for the stage view before its first frame: <body data-arena="stage">.
-if (document.body.dataset.arena === "stage") showStage();
+if (document.body.dataset.arena === "home") showIntro();
+else if (document.body.dataset.arena === "stage") showStage();
 else showHome();
 animate();
 
