@@ -16,7 +16,7 @@ other's speeches head to head.
 - [`Arena/arena_ratings.py`](Arena/arena_ratings.py): turns community votes into crowd scores.
 - [`supabase/migrations/`](supabase/migrations/): the database schema.
 - [`web/`](web/README.md): the pixel-art home screen.
-- [Google and GitHub accounts](docs/implementation/social-accounts.md): Supabase
+- [GitHub accounts](docs/implementation/social-accounts.md): Supabase
   OAuth app registration, login, and deployment setup; no SMTP needed.
 
 The two-player duel is parked (see the end of the Build Plan; `Arena/match_judge.py` scores it).
