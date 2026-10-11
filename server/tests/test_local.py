@@ -116,3 +116,48 @@ class QuestionRuleTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CoachingTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.asked = []
+
+        def coach(report, cache_dir):
+            self.asked.append(report['overall']['score'])
+            return {'words_per_minute': 'Slow down a little between points.'}
+
+        app = create_app(Settings(local_mode=True, data_dir=Path(self.temp.name)),
+                         grader=lambda *args: dict(SAMPLE), question_maker=lambda c, d: f'Should {c} win?', coach=coach)
+        self.client = TestClient(app, base_url='http://localhost', client=('127.0.0.1', 1234))
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def graded_speech(self):
+        motion = self.client.post('/api/questions', headers=HEADERS, json={'category': 'Pizza', 'difficulty': 'beginner'}).json()
+        speech_id = self.client.post('/api/speeches', headers=HEADERS, data={'motion_id': motion['id'], 'side': 'yes'},
+                                     files={'audio': ('a.webm', b'x', 'audio/webm')}).json()['speech_id']
+        for _ in range(50):
+            if self.client.get(f'/api/speeches/{speech_id}', headers=HEADERS).json()['status'] == 'done':
+                return speech_id
+            time.sleep(0.05)
+        self.fail('speech did not finish grading')
+
+    def test_coaching_lines_for_a_graded_speech(self):
+        lines = self.client.get(f'/api/speeches/{self.graded_speech()}/coaching', headers=HEADERS).json()['lines']
+        self.assertEqual(lines, {'words_per_minute': 'Slow down a little between points.'})
+        self.assertEqual(self.asked, [SAMPLE['overall']['score']])
+
+    def test_coaching_is_owner_only(self):
+        self.assertEqual(self.client.get('/api/speeches/nope/coaching', headers=HEADERS).status_code, 404)
+        self.assertEqual(self.client.get('/api/speeches/nope/coaching').status_code, 401)
+
+
+class CoachingFallbackTests(unittest.TestCase):
+    def test_every_card_item_gets_a_line_without_gemini(self):
+        from server.app.coaching import card_items, fallback_lines
+        items = card_items(SAMPLE)
+        lines = fallback_lines(items)
+        self.assertEqual(set(lines), {item['metric'] for item in items})
+        self.assertTrue(all(isinstance(line, str) and line for line in lines.values()))

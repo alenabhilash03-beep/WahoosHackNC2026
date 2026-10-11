@@ -42,7 +42,7 @@ class NameRequest(BaseModel):
     display_name: str
 
 
-def create_app(settings=None, repository=None, grader=None, question_maker=None):
+def create_app(settings=None, repository=None, grader=None, question_maker=None, coach=None):
     settings = settings or Settings.from_env()
     app = FastAPI(title='SpeakUp Solo API')
     if settings.cors_origins:
@@ -163,6 +163,18 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None)
         if settings.demo_mode:
             result['demo'] = True
         return result
+
+    @app.get('/api/speeches/{speech_id}/coaching')
+    def coaching(speech_id: str, uid=Depends(user), db=Depends(repo)):
+        """One plain-language coaching line per metric, written by Gemini (owner only)."""
+        row = db.speech(speech_id, uid)
+        if row is None:
+            raise HTTPException(404, 'Speech not found.')
+        report = row.get('report') or {}
+        if row.get('status') != 'done' or not report.get('gradable'):
+            return {'lines': {}}
+        from .coaching import coaching_lines
+        return {'lines': (coach or coaching_lines)(report, settings.data_dir / 'coaching')}
 
     def grade_background(db, id, data, suffix, prompt, side):
         try:

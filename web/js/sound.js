@@ -263,6 +263,8 @@ export function addSoundToggle({ music = false } = {}) {
     box-shadow: 0 0 0 2px #000, 0 3px 0 #000; } .sound-toggle:hover { color: #f2b84b; }
     .sound-toggle:focus-visible { outline: 3px solid #f2b84b; outline-offset: 3px; }`;
   document.head.append(style);
-  document.body.append(button);
+  // Join the account strip when there is one, so the two never overlap.
+  const strip = document.querySelector('.account-nav');
+  (strip && !strip.hidden ? strip : document.body).append(button);
   return button;
 }
