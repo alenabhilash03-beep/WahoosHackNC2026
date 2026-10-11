@@ -7,7 +7,8 @@ seconds, and get a speech card with the three changes worth the most points. Sta
 a prompt of the day, a leaderboard of everyone's graded answers, and community members rating each
 other's speeches head to head.
 
-**Try it:** https://speak-up.fly.dev (stage 1 only).
+**Try it:** https://speak-up.fly.dev (sign in with GitHub). Live today: solo practice, the speech
+card, progress and a grade leaderboard. Community rating is not built.
 
 - [Build plan](Build%20Plan.md): both stages, scoring, architecture, schedule and demo.
 - [`softskills-grader/`](softskills-grader/README.md): rates each speech (pace, diction, tone,
@@ -17,7 +18,9 @@ other's speeches head to head.
 - [`supabase/migrations/`](supabase/migrations/): the database schema.
 - [Database setup and verification](supabase/README.md): local Supabase, migration upgrades,
   RLS/private Storage checks, and concurrent display-name protection.
-- [`web/`](web/README.md): the pixel-art home screen.
+- [`web/`](web/README.md): the static site (home, practice, speech card, progress, leaderboard,
+  login), served by the API server and, as a copy that calls the same API, by GitHub Pages.
+- [`server/`](server/README.md): the FastAPI server and how it is deployed.
 - [GitHub accounts](docs/implementation/social-accounts.md): Supabase
   OAuth app registration, login, and deployment setup; no SMTP needed.
 

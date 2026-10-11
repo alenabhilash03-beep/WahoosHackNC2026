@@ -28,10 +28,10 @@ quote as evidence; code, not the model, turns labels into scores. Every crowd nu
 | --- | --- | --- |
 | `softskills-grader/` | Built, 26 tests | Rates every speech: pace, diction, tone, logic, emotion; retries busy APIs |
 | `Arena/arena_ratings.py` | Built, 13 tests | Community votes into logos, pathos, ethos, persuasion percentiles and Elo, with side-bias removal and rater weighting |
-| `supabase/migrations/0001_init.sql` | Written, not applied | `profiles`, `motions`, `speeches`, `judgments`, `gold_pairs`, `arena_scores`, `ratings` are exactly what this plan needs |
-| `tools/checks/check_supabase.py` | Built | First-hour check of anonymous sign-in and the server's token check |
-| `web/` home screen | Built, on GitHub Pages | Front door; ARGUE opens practice |
-| `web/js/radar.js` + `web/progress.html` | Built, 8 tests (example data) | The speech radar: grades each part of your speech, first attempt against best |
+| `supabase/migrations/0001_init.sql` | Applied to the live project (0001 to 0005) | `profiles`, `motions`, `speeches`, `judgments`, `gold_pairs`, `arena_scores`, `ratings` are exactly what this plan needs |
+| `tools/checks/check_auth_browser.cjs`, `check_solo_browser.cjs` | Built | Browser checks of GitHub sign-in and the solo round against a local server |
+| `web/` home screen | Built, served by the Fly app | Front door; Solo Speak and Daily Prompt open practice |
+| `web/js/radar.js` + `web/progress.html` | Built, on live data from `GET /api/me` | The speech radar: grades each part of your speech, first attempt against best |
 | Archived Phase 5 and Phase 7 docs | Written | Step-by-step code for grading, publishing, the safety check and the whole judging flow; this plan says which steps to take |
 
 ## Stage 1: single player
@@ -85,12 +85,11 @@ a table view shows the same numbers as rows. It is drawn pixel by pixel in the a
 validated for color-blind separation and contrast on the panel surface.
 
 Built in `web/js/radar.js` (pure helpers `factorScores` and `firstAndBest`, plus `renderRadar`),
-tested by `node --test web/test/*.test.mjs`, and shown with example data in `web/progress.html`.
-Phase 2 swaps the example data for `GET /api/me`.
+tested by `node --test web/test/*.test.mjs`, and shown in `web/progress.html` from `GET /api/me`.
 
 Phase 2's implementation and verification map are in
 [`docs/implementation/phase-2-solo.md`](docs/implementation/phase-2-solo.md).
-The card and Me page are connected to the solo API; live-service acceptance and Phase 2c calibration still require configured services and team recordings.
+The card and Me page are connected to the solo API and run on the live site; Phase 2c calibration still requires team recordings.
 
 ### What "good" means before stage 2 starts
 
@@ -165,7 +164,7 @@ Pairs need both sides: if one side has fewer than 2 published speeches, the team
 ## Architecture
 
 ```
-web/ (static, GitHub Pages)  --supabase-js: anonymous sign-in-->  Supabase Auth
+web/ (static, served by the server)  --supabase-js: GitHub sign-in-->  Supabase Auth
         |  Authorization: Bearer <access token>
         v
 FastAPI server (Fly.io)  --> softskills-grader --> ElevenLabs Scribe, Gemini
@@ -176,8 +175,8 @@ Supabase Postgres (tables) + Storage (private `audio` bucket, signed URLs)
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Frontend | Static `web/` with plain JS modules; `@supabase/supabase-js` from cdn.jsdelivr.net | Already deployed on GitHub Pages; no build step |
-| Auth | Supabase anonymous sign-in, display name in `profiles` | No sign-up wall; the server resolves the token with `auth.get_user` and never trusts a player id in a body |
+| Frontend | Static `web/` with plain JS modules; `@supabase/supabase-js` from cdn.jsdelivr.net | Served by the FastAPI app from the same origin; no build step |
+| Auth | Supabase GitHub sign-in, display name in `profiles` | No passwords or email to run; the server resolves the token with `auth.get_user`, rejects anonymous sessions and never trusts a player id in a body |
 | Server | FastAPI on Fly.io, one machine | Keeps keys off the browser; runs the Python grader and the aggregator |
 | Data | Supabase Postgres + Storage | Schema already written |
 | Live updates | Poll every 3 s while grading; leaderboard refreshes every 30 s | Supabase Realtime is optional here; nothing needs sub-second updates |
@@ -242,7 +241,7 @@ Lanes: **A** frontend, **B** server, **C** grader calibration. Feature freeze at
 
 | Phase | Builds | Lane | Hours | Done when |
 | --- | --- | --- | --- | --- |
-| 0. Foundations | Supabase project (anonymous sign-ins on, raise their limit from 30 per hour per IP), apply 0001 + 0002, server scaffold (settings, auth, db, storage), Fly deploy, `.gitignore`, supabase-js sign-in on the static page | B + A | 0-3 | `check_supabase.py` passes; the deployed page shows the signed-in id and `GET /api/me` returns it |
+| 0. Foundations | Supabase project (GitHub sign-in on, anonymous sign-ins off), apply the migrations, server scaffold (settings, auth, db, storage), Fly deploy, `.gitignore`, supabase-js sign-in on the static page | B + A | 0-3 | A signed-in visitor on the deployed page gets their own `GET /api/me`; an anonymous token gets 401 |
 | 1. Record and grade | Prompts seeded, practice screen, upload, grading worker, basic card | A + B | 3-9 | A recording on the deployed page shows a card in under 20 s; the same file twice gives the identical report |
 | 2. Make solo good | Full card (sections, radar, transcript highlights, click to play), "fix these first", deltas, Me page with the radar on live data | A + B | 9-16 | The card renders every metric and deduction from `sample_report.json` and a real speech; the Me radar draws from `GET /api/me` |
 | 2c. Calibrate | Team recordings, tune `standards.yaml`, write `tips.py` | C | 4-16 | Every row of "What good means" passes. **Gate: stage 2 starts only after this** |
@@ -283,7 +282,6 @@ then season tiers, then judge XP. Never cut calibration or the backup video.
 | One side of a prompt has no answers | Team records answers on both sides of every featured prompt |
 | Abuse: offensive speech or name | Safety check before publishing; names restricted to letters, digits, underscores; unpublished speeches are never served |
 | Grinding the leaderboard | 3 ranked attempts per prompt; practice is unlimited but unranked |
-| The venue shares one IP | Raise the anonymous sign-in limit in Phase 0 |
 | Recordings | Private bucket, signed URLs, delete after the event unless published |
 
 ## Parked: two-player duel
