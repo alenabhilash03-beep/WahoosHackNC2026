@@ -1,6 +1,6 @@
 # Community speech reactions: implementation plan
 
-Status: phase 3 frontend implemented behind a disabled feature flag and tested with mocked APIs. Community schema, backend, cleanup and live release gates remain pending. See [frontend implementation and API contract](../implementation/community-frontend.md).
+Status: phases 1, 2 and 4 (schema, backend, review, rotation and cleanup) are implemented and tested against real Postgres, Storage and Auth; see the [backend guide](../implementation/community-backend.md). Phase 3 (frontend) was already implemented behind the feature flag; see [frontend implementation and API contract](../implementation/community-frontend.md). Still pending from phase 5: the deployed two-account browser pass, automatic content review, an external scheduler and a storage budget. The flag stays off until the operator turns it on.
 Date: 2026-10-11
 Repository: alenabhilash03-beep/WahoosHackNC2026
 Code baseline reviewed: `a0b198c31533eca714f07f024147309cb28f4aac` on `main`.

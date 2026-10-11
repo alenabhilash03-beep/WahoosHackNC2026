@@ -1,6 +1,6 @@
 # Community reactions frontend (plan phase 3)
 
-Implemented against the [community reactions plan](../plans/2026-10-11-community-reactions.md), independently of its missing schema and backend. The database foundation in PR #26 does **not** implement community rounds or reactions. This change does not claim the live two-account completion gate has passed.
+Implemented against the [community reactions plan](../plans/2026-10-11-community-reactions.md). The schema and backend it talks to are described in the [backend guide](community-backend.md); when this page was written they did not exist yet. The database foundation in PR #26 does **not** implement community rounds or reactions. This change does not claim the live two-account completion gate has passed.
 
 ## Availability
 
