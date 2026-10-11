@@ -9,6 +9,9 @@
 
 * { box-sizing: border-box; }
 
+/* Cross-fade into the practice screen instead of flashing to a blank page. */
+@view-transition { navigation: auto; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -115,6 +118,10 @@ h1 {
   .title { top: 20px; width: calc(100% - 32px); }
   .kicker { font-size: 9px; }
 }
+
+/* While the speaker walks to the stage, the title and menu step aside. */
+.title, .menu { transition: opacity 300ms steps(4); }
+body.walking .title, body.walking .menu { opacity: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .pixel-btn { animation: none; }

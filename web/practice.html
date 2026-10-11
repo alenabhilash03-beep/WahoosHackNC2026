@@ -4,10 +4,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Practice · Debate Arena</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="progress.css" /><link rel="stylesheet" href="solo.css" />
+  <link rel="stylesheet" href="progress.css" /><link rel="stylesheet" href="solo.css" /><link rel="stylesheet" href="stage.css" />
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+  <!-- Draw the speaker at the foot of the stage before the first paint, so the walk from the home screen continues seamlessly. -->
+  <script type="module" src="js/arena.js" blocking="render"></script>
   <script src="config.js"></script>
 </head>
-<body>
+<body data-arena="stage">
+  <canvas id="scene" aria-hidden="true"></canvas>
   <header class="valance"><p class="kicker">DEBATE ARENA</p><h1>THE FLOOR IS YOURS</h1></header>
   <main class="page">
     <nav class="solo-nav" aria-label="Main"><a class="back" href="index.html">◀ ARENA</a><a class="back" href="progress.html">YOUR PROGRESS</a></nav>
