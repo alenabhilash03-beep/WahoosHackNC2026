@@ -1,100 +1,83 @@
-import {getAuthClient, createAccountAuth, accountSession, safeNext} from './auth.js';
+import {getAuthClient, getLoginProviders, createAccountAuth, accountSession, safeNext} from './auth.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const fragment = new URLSearchParams(location.hash.slice(1));
-const destination = safeNext(params.get('next'));
-let mode = params.get('mode') === 'recovery' || fragment.get('type') === 'recovery' ? 'recovery' : 'signin';
-let ready = false, busy = false, auth, service;
-const labels = {signin:'SIGN IN', signup:'CREATE ACCOUNT', reset:'SEND RESET LINK', recovery:'SAVE NEW PASSWORD'};
+const returnKey = 'arena.auth.next';
+const buttons = [...document.querySelectorAll('[data-provider]')];
+let storedNext;
+try { storedNext = sessionStorage.getItem(returnKey); } catch { /* Default to practice when storage is blocked. */ }
+const destination = safeNext(params.has('next') ? params.get('next') : storedNext);
+let callbackFailed = params.has('error') || params.has('error_description') || fragment.has('error') || fragment.has('error_description');
+let ready = false, busy = false, leaving = false, enabledProviders = [], service, subscription;
 
 function status(message, error = false) {
   $('auth-status').textContent = message;
   $('auth-status').dataset.error = String(error);
 }
 function controls() {
-  $('auth-fields').disabled = !ready || busy;
-  $('auth-form').setAttribute('aria-busy', String(!ready || busy));
-  for (const button of document.querySelectorAll('[data-mode], #forgot-password')) button.disabled = busy;
+  $('auth-providers').setAttribute('aria-busy', String(!ready || busy));
+  for (const button of buttons) button.disabled = !ready || busy || !enabledProviders.includes(button.dataset.provider);
+  $('auth-retry').disabled = busy;
 }
-function showMode(next) {
-  mode = next;
-  $('auth-title').textContent = labels[mode];
-  $('auth-submit').textContent = labels[mode];
-  $('email-field').hidden = mode === 'recovery';
-  $('email').required = mode !== 'recovery';
-  $('password-field').hidden = mode === 'reset';
-  $('password').required = mode !== 'reset';
-  $('password').minLength = ['signup','recovery'].includes(mode) ? 8 : 1;
-  $('password').autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
-  $('password').value = ''; $('confirm-password').value = '';
-  $('confirm-field').hidden = !['signup','recovery'].includes(mode);
-  $('confirm-password').required = ['signup','recovery'].includes(mode);
-  $('password-help').hidden = !['signup','recovery'].includes(mode);
-  $('forgot-password').hidden = mode !== 'signin';
-  $('auth-copy').textContent = mode === 'reset' ? 'We’ll email you a link to choose a new password.' : mode === 'recovery' ? 'Choose a new password for your account.' : 'Keep your speeches and progress with you, wherever you sign in.';
-  for (const button of document.querySelectorAll('[data-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
-  controls();
+function finishSignIn(session) {
+  if (leaving || callbackFailed || !accountSession(session)) return false;
+  leaving = true;
+  try { sessionStorage.removeItem(returnKey); } catch { /* The safe destination is already resolved. */ }
+  // Remove callback tokens and provider details before leaving the page.
+  history.replaceState(null, '', location.pathname);
+  location.replace(destination);
+  return true;
 }
-for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => {
-  showMode(button.dataset.mode); status(''); $('email').focus();
-});
-$('forgot-password').addEventListener('click', () => { showMode('reset'); status(''); $('email').focus(); });
-$('auth-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  if (!ready || busy) return;
-  if (['signup','recovery'].includes(mode) && $('password').value !== $('confirm-password').value) {
-    status('Passwords do not match.', true); $('confirm-password').focus(); return;
-  }
-  busy = true; controls(); status('Please wait…');
+for (const button of buttons) button.addEventListener('click', async () => {
+  if (!ready || busy || !enabledProviders.includes(button.dataset.provider)) return;
+  busy = true; controls(); status(`Opening ${button.dataset.provider === 'google' ? 'Google' : 'GitHub'}…`);
   try {
-    if (mode === 'reset') {
-      await service.resetPassword($('email').value);
-      status('If an account exists for that email, a reset link is on its way. Check your inbox.');
-    } else if (mode === 'recovery') {
-      const {data, error} = await auth.getSession();
-      if (error || !accountSession(data?.session)) throw new Error('This reset link has expired. Request a new one.');
-      await service.updatePassword($('password').value);
-      $('password').value = ''; $('confirm-password').value = '';
-      location.replace(destination);
-    } else {
-      const data = await service[mode === 'signup' ? 'signUp' : 'signIn']($('email').value, $('password').value);
-      $('password').value = ''; $('confirm-password').value = '';
-      if (accountSession(data?.session)) location.replace(destination);
-      else status('Check your email for the confirmation link, then return here to sign in.');
-    }
-  } catch (error) { status(error.message || 'Could not connect. Please retry.', true); }
-  finally { busy = false; controls(); }
+    // Keep the allow-listed callback exact; preserve only a validated app path per tab.
+    sessionStorage.setItem(returnKey, destination);
+    await service.signInWithProvider(button.dataset.provider);
+  } catch (error) {
+    busy = false; controls(); status(error.message || 'Could not sign in. Please retry.', true);
+  }
 });
+$('auth-retry').addEventListener('click', initialize);
+window.addEventListener('pagehide', () => subscription?.unsubscribe());
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 
 async function initialize() {
-  showMode(mode);
+  ready = false; busy = false; enabledProviders = []; controls();
+  $('auth-retry').hidden = true; status('Connecting…');
   const config = globalThis.ARENA_CONFIG ?? {};
   if (config.LOCAL_MODE || config.DEMO_MODE) {
     status('You’re using local practice. Accounts are available on the online arena.');
     $('local-play').hidden = false; return;
   }
   try {
-    ({auth} = await getAuthClient());
+    const {auth} = await getAuthClient();
     service = createAccountAuth();
-    // Keep this callback synchronous: Supabase auth methods acquire the same lock.
-    const {data:{subscription}} = auth.onAuthStateChange(event => {
-      if (event === 'PASSWORD_RECOVERY') showMode('recovery');
-    });
-    window.addEventListener('pagehide', () => subscription.unsubscribe(), {once:true});
+    subscription?.unsubscribe();
+    // Stay synchronous: Supabase auth methods share a lock with this callback.
+    ({data: {subscription}} = auth.onAuthStateChange((_event, session) => finishSignIn(session)));
     const {data, error} = await auth.getSession();
-    if (error) throw error;
-    if (fragment.get('error_description') || params.get('error_description')) {
-      // Clear callback tokens and error details from the address bar.
-      history.replaceState(null, '', location.pathname + location.search);
-      showMode('reset'); status('This email link is invalid or expired. Request a new link.', true);
-    } else if (mode === 'recovery') {
-      if (!accountSession(data?.session)) { showMode('reset'); status('This reset link has expired. Request a new one.', true); }
-      else status('Your reset link is verified. Enter your new password.');
-    } else if (accountSession(data?.session)) {
-      location.replace(destination); return;
-    } else status('');
+    if (error && !callbackFailed) throw error;
+    const cancelled = callbackFailed;
+    if (cancelled) {
+      history.replaceState(null, '', location.pathname);
+      callbackFailed = false;
+    } else if (finishSignIn(data?.session)) return;
+    if (leaving) return;
+    enabledProviders = await getLoginProviders();
     ready = true; controls();
-  } catch (error) { status(error.message || 'Could not connect. Reload to retry.', true); }
+    if (cancelled) status('Sign-in was cancelled or could not be completed. Try again.', true);
+    else if (!enabledProviders.length) {
+      status('Sign-in is being set up. Please check back soon.'); $('auth-retry').hidden = false;
+    } else if (enabledProviders.length === 1) {
+      const missing = enabledProviders[0] === 'google' ? 'GitHub' : 'Google';
+      status(`${missing} sign-in is being set up. You can use the other option.`);
+    } else status('');
+  } catch (error) {
+    status(error.message || 'Could not load sign-in options. Please retry.', true);
+    $('auth-retry').hidden = false;
+  }
 }
 initialize();

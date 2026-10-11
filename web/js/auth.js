@@ -22,6 +22,19 @@ export class AuthRequiredError extends Error {
 }
 
 const PAGES = new Set(['index.html', 'practice.html', 'progress.html', 'card.html']);
+const PROVIDERS = ['google', 'github'];
+export async function getLoginProviders({config = globalThis.ARENA_CONFIG ?? {}, fetchImpl = globalThis.fetch} = {}) {
+  if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
+    throw new Error('Sign-in is not configured.');
+  }
+  const response = await fetchImpl(new URL('/auth/v1/settings', config.SUPABASE_URL), {
+    headers: {apikey: config.SUPABASE_ANON_KEY}, credentials: 'omit',
+  });
+  if (!response.ok) throw new Error('Could not load sign-in options. Please retry.');
+  const settings = await response.json();
+  return PROVIDERS.filter(provider => settings.external?.[provider] === true);
+}
+
 export function safeNext(value, href = globalThis.location.href) {
   try {
     const base = new URL('.', href), target = new URL(value || 'practice.html', base);
@@ -48,15 +61,10 @@ export function createAccountAuth({loadClient = getAuthClient, href = globalThis
     return data;
   }
   return {
-    signUp: (email, password) => call('signUp', {
-      email: email.trim(), password, options: {emailRedirectTo: callback.href}
-    }),
-    signIn: (email, password) => call('signInWithPassword', {email: email.trim(), password}),
-    resetPassword: email => {
-      const recovery = new URL(callback); recovery.searchParams.set('mode', 'recovery');
-      return call('resetPasswordForEmail', email.trim(), {redirectTo: recovery.href});
+    signInWithProvider: provider => {
+      if (!PROVIDERS.includes(provider)) throw new Error('Unsupported sign-in provider.');
+      return call('signInWithOAuth', {provider, options: {redirectTo: callback.href}});
     },
-    updatePassword: password => call('updateUser', {password}),
     signOut: () => call('signOut', {scope: 'local'}),
   };
 }
