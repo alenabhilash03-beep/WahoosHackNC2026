@@ -26,25 +26,26 @@ test('only account sessions are accepted',()=>{
   const account={access_token:'a',user:{is_anonymous:false}};
   assert.equal(accountSession(account),account);
 });
-test('Google and GitHub use an exact callback with no untrusted return query',async()=>{
+test('only GitHub can start OAuth and uses an exact callback',async()=>{
   const {service,calls}=fixture();
-  for(const provider of ['google','github']) await service.signInWithProvider(provider);
-  assert.deepEqual(calls,['google','github'].map(provider=>['oauth',{provider,options:{redirectTo:href}}]));
-  await assert.rejects(async()=>service.signInWithProvider('evil'),/Unsupported sign-in provider/);
-  await assert.rejects(fixture({signInWithOAuth:async()=>({error:{message:'Provider unavailable'}})}).service.signInWithProvider('google'),/Provider unavailable/);
+  await service.signInWithProvider('github');
+  assert.deepEqual(calls,[['oauth',{provider:'github',options:{redirectTo:href}}]]);
+  for(const provider of ['google','evil']) await assert.rejects(async()=>service.signInWithProvider(provider),/Unsupported sign-in provider/);
+  await assert.rejects(fixture({signInWithOAuth:async()=>({error:{message:'Provider unavailable'}})}).service.signInWithProvider('github'),/Provider unavailable/);
 });
 test('provider discovery uses public settings and only enables supported providers',async()=>{
   const config={SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'publishable'};
   const requests=[];
   const fetchImpl=async(url,options)=>{
     requests.push([String(url),options]);
-    return {ok:true,json:async()=>({external:{google:true,github:false,apple:true}})};
+    return {ok:true,json:async()=>({external:{google:true,github:true,apple:true}})};
   };
-  assert.deepEqual(await authModule.getLoginProviders({config,fetchImpl}),['google']);
+  assert.deepEqual(await authModule.getLoginProviders({config,fetchImpl}),['github']);
   assert.deepEqual(requests,[['https://project.supabase.co/auth/v1/settings',{headers:{apikey:'publishable'},credentials:'omit'}]]);
   await assert.rejects(authModule.getLoginProviders({config,fetchImpl:async()=>({ok:false})}),/Could not load sign-in options/);
   await assert.rejects(authModule.getLoginProviders({config:{},fetchImpl}),/Sign-in is not configured/);
   assert.deepEqual(await authModule.getLoginProviders({config,fetchImpl:async()=>({ok:true,json:async()=>({})})}),[]);
+  assert.deepEqual(await authModule.getLoginProviders({config,fetchImpl:async()=>({ok:true,json:async()=>({external:{google:true,github:false}})})}),[]);
 });
 test('return URLs stay on known pages inside the deployed app',()=>{
   const card='card.html?id=abc';

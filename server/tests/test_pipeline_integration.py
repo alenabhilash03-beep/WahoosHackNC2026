@@ -24,6 +24,9 @@ class RecordingRepository(Repository):
         super().__init__()
         self.rows = []
 
+    def resolve_token(self, token):
+        return 'other' if token == 'other-account' else super().resolve_token(token)
+
     def create_speech(self, row):
         super().create_speech(row)
         self.rows[-1]['created_at'] = f'2026-10-10T12:{len(self.rows):02d}:00Z'
@@ -43,6 +46,9 @@ class PipelineIntegrationTests(unittest.TestCase):
             repository.prompts = lambda: [{'id': 'm', 'text': fixture['topic'], 'featured': False}]
             client = TestClient(create_app(Settings(data_dir=Path(directory) / 'data'), repository))
             headers = {'Authorization': 'Bearer good'}
+            self.assertEqual(client.post('/api/speeches', data={'motion_id':'m','side':'yes'},
+                             files={'audio':('synthetic.wav',audio,'audio/wav')}).status_code, 401)
+            self.assertEqual(repository.uploads, [])
             from grader import pipeline
             with patch.object(pipeline, 'transcribe', return_value=fixture['scribe']) as transcribe, \
                     patch.object(pipeline, 'extract', return_value=fixture['annotations']) as extract, \
@@ -60,6 +66,7 @@ class PipelineIntegrationTests(unittest.TestCase):
                 self.assertEqual(stance.call_count, 2)
 
             self.assertEqual([row['status'] for row in repository.rows], ['done', 'done'])
+            self.assertEqual([row['player_id'] for row in repository.rows], ['owner', 'owner'])
             reports = [json.dumps(row['report'], sort_keys=True, separators=(',', ':'), allow_nan=False)
                        for row in repository.rows]
             self.assertEqual(reports[0], reports[1])
@@ -71,6 +78,10 @@ class PipelineIntegrationTests(unittest.TestCase):
             card = response.json()
             self.assertTrue(card['report']['gradable'])
             self.assertEqual(card['report']['evidence']['argument']['stance_verification']['result'], 'matches')
+            self.assertEqual(client.get(f'/api/speeches/{ids[1]}').status_code, 401)
+            self.assertEqual(client.get(f'/api/speeches/{ids[1]}',
+                             headers={'Authorization':'Bearer other-account'}).status_code, 404)
+            self.assertEqual(client.get('/api/me', headers={'Authorization':'Bearer other-account'}).json()['speeches'], [])
             self.assertEqual(len(card['report']['words']), 155)
             self.assertTrue(all(word['end'] >= word['start'] >= 0 for word in card['report']['words']))
             rubric_rows = sum(len(factor['metrics']) + len(factor['deductions'])

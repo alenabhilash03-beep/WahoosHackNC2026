@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../../web');
 const out = path.resolve(__dirname, '../../work/browser-qa');
+const stanceReport = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../softskills-grader/sample_report.json'), 'utf8'));
 const sdk = `
 export function createClient() {
   const callbacks=[];
@@ -57,18 +58,31 @@ export function createClient() {
     await context.route('**/api/me', route => route.fulfill({contentType:'application/json',body:JSON.stringify({id:'test-user',display_name:'player',prompts:[],speeches:[]})}));
     await context.route('**/api/prompts', route => route.fulfill({contentType:'application/json',body:'[]'}));
     await context.route('**/api/leaderboard', route => route.fulfill({contentType:'application/json',body:JSON.stringify({rows:[],you:null,display_name:null})}));
+    await context.route('**/api/speeches/test-stance-card', route => route.fulfill({contentType:'application/json',body:JSON.stringify({
+      id:'test-stance-card',status:'done',motion_id:'m',side:'yes',prompt:{id:'m',text:stanceReport.inputs.topic},
+      report:stanceReport,audio_url:null,fixes:[],previous_best:null,deltas:null})}));
     const google=page.getByRole('button',{name:'Continue with Google',exact:true});
     const github=page.getByRole('button',{name:'Continue with GitHub',exact:true});
-    const enabled=()=>google.waitFor({state:'visible'}).then(()=>page.waitForFunction(()=>!document.querySelector('[data-provider="google"]').disabled));
+    const enabled=()=>github.waitFor({state:'visible'}).then(()=>page.waitForFunction(()=>!document.querySelector('[data-provider="github"]').disabled));
 
     await page.goto(base+'/progress.html');
     await page.waitForURL('**/login.html?next=progress.html'); await enabled();
+    assert.equal(await google.count(),0);
+    assert.equal(await page.locator('#auth-status').innerText(),'');
     assert.equal(await page.locator('input[type="password"],input[type="email"]').count(),0);
     await page.screenshot({path:path.join(out,'auth-social-desktop.png'),fullPage:true});
-    await google.click(); await page.waitForURL('**/progress.html');
-    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-oauth'))),{provider:'google',options:{redirectTo:base+'/login.html'}});
+    await github.click(); await page.waitForURL('**/progress.html');
+    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-oauth'))),{provider:'github',options:{redirectTo:base+'/login.html'}});
     assert.equal(await page.evaluate(()=>sessionStorage.getItem('arena.auth.next')),null);
+    // PR #16's account session must also load PR #20's stance report and evidence.
+    await page.goto(base+'/card.html?id=test-stance-card');
+    await page.locator('#card').waitFor({state:'visible'});
+    const verification=stanceReport.evidence.argument.stance_verification;
+    await page.getByText(verification.message,{exact:true}).first().waitFor();
+    assert.ok((await page.locator('#argument').innerText()).includes(verification.primary.evidence_quote));
     await page.getByRole('button',{name:'SIGN OUT',exact:true}).click(); await page.waitForURL('**/index.html');
+    await page.goto(base+'/card.html?id=test-stance-card');
+    await page.waitForURL('**/login.html?next=card.html%3Fid%3Dtest-stance-card');
 
     await page.goto(base+'/login.html?next=progress.html'); await enabled();
     await page.evaluate(()=>localStorage.setItem('test-oauth-error','true'));
@@ -87,7 +101,7 @@ export function createClient() {
 
     await page.goto(base+'/leaderboard.html');
     await page.waitForURL('**/login.html?next=leaderboard.html'); await enabled();
-    await google.click(); await page.waitForURL('**/leaderboard.html');
+    await github.click(); await page.waitForURL('**/leaderboard.html');
     await page.getByRole('button',{name:'SIGN OUT',exact:true}).click(); await page.waitForURL('**/index.html');
 
     await page.goto(base+'/login.html?next=https://evil.example'); await enabled();
@@ -98,14 +112,14 @@ export function createClient() {
     await page.getByRole('button',{name:'SIGN OUT',exact:true}).click(); await page.waitForURL('**/index.html');
 
     settings={google:false,github:true}; await page.goto(base+'/login.html');
-    await page.locator('#auth-status').filter({hasText:'Google sign-in is being set up'}).waitFor();
-    assert.equal(await google.isEnabled(),false); assert.equal(await github.isEnabled(),true);
-    settings={google:false,github:false}; await page.reload();
-    await page.locator('#auth-status').filter({hasText:'Sign-in is being set up'}).waitFor();
+    await enabled();
+    assert.equal(await page.locator('#auth-status').innerText(),'');
+    settings={google:true,github:false}; await page.reload();
+    await page.locator('#auth-status').filter({hasText:'GitHub sign-in is being set up'}).waitFor();
     assert.equal(await github.isEnabled(),false);
     settingsFail=true; await page.reload();
     await page.locator('#auth-status').filter({hasText:'Could not load sign-in options'}).waitFor();
-    assert.equal(await google.isEnabled(),false);
+    assert.equal(await github.isEnabled(),false);
     settingsFail=false; settings={google:true,github:true};
     await page.getByRole('button',{name:'Try again',exact:true}).click(); await enabled();
     await page.setViewportSize({width:390,height:844});
@@ -115,9 +129,9 @@ export function createClient() {
     await page.evaluate(()=>localStorage.setItem('test-session',JSON.stringify({access_token:'guest',user:{is_anonymous:true}})));
     await page.goto(base+'/progress.html'); await page.waitForURL('**/login.html?next=progress.html');
     localMode=true; await page.reload(); await page.locator('#local-play').waitFor({state:'visible'});
-    assert.equal(await google.isEnabled(),false);
+    assert.equal(await github.isEnabled(),false);
     assert.deepEqual(errors,[]);
-    console.log('PASS: Google/GitHub callbacks, private return paths, provider failures, cancellation, disabled providers, retry, logout, cross-tab logout, unsafe redirects, guest rejection, mobile layout, local mode; no page errors.');
+    console.log('PASS: GitHub-only login, authenticated stance card/evidence, signed-out card protection, private return paths, provider failures, cancellation, disabled provider, retry, logout, cross-tab logout, unsafe redirects, guest rejection, mobile layout, local mode; no page errors.');
   } finally {
     if(browser) await browser.close();
     await new Promise(resolve=>server.close(resolve));

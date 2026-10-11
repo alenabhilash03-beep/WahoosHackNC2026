@@ -22,7 +22,7 @@ export class AuthRequiredError extends Error {
 }
 
 const PAGES = new Set(['index.html', 'practice.html', 'progress.html', 'card.html', 'leaderboard.html']);
-const PROVIDERS = ['google', 'github'];
+const PROVIDERS = ['github'];
 export async function getLoginProviders({config = globalThis.ARENA_CONFIG ?? {}, fetchImpl = globalThis.fetch} = {}) {
   if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
     throw new Error('Sign-in is not configured.');

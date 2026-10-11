@@ -31,7 +31,7 @@ function finishSignIn(session) {
 }
 for (const button of buttons) button.addEventListener('click', async () => {
   if (!ready || busy || !enabledProviders.includes(button.dataset.provider)) return;
-  busy = true; controls(); status(`Opening ${button.dataset.provider === 'google' ? 'Google' : 'GitHub'}…`);
+  busy = true; controls(); status('Opening GitHub…');
   try {
     // Keep the allow-listed callback exact; preserve only a validated app path per tab.
     sessionStorage.setItem(returnKey, destination);
@@ -70,10 +70,7 @@ async function initialize() {
     ready = true; controls();
     if (cancelled) status('Sign-in was cancelled or could not be completed. Try again.', true);
     else if (!enabledProviders.length) {
-      status('Sign-in is being set up. Please check back soon.'); $('auth-retry').hidden = false;
-    } else if (enabledProviders.length === 1) {
-      const missing = enabledProviders[0] === 'google' ? 'GitHub' : 'Google';
-      status(`${missing} sign-in is being set up. You can use the other option.`);
+      status('GitHub sign-in is being set up. Please check back soon.'); $('auth-retry').hidden = false;
     } else status('');
   } catch (error) {
     status(error.message || 'Could not load sign-in options. Please retry.', true);
