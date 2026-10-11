@@ -5,6 +5,7 @@ import unittest
 import io
 import wave
 from fastapi.testclient import TestClient
+from server.app.leaderboard import NameTaken, rank
 from server.app.main import create_app
 from server.app.settings import Settings
 from test_feedback import SAMPLE, speech
@@ -13,6 +14,7 @@ from test_feedback import SAMPLE, speech
 class Repository:
     def __init__(self):
         self.rows = [speech()]
+        self.names = {}
         self.signed = []
         self.uploads = []
     def resolve_token(self, token):
@@ -20,7 +22,15 @@ class Repository:
             raise ValueError('bad')
         return 'owner'
     def profile(self, user):
-        return {'id': user, 'display_name': 'player'}
+        return {'id': user, 'display_name': self.names.get(user, 'player')}
+    def set_display_name(self, user, name):
+        if any(other != user and taken.lower() == name.lower() for other, taken in self.names.items()):
+            raise NameTaken(name)
+        self.names[user] = name
+    def board_rows(self):
+        return [dict(player_id=r['player_id'], display_name=self.names[r['player_id']], score=r['report']['overall']['score'],
+                     letter=r['report']['overall']['letter'], created_at=r['created_at'])
+                for r in self.rows if r['player_id'] in self.names and r.get('report')]
     def prompts(self):
         return [{'id': 'm', 'text': 'Motion', 'featured': True}]
     def speeches(self, user):
@@ -119,6 +129,47 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('secret', response.text)
 
+    def test_name_rules_and_taken_names(self):
+        post = lambda name: self.client.post('/api/me/name', headers=self.headers, json={'display_name': name})
+        self.assertEqual(self.client.post('/api/me/name', json={'display_name': 'Ada_1'}).status_code, 401)
+        for bad in ('ab', 'x' * 21, 'two words', '<b>bold</b>', 'player', 'Player'):
+            self.assertEqual(post(bad).status_code, 422, bad)
+        self.repo.names['other'] = 'Grace'
+        self.assertEqual(post('grace').status_code, 409)
+        self.assertEqual(post(' Ada_1 ').json(), {'display_name': 'Ada_1'})
+        self.assertEqual(post('ada_1').status_code, 200)   # renaming yourself is not a clash
+        self.assertEqual(self.repo.names['owner'], 'ada_1')
+    def test_leaderboard_lists_named_players_by_best_score_without_private_data(self):
+        low = copy.deepcopy(SAMPLE)
+        low['overall'] = {'score': 61.5, 'letter': 'D-'}
+        self.repo.rows += [dict(speech('weak', at='2026-10-10T09:00:00Z', report=low)),
+                           dict(speech('theirs', at='2026-10-10T08:00:00Z', report=low), player_id='other'),
+                           dict(speech('hidden'), player_id='unnamed')]
+        board = self.client.get('/api/leaderboard', headers=self.headers).json()
+        self.assertEqual(board, {'rows': [], 'you': None, 'display_name': None})   # nobody has joined
+        self.repo.names.update(owner='Ada_1', other='Grace')
+        board = self.client.get('/api/leaderboard', headers=self.headers).json()
+        best = SAMPLE['overall']
+        self.assertEqual(board['rows'], [
+            dict(place=1, display_name='Ada_1', score=best['score'], letter=best['letter'], attempts=2, you=True),
+            dict(place=2, display_name='Grace', score=61.5, letter='D-', attempts=1, you=False)])
+        self.assertEqual(board['you'], board['rows'][0])
+        self.assertEqual(board['display_name'], 'Ada_1')
+        self.assertEqual(self.client.get('/api/leaderboard').status_code, 401)
+    def test_rank_breaks_ties_by_earlier_speech_and_keeps_your_row_past_the_limit(self):
+        row = lambda player, score, at: dict(player_id=player, display_name=player.upper(), score=score, letter='B', created_at=at)
+        board = rank([row('late', 80, '2026-10-10T12:00:00Z'), row('early', 80, '2026-10-10T11:00:00Z'),
+                      row('early', 70, '2026-10-10T10:00:00Z'), row('last', 50, '2026-10-10T09:00:00Z')], 'last', limit=2)
+        self.assertEqual([(r['place'], r['display_name'], r['attempts']) for r in board['rows']], [(1, 'EARLY', 2), (2, 'LATE', 1)])
+        self.assertEqual((board['you']['place'], board['you']['score']), (3, 50))
+    def test_demo_board_is_read_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            client = TestClient(create_app(Settings(demo_mode=True, data_dir=Path(directory))), base_url='http://localhost', client=('127.0.0.1', 1234))
+            headers = {'Authorization': 'Bearer local-demo'}
+            board = client.get('/api/leaderboard', headers=headers).json()
+            self.assertTrue(board['demo'])
+            self.assertEqual([(r['display_name'], r['score'], r['attempts']) for r in board['rows']], [('Local demo', SAMPLE['overall']['score'], 2)])
+            self.assertEqual(client.post('/api/me/name', headers=headers, json={'display_name': 'Ada_1'}).status_code, 503)
     def test_demo_rejects_remote_peer_and_non_demo_token(self):
         app = create_app(Settings(demo_mode=True, data_dir=Path(self.temp.name)))
         headers = {'Authorization': 'Bearer local-demo'}

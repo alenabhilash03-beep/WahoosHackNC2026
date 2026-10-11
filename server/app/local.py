@@ -9,6 +9,8 @@ import threading
 from pathlib import Path
 from uuid import uuid4
 
+from .leaderboard import board_row
+
 LOCAL_TOKEN = 'local-player'
 SEED_PROMPTS = ('Should the frontier of AI be paced?',
                 'Should homework be banned in elementary school?',
@@ -41,7 +43,19 @@ class LocalRepository:
         return LOCAL_TOKEN
 
     def profile(self, user):
-        return {'id': user, 'display_name': 'Local player'}
+        with self.lock:
+            name = self._load().get('display_name', 'Local player')
+        return {'id': user, 'display_name': name}
+
+    def set_display_name(self, user, name):
+        with self.lock:
+            data = self._load()
+            data['display_name'] = name
+            self._save(data)
+
+    def board_rows(self):
+        name = self.profile(LOCAL_TOKEN)['display_name']
+        return [row for row in (board_row(r, name) for r in self.speeches(LOCAL_TOKEN)) if row]
 
     def prompts(self):
         with self.lock:

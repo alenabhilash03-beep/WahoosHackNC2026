@@ -74,14 +74,12 @@ def generate_question(category, difficulty):
     if grader_dir not in sys.path:
         sys.path.insert(0, grader_dir)
     from grader.config import load_standards
-    from grader.extract import URL, parse_response
+    from grader.extract import URL, api_keys, key_attempts, parse_response
     from grader.http import OVERLOADED, first_success, post_with_retry
     from grader.pipeline import load_env
-    import os
 
     load_env()
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
+    if not api_keys():
         return fallback(category, difficulty)
     standards, _, _ = load_standards(str(ROOT / 'softskills-grader' / 'config'))
     cfg = standards['apis']['gemini']
@@ -94,11 +92,9 @@ def generate_question(category, difficulty):
         'response_format': {'type': 'text', 'mime_type': 'application/json', 'schema': SCHEMA},
         'store': False,
     }
-    headers = {'x-goog-api-key': api_key, 'Content-Type': 'application/json'}
     models = [cfg['model']] + [m for m in cfg.get('fallback_models') or [] if m != cfg['model']]
-    attempts = [(model, lambda over, model=model: post_with_retry(
+    attempts = key_attempts(models, lambda model, headers, over: post_with_retry(
         URL, deadline=12, retry_on=OVERLOADED, cancelled=over, headers=headers, json={**request, 'model': model}))
-        for model in models]
     try:
         response, _ = first_success(attempts, hedge_after=5)
         answer = parse_response(response.json())

@@ -372,6 +372,36 @@ def test_every_model_failing_gives_one_readable_error():
         raise AssertionError("expected a RuntimeError")
 
 
+def test_rate_limited_key_hands_over_to_the_next_key():
+    # Each key has its own quota: a spent key moves on to the next key on the same model.
+    calls, original = [], http.requests.post
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls.append((json["model"], headers["x-goog-api-key"]))
+        spent = headers["x-goog-api-key"] in ("key-one", "key-two")
+        return FakeResponse({"error": {"code": 429}}, 429) if spent else FakeResponse(FX["gemini_response"])
+
+    os.environ["GEMINI_API_KEY"], os.environ["GEMINI_API_KEYS"] = "key-one", "key-two, key-three,key-one"
+    http.requests.post = fake_post
+    try:
+        assert extract.api_keys() == ["key-one", "key-two", "key-three"]     # in order, no repeats
+        result = extract.extract(FX["scribe"]["text"], FX["topic"], STANDARDS["apis"]["gemini"],
+                                 tempfile.mkdtemp(dir=TMP))
+        assert result == FX["annotations"]
+        assert calls == [("gemini-3.8-flash", "key-one"), ("gemini-3.8-flash", "key-two"),
+                         ("gemini-3.8-flash", "key-three")]
+        os.environ["GEMINI_API_KEYS"] = "key-two"
+        try:
+            extract.extract(FX["scribe"]["text"], FX["topic"], STANDARDS["apis"]["gemini"], tempfile.mkdtemp(dir=TMP))
+        except RuntimeError as error:
+            assert "key 2" in str(error) and "key-" not in str(error), str(error)   # numbered, never shown
+        else:
+            raise AssertionError("expected a RuntimeError")
+    finally:
+        http.requests.post = original
+        del os.environ["GEMINI_API_KEYS"]
+
+
 # ---------------------------------------------------------------------- standards
 def test_slow_gemini_model_is_raced_by_the_fallback():
     # The first model hangs; after HEDGE_AFTER the fallback starts and its answer wins.

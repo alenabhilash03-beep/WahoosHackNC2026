@@ -4,6 +4,7 @@ import importlib.util
 import json
 import math
 import shutil
+from .leaderboard import board_row
 from .settings import ROOT
 
 
@@ -64,6 +65,9 @@ class DemoRepository:
 
     def speeches(self, user):
         return [copy.deepcopy(row) for row in self.rows if row['player_id'] == user]
+
+    def board_rows(self):
+        return [row for row in (board_row(r, 'Local demo') for r in self.rows) if row]
 
     def speech(self, id, user):
         return next((copy.deepcopy(row) for row in self.rows if row['id'] == id and row['player_id'] == user), None)
