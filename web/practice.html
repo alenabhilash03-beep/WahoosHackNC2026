@@ -11,6 +11,7 @@
   <script type="module" src="js/arena.js" blocking="render"></script>
   <script src="config.js"></script>
   <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="community.css" />
 </head>
 <body data-arena="stage" data-phase="setup">
   <canvas id="scene" aria-hidden="true"></canvas>
@@ -24,6 +25,7 @@
     <section class="solo-panel" id="setup" aria-labelledby="setup-title">
       <h2 id="setup-title">CHOOSE YOUR CHALLENGE</h2>
       <p class="lede">Pick a difficulty and a category. You get a yes-or-no question, choose your side, then speak for up to 60 seconds. At least 40 words are needed for a grade.</p>
+      <p id="community-practice" class="community-copy" hidden><a href="practice.html?mode=community">CURRENT COMMUNITY PROMPT</a> · Record a speech you can choose to share after grading.</p>
       <fieldset class="level-field" id="levels" disabled>
         <legend>DIFFICULTY</legend>
         <button type="button" class="level" data-level="beginner" aria-pressed="false">BEGINNER</button>
@@ -49,6 +51,7 @@
     <div class="question-card" id="question-card">
       <p class="eyebrow" id="question-meta">THE QUESTION</p>
       <h2 id="question">Writing your question…</h2>
+      <div id="community-notice" class="community-copy" hidden><p id="community-round-closing"></p><p id="community-retention"></p><p>Your recording stays private unless you choose to share it after grading.</p></div>
       <div id="side-pick" class="side-pick" hidden>
         <p>YOUR SIDE</p>
         <button type="button" class="side" data-side="yes">ARGUE YES</button>

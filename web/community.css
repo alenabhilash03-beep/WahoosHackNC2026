@@ -1,0 +1,15 @@
+.community-panel { margin:30px 8px; padding:24px; background:var(--panel); box-shadow:0 0 0 3px var(--panel-line),5px 7px 0 #000; overflow-wrap:anywhere; }
+.community-panel h2 { line-height:1.8; font-size:14px; }
+.community-copy { font-size:12px; line-height:1.9; }
+.community-tabs, .reactions, .community-pages { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
+.community-panel button { font:inherit; font-size:10px; color:var(--ink); background:var(--bg); border:2px solid var(--panel-line); padding:12px; min-height:44px; cursor:pointer; }
+.community-panel button[aria-pressed=true], .community-panel [role=tab][aria-selected=true] { border-color:var(--gold); color:var(--gold); }
+.community-panel button:disabled { opacity:.55; cursor:default; }
+.community-panel button:focus-visible, .community-panel a:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }
+.community-panel [hidden] { display:none !important; }
+.community-entries { list-style:none; padding:0; margin:0; }
+.community-entry { padding:18px 0; border-bottom:2px dotted var(--panel-line); }
+.community-entry h3 { font-size:12px; line-height:1.8; }
+.community-entry audio { width:100%; max-width:450px; display:block; margin:12px 0; }
+.community-error { color:var(--gold); }
+@media(max-width:600px) { .community-panel { padding:18px 14px; } .community-tabs { flex-direction:column; } .reactions button { flex:1 0 40%; } }

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="progress.css" />
   <link rel="stylesheet" href="solo.css" />
   <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="community.css" />
   <script src="config.js"></script>
 </head>
 <body>
@@ -23,7 +24,7 @@
           <label class="field" for="name"><span id="name-label">NAME ON THE BOARD</span></label>
           <input id="name" name="name" type="text" maxlength="20" autocomplete="nickname" spellcheck="false" aria-describedby="name-help name-error" />
           <button class="radar-toggle" id="save" type="submit">JOIN THE BOARD</button>
-          <p class="meta" id="name-help">3 to 20 letters, digits or underscores. Others see this name and your best score, never your recordings.</p>
+          <p class="meta" id="name-help">3 to 20 letters, digits or underscores. Others see this name and your best score. Recordings stay private unless you explicitly share a community speech.</p>
           <p class="name-error" id="name-error" role="alert"></p>
         </form>
       </section>
@@ -33,6 +34,23 @@
         <ol id="board" class="board"></ol>
       </section>
     </div>
+    <section id="community" class="community-panel" aria-labelledby="community-title" hidden>
+      <h2 id="community-title">COMMUNITY SPEECHES</h2>
+      <p id="community-prompt" class="community-copy"></p>
+      <p id="community-closing" class="community-copy"></p>
+      <p class="community-copy"><a href="practice.html?mode=community">RECORD CURRENT COMMUNITY PROMPT</a></p>
+      <div class="community-tabs" role="tablist" aria-label="Community ranking">
+        <button id="community-grade" type="button" role="tab" aria-controls="community-results" aria-selected="true" data-sort="grade">Highest graded</button>
+        <button id="community-favorites" type="button" role="tab" aria-controls="community-results" aria-selected="false" tabindex="-1" data-sort="favorites">Community favorites</button>
+      </div>
+      <div id="community-results" role="tabpanel" aria-labelledby="community-grade">
+        <p id="community-status" class="community-copy" role="status">Loading community speeches…</p>
+        <ol id="community-entries" class="community-entries"></ol>
+        <div class="community-pages"><button id="community-prev" type="button" disabled>Previous page</button><button id="community-next" type="button" disabled>Next page</button></div>
+      </div>
+      <p id="community-error" class="community-copy community-error" role="alert"></p>
+      <button id="community-retry" type="button">Refresh community board</button>
+    </section>
   </main>
   <script type="module" src="js/leaderboard.js"></script>
   <script type="module" src="js/account.js"></script>

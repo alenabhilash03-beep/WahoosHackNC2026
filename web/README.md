@@ -1,5 +1,7 @@
 # SpeakUp home screen
 
+The opt-in community recording, sharing and reaction UI is documented in the [community frontend guide](../docs/implementation/community-frontend.md). It is disabled by default pending the community schema, API, moderation and cleanup phases.
+
 A static Three.js page. No build step; Three.js loads from a CDN via an import map.
 
 ```bash

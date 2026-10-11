@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="progress.css">
   <link rel="stylesheet" href="card.css">
   <link rel="stylesheet" href="auth.css">
+  <link rel="stylesheet" href="community.css">
   <!-- The card can open inside the stage page (fading in during the applause); links still leave to the top window. -->
   <base target="_top">
   <style>@view-transition { navigation: auto; } .lobby-button { background: var(--velvet); }</style>
@@ -26,10 +27,20 @@
     <div id="card" hidden>
       <p id="demo-banner" class="card-panel body-copy" hidden>LOCAL DEMO · Saved examples. Audio is a synthetic tone; this is not a live graded recording.</p>
       <section class="card-panel overview" aria-labelledby="prompt">
-        <div><p class="eyebrow">PRIVATE PRACTICE · <span id="side"></span></p><h2 id="prompt"></h2><p class="body-copy" id="comparison"></p><a id="retry" class="arena-button" href="practice.html">RETRY THIS PROMPT</a><a class="arena-button lobby-button" href="index.html">RETURN TO LOBBY</a></div>
+        <div><p class="eyebrow">YOUR SPEECH · <span id="side"></span></p><h2 id="prompt"></h2><p class="body-copy" id="comparison"></p><a id="retry" class="arena-button" href="practice.html">RETRY THIS PROMPT</a><a class="arena-button lobby-button" href="index.html">RETURN TO LOBBY</a></div>
         <div class="overall"><p class="eyebrow">OVERALL</p><strong id="score"></strong><span id="letter"></span><p class="body-copy">OUT OF 100</p><p id="capped" class="small-copy" hidden></p></div>
       </section>
       <div id="sections" class="section-scores" aria-label="Section scores"></div>
+      <section id="community-share" class="community-panel" aria-labelledby="share-title" hidden>
+        <h2 id="share-title">SHARE YOUR SPEECH</h2>
+        <p id="share-status" class="community-copy" role="status"></p>
+        <p id="share-retention" class="community-copy"></p>
+        <p class="community-copy">Withdrawal stops new playback links immediately. Links already issued can work for up to five minutes.</p>
+        <a id="share-name" href="leaderboard.html#name-form" hidden>SET YOUR DISPLAY NAME</a>
+        <button id="share-action" type="button" hidden>Share with the community</button>
+        <button id="share-retry" type="button">Check sharing status</button>
+        <p id="share-error" class="community-copy community-error" role="alert"></p>
+      </section>
       <div class="card-columns">
         <section class="card-panel" aria-labelledby="fix-title"><p class="eyebrow">YOUR NEXT TAKE</p><h2 id="fix-title">FIX THESE FIRST</h2><ol id="fixes" class="fix-list body-copy"></ol><p class="small-copy">Rubric points are attributed before factor scores are clipped to 0–100. They show the size of each scoring issue, not a guaranteed score gain on your next take.</p></section>
         <section class="card-panel" aria-labelledby="radar-title"><h2 id="radar-title">SPEECH RADAR</h2><p class="small-copy" id="radar-note"></p><div id="radar"></div></section>
