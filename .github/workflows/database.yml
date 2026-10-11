@@ -1,0 +1,42 @@
+name: Database foundation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - run: pnpm --dir tools/database install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Apply all migrations to disposable Supabase
+        run: supabase start
+      - name: Database constraints, RLS, persistence and concurrent names
+        run: pnpm --dir tools/database test
+        env:
+          DATABASE_TEST_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r server/requirements-dev.txt
+      - name: Repository and read-only Supabase checks
+        run: |
+          python -m pytest server/tests/test_repository.py server/tests/test_supabase_check.py -q
+          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+          export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          python tools/checks/check_supabase.py
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup

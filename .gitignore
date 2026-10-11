@@ -12,3 +12,5 @@ server/data/
 node_modules/
 work/browser-qa/
 .DS_Store
+supabase/.temp/
+supabase/.branches/

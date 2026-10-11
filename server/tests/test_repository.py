@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 import unittest
 from server.app.repository import SupabaseRepository
+from postgrest.exceptions import APIError
 
 
 class Query:
@@ -101,6 +102,23 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn(('ilike', ('display_name', 'Ada\\_1'), {}), trace)
         self.assertIn(('neq', ('id', 'resolved-user'), {}), trace)
         self.assertFalse([item for item in trace if item[0] == 'upsert'])
+
+    def test_concurrent_name_claim_returns_name_taken(self):
+        from server.app.leaderboard import NameTaken
+        class Raced(Query):
+            def upsert(self, *args, **kwargs):
+                raise APIError({'code': '23505', 'message': 'duplicate name', 'details': None, 'hint': None})
+        self.repo.client.table = lambda name: Raced(self.trace)
+        with self.assertRaises(NameTaken):
+            self.repo.set_display_name('resolved-user', 'Ada_1')
+
+    def test_unrelated_database_failure_is_not_name_taken(self):
+        class Broken(Query):
+            def upsert(self, *args, **kwargs):
+                raise APIError({'code': '23503', 'message': 'missing account', 'details': None, 'hint': None})
+        self.repo.client.table = lambda name: Broken(self.trace)
+        with self.assertRaises(APIError):
+            self.repo.set_display_name('resolved-user', 'Ada_1')
 
 
 if __name__ == '__main__':

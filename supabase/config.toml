@@ -1,0 +1,32 @@
+# Local development only. Hosted Auth providers are configured in the dashboard.
+project_id = "speakup"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.seed]
+enabled = false # Practice prompts are already seeded by migration 0003.
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:8000"
+additional_redirect_urls = ["http://localhost:8000/login.html", "http://127.0.0.1:8000/login.html"]
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[storage]
+enabled = true
+file_size_limit = "15MiB"
