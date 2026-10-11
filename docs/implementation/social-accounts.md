@@ -78,7 +78,9 @@ the browser. FastAPI generates `/config.js` when serving the frontend. A separat
 static frontend needs its deployed API URL and an exact server CORS origin.
 Do not enable `LOCAL_MODE` or `DEMO_MODE` on the deployed server.
 
-No new migration is required when migrations 0001 through 0004 are already applied.
+GitHub sign-in itself does not require an additional migration beyond 0001 through 0004.
+The [database foundation](../../supabase/README.md) adds migration 0005 for unique names
+and private-bucket enforcement; include it when setting up or upgrading the database.
 Tables retain RLS without browser policies; the server enforces speech ownership
 and creates private audio URLs. GitHub users receive ordinary Supabase IDs.
 Existing anonymous recordings remain owned by their guest IDs and are not merged

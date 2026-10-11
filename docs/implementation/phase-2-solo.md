@@ -37,7 +37,7 @@ python -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
 
 In PowerShell use `$env:DEMO_MODE='true'`; in a POSIX shell use `export DEMO_MODE=true`. Open `/practice.html`, `/card.html?id=demo-best`, or `/progress.html` on that server. This explicitly labeled local viewer uses synthetic buzz audio and canned timestamps; it rejects real recording uploads. It is restricted to loopback hosts, clients, and origins.
 
-For real practice, use `server/.env.example` to create `server/.env`, set `DEMO_MODE=false`, supply Supabase and grader keys, enable anonymous sign-in, and apply migrations 0001, 0002, and 0003. Install FFmpeg for browser WebM/Ogg/MP4 decoding. WAV decoding uses Python alone. For GitHub Pages, set the public values in `web/config.js` and allow its exact origin in `CORS_ORIGINS`. Server deployment and persistent cache guidance are in `server/README.md`.
+For real practice, use `server/.env.example` to create `server/.env`, set `DEMO_MODE=false`, supply Supabase and grader keys, configure [GitHub accounts](social-accounts.md), and apply all migrations using the [database guide](../../supabase/README.md). Install FFmpeg for browser WebM/Ogg/MP4 decoding. WAV decoding uses Python alone. For GitHub Pages, set the public values in `web/config.js` and allow its exact origin in `CORS_ORIGINS`. Server deployment and persistent cache guidance are in `server/README.md`.
 
 ## Checks
 
