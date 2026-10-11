@@ -35,9 +35,11 @@ async function checkService() {
       $('preview').hidden = false;
       return;
     }
+    // Only local mode keeps everything on this computer; the deployed server stores each
+    // recording privately for its player.
     $('status').textContent = globalThis.ARENA_CONFIG?.LOCAL_MODE
       ? 'Private practice. Your recording and report stay on this computer.'
-      : 'Private practice. Your recording and report are saved to your account.';
+      : 'Private practice. Your recording and report are saved to your account and visible only to you.';
     $('levels').disabled = false;
     // "Retry this prompt" from a speech card: skip the picker, same question and side.
     const retry = prompts.find(p => p.id === params.get('motion_id'));

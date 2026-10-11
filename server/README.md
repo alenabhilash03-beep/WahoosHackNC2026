@@ -45,6 +45,8 @@ All live `/api/` routes require `Authorization: Bearer <Supabase access token>`.
 - `POST /api/speeches`: multipart `motion_id`, `side` (`yes` or `no`), `audio`, returns 202 `{speech_id}`. Maximum 15 MB; WAV, WebM, Ogg, MP4, MP3, FLAC. Uploads use owner-prefixed private storage paths. A background worker invokes the real grader and saves the unchanged report.
 - `GET /api/speeches/{id}`: owner-only `{id,status,motion_id,side,prompt,report,audio_url,fixes,sections,deltas,previous_best,error}`. Other owners' IDs return 404 before signing any audio. Signed URLs expire after 300 seconds; reload the card to renew. `status` is `queued`, `grading`, `done`, `ungradable`, or `failed`. Ungradable keeps its explanation and transcript without contributing any zero grade.
 - `GET /api/me`: `{id,display_name,prompts,speeches,bests,recent_overalls,season_tier:null,judge_xp:0}`. Speeches are in recording order, each with `{id,motion_id,side,created_at,status,overall,factor_scores}`. Failed/ungradable attempts have null overall/factors. Best per prompt uses highest graded overall, ties earliest. Recent overalls contains the last ten graded attempts.
+- `POST /api/me/name`: JSON `{display_name}`, 3 to 20 letters, digits or underscores (422 otherwise). Names differing only by case are the same name; one held by another player returns 409. Choosing a name is how a player joins the leaderboard, and they can change it later.
+- `GET /api/leaderboard`: `{rows,you,display_name}`. `rows` is the top 50 named players by their best graded speech on any prompt, each `{place,display_name,score,letter,attempts,you}`; ties go to the earlier speech and tries are unlimited. `you` is the caller's own row even below the top 50, or null; `display_name` is null until the caller picks a name. Only names, scores and letters are exposed: no player IDs, reports or audio.
 
 Sections have `{score,factors,evidence}`. Logos uses `logic`, Pathos uses `emotion`, Delivery uses the normalized weighted average of `pace`, `diction`, and `tone`; it also includes each full factor separately. The report carries every metric, deduction, value, source, bucket and evidence without hiding zero deductions.
 
@@ -67,7 +69,11 @@ fly deploy
 
 Open `https://<app>.fly.dev/practice.html`. Keep one machine: `fly.toml` disables auto-stop and scaling out is unsupported (see below). To also serve the GitHub Pages copy, set `API_URL`, `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `web/config.js` and add the Pages origin (`https://alenabhilash03-beep.github.io`) to `CORS_ORIGINS` with `fly secrets set`. Never set `DEMO_MODE` on the deployed server.
 
-The image has not been built end to end or deployed yet: no hosting account or live credentials were available.
+**Live now:** https://speak-up.fly.dev (the Fly app is `speak-up`; `fly.toml` holds the name). First deployed on 2026-10-11 with one machine in `iad` and the `arena_data` volume. Checked against that URL with a spoken 50-second WAV: anonymous sign-in, prompts, upload, grading and the card work, the card was ready 8.3 s after upload, the same file uploaded again gave the identical report, and another player got 404 on the speech. A real microphone recording on the deployed page has not been checked.
+
+If the machine is ever stopped, the next request starts it again (`auto_start_machines`); a grading that was running when it stopped is lost. A Fly trial account without a payment card stops machines 5 minutes after they start, which is how the first deployment went down; the card has since been added.
+
+To ship a newer `main`, run `fly deploy` from the repository root. If the build stops with `x509: certificate signed by unknown authority` (a network that inspects TLS), use `fly deploy --depot=false`.
 
 ## Deployment and verification limits
 

@@ -56,6 +56,7 @@ export function createClient() {
     await context.route('https://fonts.googleapis.com/**', route => route.fulfill({contentType:'text/css',body:''}));
     await context.route('**/api/me', route => route.fulfill({contentType:'application/json',body:JSON.stringify({id:'test-user',display_name:'player',prompts:[],speeches:[]})}));
     await context.route('**/api/prompts', route => route.fulfill({contentType:'application/json',body:'[]'}));
+    await context.route('**/api/leaderboard', route => route.fulfill({contentType:'application/json',body:JSON.stringify({rows:[],you:null,display_name:null})}));
     const google=page.getByRole('button',{name:'Continue with Google',exact:true});
     const github=page.getByRole('button',{name:'Continue with GitHub',exact:true});
     const enabled=()=>google.waitFor({state:'visible'}).then(()=>page.waitForFunction(()=>!document.querySelector('[data-provider="google"]').disabled));
@@ -83,6 +84,11 @@ export function createClient() {
     const second=await context.newPage(); await second.goto(base+'/index.html');
     await second.getByRole('button',{name:'SIGN OUT',exact:true}).click();
     await page.waitForURL('**/login.html?next=progress.html'); await second.close();
+
+    await page.goto(base+'/leaderboard.html');
+    await page.waitForURL('**/login.html?next=leaderboard.html'); await enabled();
+    await google.click(); await page.waitForURL('**/leaderboard.html');
+    await page.getByRole('button',{name:'SIGN OUT',exact:true}).click(); await page.waitForURL('**/index.html');
 
     await page.goto(base+'/login.html?next=https://evil.example'); await enabled();
     await github.click(); await page.waitForURL('**/practice.html');

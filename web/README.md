@@ -1,4 +1,4 @@
-# Debate Arena home screen
+# SpeakUp home screen
 
 A static Three.js page. No build step; Three.js loads from a CDN via an import map.
 

@@ -16,7 +16,7 @@ test('form uploads retain browser multipart boundary and errors retain API detai
 });
 test('demo identity is refused on a public host',async()=>{
   const client=createApiClient({config:{DEMO_MODE:true},hostname:'example.com',fetchImpl:async()=>json({})});
-  await assert.rejects(client('/api/me'),/local/i);
+  await assert.rejects(client('/api/me'),/Local play only works on this computer/);
 });
 test('missing config and non-JSON backend fail with useful messages',async()=>{
   await assert.rejects(createApiClient({config:{}})('/api/me'),/configured/);

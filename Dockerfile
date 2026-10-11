@@ -1,5 +1,5 @@
 # One container serves the API and the static site in web/ from the same origin.
-# Build from the repository root: docker build -t debate-arena .
+# Build from the repository root: docker build -t speakup .
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /repo

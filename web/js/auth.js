@@ -21,7 +21,7 @@ export class AuthRequiredError extends Error {
   constructor() { super('Sign in to continue.'); this.status = 401; }
 }
 
-const PAGES = new Set(['index.html', 'practice.html', 'progress.html', 'card.html']);
+const PAGES = new Set(['index.html', 'practice.html', 'progress.html', 'card.html', 'leaderboard.html']);
 const PROVIDERS = ['google', 'github'];
 export async function getLoginProviders({config = globalThis.ARENA_CONFIG ?? {}, fetchImpl = globalThis.fetch} = {}) {
   if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {

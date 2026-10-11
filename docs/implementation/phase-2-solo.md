@@ -1,6 +1,6 @@
 # Phase 2: make solo good
 
-Implements Phase 2 of the current Debate Arena Build Plan. The archived `phase-2-rapport.md` describes a retired networking feature and is not used here.
+Implements Phase 2 of the current SpeakUp Build Plan. The archived `phase-2-rapport.md` describes a retired networking feature and is not used here.
 
 The repository had no Phase 0 server or Phase 1 recording flow. This change supplies the prerequisites needed to exercise the solo card: public browser config, anonymous Supabase sessions, owner-scoped FastAPI routes, private recording storage, prompt seeds, upload/background grading, and a recorder with the 10-second countdown and 60-second limit.
 

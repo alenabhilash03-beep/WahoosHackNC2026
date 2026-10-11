@@ -49,6 +49,7 @@ test('provider discovery uses public settings and only enables supported provide
 test('return URLs stay on known pages inside the deployed app',()=>{
   const card='card.html?id=abc';
   assert.equal(safeNext(card,href),card);
+  assert.equal(safeNext('leaderboard.html',href),'leaderboard.html');
   for(const unsafe of ['https://evil.example','//evil.example','javascript:alert(1)','../other.html','/admin','login.html','%2e%2e/admin','https://example.com/other/practice.html']) {
     assert.equal(safeNext(unsafe,href),'practice.html',unsafe);
   }

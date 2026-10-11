@@ -71,6 +71,37 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(len([item for item in trace if item[0] == 'eq' and item[1] == ('player_id', 'resolved-user')]),
                          len([item for item in trace if item[0] == 'range']))
 
+    def test_board_reads_scores_only_and_skips_unnamed_players(self):
+        tables = {'profiles': [{'id': 'a', 'display_name': 'Ada_1'}],
+                  'speeches': [{'id': '1', 'player_id': 'a', 'overall': 82.5, 'letter': 'B', 'created_at': 't1'},
+                               {'id': '2', 'player_id': 'unnamed', 'overall': 99, 'letter': 'A+', 'created_at': 't2'},
+                               {'id': '3', 'player_id': 'a', 'overall': None, 'letter': None, 'created_at': 't3'}]}
+        trace = self.trace
+        class TableQuery(Query):
+            def __init__(self, name):
+                super().__init__(trace)
+                self.name = name
+            def execute(self):
+                return SimpleNamespace(data=tables[self.name])
+        self.repo.client.table = TableQuery
+        self.assertEqual(self.repo.board_rows(), [dict(player_id='a', display_name='Ada_1', score=82.5, letter='B', created_at='t1')])
+        self.assertIn(('neq', ('display_name', 'player'), {}), trace)
+        selected = [item[1][0] for item in trace if item[0] == 'select']
+        self.assertEqual(selected, ['id,display_name', 'id,player_id,overall,created_at,letter:report->overall->>letter'])
+
+    def test_taken_name_is_refused_before_writing(self):
+        from server.app.leaderboard import NameTaken
+        trace = self.trace
+        class Taken(Query):
+            def execute(self):
+                return SimpleNamespace(data=[{'id': 'someone-else'}])
+        self.repo.client.table = lambda name: Taken(trace)
+        with self.assertRaises(NameTaken):
+            self.repo.set_display_name('resolved-user', 'Ada_1')
+        self.assertIn(('ilike', ('display_name', 'Ada\\_1'), {}), trace)
+        self.assertIn(('neq', ('id', 'resolved-user'), {}), trace)
+        self.assertFalse([item for item in trace if item[0] == 'upsert'])
+
 
 if __name__ == '__main__':
     unittest.main()

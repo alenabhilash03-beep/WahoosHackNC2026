@@ -1,5 +1,5 @@
 """
-NetworkMaxx Debate Arena: community rating aggregation.
+SpeakUp: community rating aggregation.
 
 Pure functions, numpy only, deterministic (fixed iteration counts, no randomness).
 

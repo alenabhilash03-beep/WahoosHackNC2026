@@ -1,4 +1,4 @@
-# Debate Arena implementation guide
+# SpeakUp implementation guide
 
 The [Build Plan](../../Build%20Plan.md) is the source of truth: both stages, scoring, schema,
 routes, screens and the schedule. This page is the short checklist for starting the build.
@@ -53,7 +53,7 @@ python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratin
 | `GEMINI_API_KEY` | server | Argument extraction, safety check |
 | `SUPABASE_URL` | server, web | Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | server only | Database and storage |
-| `SUPABASE_ANON_KEY` | web (in a config script) | Anonymous sign-in only; RLS blocks every table |
+| `SUPABASE_ANON_KEY` | web (in a config script) | Public anon/publishable key for Google/GitHub sign-in; RLS blocks every table |
 | `API_URL` | web (in a config script) | The FastAPI base URL |
 | `SIGNING_SECRET` | server | Matchup tokens (stage 2) |
 
