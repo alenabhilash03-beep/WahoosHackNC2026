@@ -1,8 +1,7 @@
 # SpeakUp on Fly.io: the FastAPI server plus the static site, same origin.
 # Deploy from the repository root with `fly deploy`. Steps: server/README.md, "Deploy to Fly.io".
-# Temporary name: this is the app that is live now (https://wahoos-debate-arena.fly.dev).
-# When the project gets its final name, create that app and change this line.
-app = "wahoos-debate-arena"
+# Live at https://speak-up.fly.dev ("speakup" was already taken on Fly).
+app = "speak-up"
 primary_region = "iad"
 
 [build]

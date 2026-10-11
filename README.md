@@ -7,7 +7,7 @@ seconds, and get a speech card with the three changes worth the most points. Sta
 a prompt of the day, a leaderboard of everyone's graded answers, and community members rating each
 other's speeches head to head.
 
-**Try it:** https://wahoos-debate-arena.fly.dev (a temporary address; stage 1 only).
+**Try it:** https://speak-up.fly.dev (stage 1 only).
 
 - [Build plan](Build%20Plan.md): both stages, scoring, architecture, schedule and demo.
 - [`softskills-grader/`](softskills-grader/README.md): rates each speech (pace, diction, tone,
