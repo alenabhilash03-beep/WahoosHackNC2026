@@ -9,6 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="progress.css">
   <link rel="stylesheet" href="card.css">
+  <!-- The card can open inside the stage page (fading in during the applause); links still leave to the top window. -->
+  <base target="_top">
+  <style>@view-transition { navigation: auto; } .lobby-button { background: var(--velvet); }</style>
 </head>
 <body>
   <header class="valance"><p class="kicker">DEBATE ARENA</p><h1>YOUR SPEECH CARD</h1></header>
@@ -19,11 +22,12 @@
       <p id="status" role="status" aria-live="polite">Getting your speech…</p>
       <button id="reload" class="arena-button" type="button" hidden>TRY AGAIN</button>
       <a class="arena-button" id="status-practice" href="practice.html" hidden>RECORD A SPEECH</a>
+      <a class="arena-button lobby-button" href="index.html">RETURN TO LOBBY</a>
     </section>
     <div id="card" hidden>
       <p id="demo-banner" class="card-panel body-copy" hidden>LOCAL DEMO · Saved examples. Audio is a synthetic tone; this is not a live graded recording.</p>
       <section class="card-panel overview" aria-labelledby="prompt">
-        <div><p class="eyebrow">PRIVATE PRACTICE · <span id="side"></span></p><h2 id="prompt"></h2><p class="body-copy" id="comparison"></p><a id="retry" class="arena-button" href="practice.html">RETRY THIS PROMPT</a></div>
+        <div><p class="eyebrow">PRIVATE PRACTICE · <span id="side"></span></p><h2 id="prompt"></h2><p class="body-copy" id="comparison"></p><a id="retry" class="arena-button" href="practice.html">RETRY THIS PROMPT</a><a class="arena-button lobby-button" href="index.html">RETURN TO LOBBY</a></div>
         <div class="overall"><p class="eyebrow">OVERALL</p><strong id="score"></strong><span id="letter"></span><p class="body-copy">OUT OF 100</p><p id="capped" class="small-copy" hidden></p></div>
       </section>
       <div id="sections" class="section-scores" aria-label="Section scores"></div>

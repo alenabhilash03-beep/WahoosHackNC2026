@@ -1,52 +1,244 @@
+// The practice round, on stage:
+//   setup     pick a difficulty and a category (or type your own)
+//   walk      the speaker walks to the podium while the question is written; pick a side
+//   countdown 5 seconds through the speaker's eyes, gazing across the audience
+//   speaking  up to 60 seconds, with a time bar that turns from white to red
+//   applause  applause while the speech uploads; the speech card fades in as it dies away
 import {api} from './api.js';
 import {createRecording} from './recorder.js';
-const $=id=>document.getElementById(id);
-let ready=false,busy=false,recorded,recordedName='recording.webm',demo=false;
-function controls(state=recorder.state) {
-  const locked=busy || state!=='idle';
-  $('prompt').disabled=!ready || locked;$('sides').disabled=locked;
-  $('start').disabled=!ready || demo || locked;$('file').disabled=!ready || demo || locked;
-  $('send').disabled=!ready || demo || locked || !recorded;
-  $('stop').hidden=state==='idle' || state==='stopping';
+import {createApplause} from './applause.js';
+import {pickCategories} from './topics.js';
+import {cheer, pauseRendering, startPov, walkToPodium} from './arena.js';
+
+const COUNTDOWN_SECONDS = 5;
+const SPEECH_SECONDS = 60;
+const APPLAUSE_SECONDS = 3.2;        // full for a moment, then fading as the stats come up
+const STATS_AFTER_SECONDS = 1.2;     // when the stats screen starts to fade in over the stage
+const STATS_FADE_SECONDS = 1.6;
+const OWN = '__own';
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const applause = createApplause();
+
+const round = {difficulty: null, motion: null, side: null, atPodium: false, started: false, recorded: null, speechStart: 0};
+
+function phase(name) { document.body.dataset.phase = name; }
+function say(text) { $('round-status').textContent = text; }
+
+// ------------------------------------------------------------------ setup
+async function checkService() {
+  $('reload').hidden = true;
+  $('status').textContent = 'Checking the grading service…';
+  try {
+    const prompts = await api('/api/prompts');
+    if (globalThis.ARENA_CONFIG?.DEMO_MODE) {
+      $('status').textContent = 'LOCAL PREVIEW · Saved examples only. Run the server in local mode to play.';
+      $('preview').hidden = false;
+      return;
+    }
+    $('status').textContent = 'Private practice. Your recording and report stay on this computer.';
+    $('levels').disabled = false;
+    // "Retry this prompt" from a speech card: skip the picker, same question and side.
+    const retry = prompts.find(p => p.id === params.get('motion_id'));
+    if (retry) begin({id: retry.id, text: retry.text}, ['yes', 'no'].includes(params.get('side')) ? params.get('side') : null);
+  } catch (error) {
+    $('status').textContent = `${error.message} To play, start the server in local mode (see server/README.md).`;
+    $('reload').hidden = false;
+  }
 }
-const recorder=createRecording({
-  onUpdate({state,seconds,error}) {
-    $('timer').textContent=state==='idle'?'60':state==='acquiring'?'…':String(seconds);
-    if(error)$('recording-status').textContent=error;
-    else if(state==='acquiring')$('recording-status').textContent='Waiting for microphone permission…';
-    else if(state==='countdown')$('recording-status').textContent='Microphone ready. Get ready…';
-    else if(state==='recording')$('recording-status').textContent='Recording. Make your case.';
-    controls(state);
-  },
-  onCaptured(blob) { recorded=blob;recordedName=blob.type.includes('mp4')?'recording.mp4':blob.type.includes('ogg')?'recording.ogg':'recording.webm';send(); },
+
+function fillCategories() {
+  const select = $('category');
+  select.replaceChildren(new Option('Choose a category…', ''));
+  for (const name of pickCategories(5)) select.add(new Option(name, name));
+  select.add(new Option('Your own…', OWN));
+  select.value = '';
+  $('own').hidden = true;
+}
+
+for (const button of document.querySelectorAll('.level')) {
+  button.addEventListener('click', () => {
+    round.difficulty = button.dataset.level;
+    for (const other of document.querySelectorAll('.level')) other.setAttribute('aria-pressed', String(other === button));
+    if ($('category-step').hidden) { fillCategories(); $('category-step').hidden = false; }
+    $('category').focus();
+  });
+}
+
+$('shuffle').addEventListener('click', fillCategories);
+$('category').addEventListener('change', () => {
+  const value = $('category').value;
+  $('own').hidden = value !== OWN;
+  if (value === OWN) $('own-text').focus();
+  else if (value) begin(null, null, value);
 });
-async function load() {
-  ready=false;$('reload').hidden=true;$('status').textContent='Loading prompts…';controls();
-  try {
-    const prompts=await api('/api/prompts');demo=Boolean(globalThis.ARENA_CONFIG?.DEMO_MODE);
-    $('prompt').replaceChildren();for(const p of prompts)$('prompt').add(new Option(p.text,p.id));
-    const params=new URLSearchParams(location.search);
-    if(prompts.some(p=>p.id===params.get('motion_id')))$('prompt').value=params.get('motion_id');
-    const side=params.get('side');if(['yes','no'].includes(side))document.querySelector(`input[value="${side}"]`).checked=true;
-    ready=prompts.length>0;$('status').textContent=ready?(demo?'LOCAL PREVIEW · Connect live services to grade recordings.':'Private practice. Your recording and report are visible only to you.'):'No prompts available. Seed prompts on the server, then retry.';
-    $('preview').hidden=!demo;$('reload').hidden=ready;controls();
-  }catch(error){$('status').textContent=error.message;$('reload').hidden=false;controls();}
+$('own-go').addEventListener('click', () => {
+  const text = $('own-text').value.trim();
+  if (text.length < 2) { $('own-text').focus(); return; }
+  begin(null, null, text);
+});
+$('own-text').addEventListener('keydown', event => { if (event.key === 'Enter') $('own-go').click(); });
+
+// ------------------------------------------------------------------ the round
+/** Start the round with a known motion (retry) or a category to write a question for. */
+function begin(motion, side, category) {
+  if (round.started) return;
+  round.started = true;
+  applause.prime();
+  phase('walk');
+  $('round').hidden = false;
+  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : 'THE QUESTION';
+  // The speaker walks on while the question is written; both take about 2 seconds.
+  walkToPodium().then(() => { round.atPodium = true; maybeStartCountdown(); });
+  if (motion) showQuestion(motion, side);
+  else writeQuestion(category);
 }
-async function send() {
-  if(!recorded || busy)return;
-  if(recorded.size>15*1024*1024){$('recording-status').textContent='The recording exceeds 15 MB. Choose a smaller file.';return;}
-  busy=true;controls();$('recording-status').textContent='Uploading your speech…';
+
+async function writeQuestion(category) {
+  $('question').textContent = 'Writing your question…';
+  $('round-retry').hidden = true;
+  say('');
   try {
-    const form=new FormData();form.append('motion_id',$('prompt').value);form.append('side',document.querySelector('input[name=side]:checked').value);form.append('audio',recorded,recordedName);
-    const result=await api('/api/speeches',{method:'POST',body:form});
-    if(!result.speech_id)throw new Error('The server returned no speech id. Please retry.');
-    location.href=`card.html?id=${encodeURIComponent(result.speech_id)}`;
-  }catch(error){$('recording-status').textContent=`${error.message} Your recording is kept here; retry Upload + Grade.`;}
-  finally{busy=false;controls();}
+    const motion = await api('/api/questions', {method: 'POST', body: {category, difficulty: round.difficulty}});
+    showQuestion(motion, null);
+  } catch (error) {
+    $('question').textContent = 'No question yet';
+    say(error.message);
+    $('round-leave').hidden = false;
+    $('round-retry').hidden = false;
+    $('round-retry').onclick = () => writeQuestion(category);
+  }
 }
-$('start').addEventListener('click',()=>{recorded=null;$('file').value='';recorder.start();});
-$('stop').addEventListener('click',()=>{const cancel=recorder.state!=='recording';recorder.stop();if(cancel)$('recording-status').textContent='Recording cancelled. Ready when you are.';});
-$('file').addEventListener('change',()=>{recorded=$('file').files[0] ?? null;recordedName=recorded?.name ?? 'recording.wav';$('recording-status').textContent=recorded?'File ready. Upload to grade.':'Ready when you are.';controls();});
-$('send').addEventListener('click',send);$('reload').addEventListener('click',load);
-window.addEventListener('pagehide',()=>recorder.destroy());
-load();
+
+function showQuestion(motion, side) {
+  round.motion = motion;
+  $('question').textContent = motion.text;
+  $('question-card').classList.add('revealed');
+  if (side) chooseSide(side);
+  else { $('side-pick').hidden = false; say('Choose the side you will argue.'); }
+}
+
+function chooseSide(side) {
+  applause.prime();
+  round.side = side;
+  $('side-pick').hidden = true;
+  $('side-chosen').hidden = false;
+  $('side-chosen').textContent = `YOU ARGUE ${side.toUpperCase()}`;
+  maybeStartCountdown();
+}
+for (const button of document.querySelectorAll('.side')) button.addEventListener('click', () => chooseSide(button.dataset.side));
+
+function maybeStartCountdown() {
+  if (!round.atPodium || !round.motion || !round.side || recorder.state !== 'idle' || round.recorded) return;
+  say('Allow the microphone to begin.');
+  recorder.start();
+}
+
+// ------------------------------------------------------------------ countdown and speech
+let barFrame = 0;
+const recorder = createRecording({
+  countdownMs: COUNTDOWN_SECONDS * 1000,
+  durationMs: SPEECH_SECONDS * 1000,
+  onUpdate({state, seconds, error}) {
+    if (error) {
+      phase('walk');
+      $('countdown').hidden = true;
+      say(error);
+      $('round-retry').hidden = false;
+      $('round-retry').onclick = () => { $('round-retry').hidden = true; maybeStartCountdown(); };
+      return;
+    }
+    if (state === 'countdown') {
+      if (document.body.dataset.phase !== 'countdown') { phase('countdown'); startPov(COUNTDOWN_SECONDS); say(''); }
+      $('countdown').hidden = false;
+      $('countdown').textContent = String(Math.max(1, seconds));
+    } else if (state === 'recording') {
+      if (document.body.dataset.phase !== 'speaking') {
+        phase('speaking');
+        $('countdown').hidden = true;
+        $('speaking').hidden = false;
+        $('timebar').hidden = false;
+        round.speechStart = performance.now();
+        barFrame = requestAnimationFrame(drawBar);
+      }
+      $('clock').textContent = String(seconds);
+    }
+  },
+  onCaptured(blob) {
+    cancelAnimationFrame(barFrame);
+    round.recorded = blob;
+    finishSpeech();
+  },
+});
+
+/** The time bar fills over the speech and turns from white to red as time runs out. */
+function drawBar() {
+  const u = Math.min(1, (performance.now() - round.speechStart) / (SPEECH_SECONDS * 1000));
+  const red = u * u;                         // stays light for most of the minute
+  const fill = $('timebar-fill');
+  fill.style.width = `${u * 100}%`;
+  fill.style.background = `rgb(${Math.round(255 - 55 * red)}, ${Math.round(255 - 205 * red)}, ${Math.round(255 - 205 * red)})`;
+  if (u < 1) barFrame = requestAnimationFrame(drawBar);
+}
+
+$('finish').addEventListener('click', () => recorder.stop());
+
+// ------------------------------------------------------------------ applause and upload
+async function finishSpeech() {
+  phase('applause');
+  $('speaking').hidden = true;
+  say('');
+  applause.play(APPLAUSE_SECONDS);
+  cheer(APPLAUSE_SECONDS);
+  const settle = new Promise(resolve => setTimeout(resolve, STATS_AFTER_SECONDS * 1000));
+  try {
+    const [result] = await Promise.all([upload(), settle]);
+    showStats(`card.html?id=${encodeURIComponent(result.speech_id)}`);
+  } catch (error) {
+    await settle;
+    phase('walk');
+    say(`${error.message} Your speech is kept on this page.`);
+    $('round-retry').hidden = false;
+    $('round-retry').onclick = () => { $('round-retry').hidden = true; finishSpeech(); };
+  }
+}
+
+/** Fade the speech card in over the stage while the applause dies away, so the
+ *  sound carries across. Once it is fully shown, the address becomes the card's. */
+function showStats(url) {
+  const frame = document.createElement('iframe');
+  frame.className = 'stats-frame';
+  frame.title = 'Your speech card';
+  frame.src = url;
+  frame.style.setProperty('--fade', `${STATS_FADE_SECONDS}s`);
+  frame.addEventListener('load', () => {
+    requestAnimationFrame(() => frame.classList.add('shown'));
+    setTimeout(() => {
+      pauseRendering();
+      recorder.destroy();
+      history.replaceState(null, '', url);
+      document.title = frame.contentDocument?.title || document.title;
+      frame.focus();
+    }, STATS_FADE_SECONDS * 1000);
+  }, {once: true});
+  document.body.append(frame);
+}
+
+async function upload() {
+  const blob = round.recorded;
+  if (blob.size > 15 * 1024 * 1024) throw new Error('The recording exceeds 15 MB.');
+  const name = blob.type.includes('mp4') ? 'recording.mp4' : blob.type.includes('ogg') ? 'recording.ogg' : 'recording.webm';
+  const form = new FormData();
+  form.append('motion_id', round.motion.id);
+  form.append('side', round.side);
+  form.append('audio', blob, name);
+  const result = await api('/api/speeches', {method: 'POST', body: form});
+  if (!result.speech_id) throw new Error('The server returned no speech id.');
+  return result;
+}
+
+// Browsers only play sound after the player has pressed something on this page.
+for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, () => applause.prime(), {capture: true});
+$('reload').addEventListener('click', checkService);
+window.addEventListener('pagehide', () => recorder.destroy());
+checkService();
