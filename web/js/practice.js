@@ -9,6 +9,7 @@ import {createRecording} from './recorder.js';
 import {addSoundToggle, sfx, unlock, wireSounds} from './sound.js';
 import {pickCategories} from './topics.js';
 import {cheer, pauseRendering, startPov, walkToPodium} from './arena.js';
+import {communityEnabled, roundState, closingLine, RETENTION_NOTICE} from './community-model.js';
 
 const COUNTDOWN_SECONDS = 5;
 const SPEECH_SECONDS = 60;
@@ -19,6 +20,16 @@ const OWN = '__own';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const dailyMode = params.get('mode') === 'daily';
+const communityMode = params.get('mode') === 'community';
+let communityRound=null;
+$('community-practice').hidden=!communityEnabled();
+if (communityMode) {
+  document.title='Community Prompt · SpeakUp';
+  $('setup-title').textContent='CURRENT COMMUNITY PROMPT';
+  document.querySelector('.lede').textContent='Choose your side and speak for up to 60 seconds. Sharing is your choice after grading.';
+  $('levels').hidden=true;
+  $('round-leave').href='practice.html?mode=community';
+}
 if (dailyMode) {
   document.title = 'Daily Prompt · SpeakUp';
   $('setup-title').textContent = 'DAILY PROMPT';
@@ -37,6 +48,20 @@ async function checkService() {
   $('reload').hidden = true;
   $('status').textContent = 'Checking the grading service…';
   try {
+    if(communityMode) {
+      if(!communityEnabled()) throw new Error('Community recording is not available yet. Choose private practice in the arena.');
+      const data=await api('/api/community/round');
+      communityRound=data.round;
+      if(roundState(communityRound)!=='active') {
+        $('status').textContent=closingLine(communityRound);$('reload').hidden=false;return;
+      }
+      if(!communityRound.prompt?.id || !communityRound.prompt?.text) throw new Error('The community prompt is unavailable. Retry.');
+      $('status').textContent='Community prompt · private until you explicitly share.';
+      $('community-notice').hidden=false;
+      $('community-retention').textContent=RETENTION_NOTICE;
+      $('community-round-closing').textContent=closingLine(communityRound);
+      begin(communityRound.prompt,null);return;
+    }
     const prompts = await api('/api/prompts');
     if (globalThis.ARENA_CONFIG?.DEMO_MODE) {
       $('status').textContent = 'LOCAL PREVIEW · Saved examples only. Run the server in local mode to play.';
@@ -105,7 +130,7 @@ function begin(motion, side, category) {
   round.started = true;
   phase('walk');
   $('round').hidden = false;
-  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : dailyMode ? 'DAILY PROMPT' : 'THE QUESTION';
+  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : communityMode ? 'COMMUNITY PROMPT' : dailyMode ? 'DAILY PROMPT' : 'THE QUESTION';
   // The speaker walks on while the question is written; both take about 2 seconds.
   walkToPodium().then(() => { round.atPodium = true; maybeStartCountdown(); });
   if (motion) showQuestion(motion, side);
@@ -150,6 +175,7 @@ for (const button of document.querySelectorAll('.side')) button.addEventListener
 
 function maybeStartCountdown() {
   if (!round.atPodium || !round.motion || !round.side || recorder.state !== 'idle' || round.recorded) return;
+  if(communityMode && roundState(communityRound)!=='active') {say('This round has closed. Start again with the next community prompt.');$('round-leave').hidden=false;return;}
   say('Allow the microphone to begin.');
   recorder.start();
 }
@@ -248,12 +274,14 @@ function showStats(url) {
 }
 
 async function upload() {
+  if(communityMode && roundState(communityRound)!=='active') throw new Error('This community round has closed. Start a new recording for the next prompt.');
   const blob = round.recorded;
   if (blob.size > 15 * 1024 * 1024) throw new Error('The recording exceeds 15 MB.');
   const name = blob.type.includes('mp4') ? 'recording.mp4' : blob.type.includes('ogg') ? 'recording.ogg' : 'recording.webm';
   const form = new FormData();
   form.append('motion_id', round.motion.id);
   form.append('side', round.side);
+  if(communityMode) form.append('community_round_id',communityRound.id);
   form.append('audio', blob, name);
   const result = await api('/api/speeches', {method: 'POST', body: form});
   if (!result.speech_id) throw new Error('The server returned no speech id.');
@@ -271,5 +299,13 @@ window.addEventListener('message', event => {
   setTimeout(() => sfx.grade(event.data.letter), wait);
 });
 $('reload').addEventListener('click', checkService);
-window.addEventListener('pagehide', () => recorder.destroy());
+const communityClock=communityMode ? setInterval(()=>{
+  if(!communityRound || document.hidden) return;
+  $('community-round-closing').textContent=closingLine(communityRound);
+  if(roundState(communityRound)!=='active') {
+    for(const button of document.querySelectorAll('.side')) button.disabled=true;
+    say('This community round has closed. Start again with the next prompt.');$('round-leave').hidden=false;
+  }
+},1000) : null;
+window.addEventListener('pagehide', () => {recorder.destroy();clearInterval(communityClock);});
 checkService();

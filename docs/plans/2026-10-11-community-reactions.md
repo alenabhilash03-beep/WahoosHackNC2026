@@ -1,6 +1,6 @@
 # Community speech reactions: implementation plan
 
-Status: proposed; no feature code or database changes have been applied.
+Status: phase 3 frontend implemented behind a disabled feature flag and tested with mocked APIs. Community schema, backend, cleanup and live release gates remain pending. See [frontend implementation and API contract](../implementation/community-frontend.md).
 Date: 2026-10-11
 Repository: alenabhilash03-beep/WahoosHackNC2026
 Code baseline reviewed: `a0b198c31533eca714f07f024147309cb28f4aac` on `main`.
@@ -96,17 +96,19 @@ All routes require the existing account bearer token. Derive the caller from tha
 
 ## Phase 3: Frontend sharing and leaderboard
 
+Frontend behavior is implemented and covered by model and two-session mocked browser tests. The live **Done when** gate below remains pending on phases 1, 2 and 4; this is not a production-ready community release.
+
 Files: extend `web/practice.html`, `web/js/practice.js`, `web/card.html`, `web/js/card.js`, `web/leaderboard.html`, `web/js/leaderboard.js`, and relevant CSS; new `web/js/community-model.js`, `web/test/community.test.mjs`; extend `web/test/api.test.mjs` as needed.
 
-- [ ] Offer an explicit “Current community prompt” practice action. Show prompt, countdown to closing, and the retention notice before recording: “This round's recording will be deleted shortly after the prompt changes. Your grade stays saved.” Include the round ID in that upload.
-- [ ] On an eligible completed card, offer “Share with the community,” a display-name setup link if needed, and a separate withdrawal control. Show pending-review/rejected states; do not automatically publish when grading finishes.
-- [ ] Update the existing promise that other users never see recordings to explain opt-in sharing accurately. Regular private practice remains private.
-- [ ] Add a community section with “Highest graded” and “Community favorites” tabs, prompt text, closing time, rank, speaker, side, grade, and play button. Keep the existing global board available separately.
-- [ ] Render four accessible emoji buttons with labels/counts, selected state, and a disabled owner state. Clicking another selects it; clicking the selected emoji sends `null`.
-- [ ] Disable controls while a mutation is pending, then render the server result. On failure restore the previous state and show a retry message. Prevent stale polling responses from overwriting a newer reaction response.
-- [ ] Fetch a signed URL only on play and use `preload="none"`. Preserve the active audio element during count refreshes; do not restart playback or autoplay a speech. Handle expired links by requesting a fresh eligible link.
-- [ ] Poll every 30 seconds only while the page is visible. On a new round, clear the old entries and selection and stop old playback. Show explicit empty-board, no-current-round, closed-round, and network-error states.
-- [ ] Mark expired owner recordings as unavailable while leaving grades/progress usable. Support keyboard controls and a narrow mobile viewport.
+- [x] Offer an explicit “Current community prompt” practice action. Show prompt, countdown to closing, and the retention notice before recording: “This round's recording will be deleted shortly after the prompt changes. Your grade stays saved.” Include the round ID in that upload.
+- [x] On an eligible completed card, offer “Share with the community,” a display-name setup link if needed, and a separate withdrawal control. Show pending-review/rejected states; do not automatically publish when grading finishes.
+- [x] Update the existing promise that other users never see recordings to explain opt-in sharing accurately. Regular private practice remains private.
+- [x] Add a community section with “Highest graded” and “Community favorites” tabs, prompt text, closing time, rank, speaker, side, grade, and play button. Keep the existing global board available separately.
+- [x] Render four accessible emoji buttons with labels/counts, selected state, and a disabled owner state. Clicking another selects it; clicking the selected emoji sends `null`.
+- [x] Disable controls while a mutation is pending, then render the server result. On failure restore the previous state and show a retry message. Prevent stale polling responses from overwriting a newer reaction response.
+- [x] Fetch a signed URL only on play and use `preload="none"`. Preserve the active audio element during count refreshes; do not restart playback or autoplay a speech. Handle expired links by requesting a fresh eligible link.
+- [x] Poll every 30 seconds only while the page is visible. On a new round, clear the old entries and selection and stop old playback. Show explicit empty-board, no-current-round, closed-round, and network-error states.
+- [x] Mark expired owner recordings as unavailable while leaving grades/progress usable. Support keyboard controls and a narrow mobile viewport.
 
 **Done when:** two browser sessions complete recording, sharing, review approval, listening, reaction change/removal, and withdrawal; both tabs agree on counts; polling does not interrupt playback; reload preserves reactions; prompt rotation clears the old community board.
 

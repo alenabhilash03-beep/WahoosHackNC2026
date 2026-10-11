@@ -1,6 +1,7 @@
 # SpeakUp implementation guide
 
 Database setup and regression checks are in the [database guide](../../supabase/README.md).
+The separate positive-reactions plan's phase 3 UI is covered by the [community frontend guide](community-frontend.md); its feature flag stays off until the community backend and cleanup are ready.
 The [Build Plan](../../Build%20Plan.md) is the source of truth: both stages, scoring, schema,
 routes, screens and the schedule. This page is the short checklist for starting the build.
 

@@ -1,9 +1,11 @@
 import {api} from './api.js';
 import {nameProblem,scoreLine,youLine} from './leaderboard-model.js';
+import {mountCommunityBoard} from './community-board.js';
 
 const $=id=>document.getElementById(id);
 const REFRESH_MS=30000;
 let saving=false;
+mountCommunityBoard({api});
 function draw(board) {
   $('you').textContent=board.demo ? 'LOCAL PREVIEW · Sample scores. Connect Supabase to join the board.' : youLine(board);
   $('you').classList.toggle('demo-notice',Boolean(board.demo));

@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { factorScores, renderRadar } from './radar.js';
 import { metricRows, sectionScores, transcriptModel, evidenceForMetric, stanceEvidence, quoteTime, retryHref, safeAudioUrl } from './card-model.js';
 import { addSoundToggle, sfx, wireSounds } from './sound.js';
+import {mountCommunityShare} from './community-share.js';
 
 const $ = id => document.getElementById(id);
 const list = value => Array.isArray(value) ? value : [];
@@ -10,6 +11,7 @@ const at = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds %
 const node = (tag,text,className='') => { const element=document.createElement(tag); if(text!==undefined) element.textContent=String(text); if(className) element.className=className; return element; };
 const speechId = new URLSearchParams(location.search).get('id');
 let currentCard, audioAvailable=false, timer, pollingStarted=0, active=true, loading=false;
+const sharing=mountCommunityShare({api});
 
 function status(heading,message,{reload=false,practice=false}={}) {
   $('status-panel').hidden=false;
@@ -186,6 +188,7 @@ function announceGrade(letter) {
 
 function render(card) {
   const report=card.report;
+  sharing.update({...card,id:card.id ?? speechId});
   $('status-panel').hidden=true;$('card').hidden=false;
   $('prompt').textContent=card.prompt?.text ?? report.inputs?.topic ?? 'Your speech';
   $('demo-banner').hidden=!card.demo;
@@ -218,11 +221,12 @@ function render(card) {
   series.push({name:'This speech',kind:'outline',values:factorScores(report)});
   renderRadar($('radar'),{series});
   $('radar-note').textContent=card.previous_best?'Previous best is filled; this speech is outlined.':'This is your first take. The outline shows this speech.';
-  const audioUrl=safeAudioUrl(card.audio_url,globalThis.ARENA_CONFIG?.API_URL || location.href);
+  const expired=card.audio_deleted_at || (card.audio_expires_at && Date.parse(card.audio_expires_at)<=Date.now());
+  const audioUrl=expired ? null : safeAudioUrl(card.audio_url,globalThis.ARENA_CONFIG?.API_URL || location.href);
   audioAvailable=Boolean(audioUrl);
   $('audio').hidden=!audioAvailable;
-  if(audioUrl) { $('audio').src=audioUrl;$('audio-status').textContent=card.demo?'Demo audio is a synthetic tone, not a recording of this transcript. Timed evidence controls demonstrate seeking only.':'Your private recording. Use the controls or select a timed highlight.'; }
-  else { $('audio').removeAttribute('src');$('audio-status').textContent='Playback unavailable for this report. Your scores and evidence are still shown.'; }
+  if(audioUrl) { $('audio').src=audioUrl;$('audio-status').textContent=card.demo?'Demo audio is a synthetic tone, not a recording of this transcript. Timed evidence controls demonstrate seeking only.':'Your recording. Use the controls or select a timed highlight. Community recordings are shared only when you choose to share them.'; }
+  else { $('audio').removeAttribute('src');$('audio-status').textContent=expired ? 'This recording has expired. Your scores and evidence stay saved.' : 'Playback unavailable for this report. Your scores and evidence are still shown.'; }
   renderTranscript(report);renderArgument(report);
   renderEvidence($('appeals'),list(report.evidence?.argument?.emotional_appeals).map(e=>({text:e.quote ?? '',label:e.type ?? 'Appeal',quote:true})),report,'No verified emotional appeals found.');
   const emphasis=report.measurements?.loudness_variation_db;
@@ -255,7 +259,12 @@ async function load() {
 
 $('audio').addEventListener('error',()=>{$('audio-status').textContent='The recording could not load. Check again to refresh its private playback link.';$('reload').hidden=false;$('status-panel').hidden=false;status('PLAYBACK UNAVAILABLE','The signed recording link may have expired. Refresh the card to get a new link.',{reload:true});});
 $('reload').addEventListener('click',()=>{pollingStarted=Date.now();load();});
-window.addEventListener('pagehide',()=>{active=false;clearTimeout(timer);$('audio').pause();});
+const expiryClock=setInterval(()=>{
+  if(!active || !currentCard?.audio_expires_at || Date.parse(currentCard.audio_expires_at)>Date.now() || !audioAvailable) return;
+  audioAvailable=false;$('audio').pause();$('audio').removeAttribute('src');$('audio').load();$('audio').hidden=true;
+  $('audio-status').textContent='This recording has expired. Your scores and evidence stay saved.';
+},1000);
+window.addEventListener('pagehide',()=>{active=false;clearTimeout(timer);clearInterval(expiryClock);$('audio').pause();});
 wireSounds();addSoundToggle();
 if(!speechId) status('RECORD YOUR FIRST SPEECH','A speech card opens after you finish a recording. Choose a prompt to begin.',{practice:true});
 else { pollingStarted=Date.now();load(); }
