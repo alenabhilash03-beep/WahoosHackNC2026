@@ -16,8 +16,17 @@ pixels stay crisp and attached to the model as it turns.
 
 The canvas renders at the viewport size with antialiasing, rather than enlarging
 a roughly 200-row image. This reduces the large outline jumps caused by moving
-geometry crossing a coarse screen pixel grid. The camera stays fixed while the
-head turns, breathing, blinking, and the **Argue** hop continue to animate.
+geometry crossing a coarse screen pixel grid. On the home screen the camera stays
+fixed while head turns, breathing and blinking animate.
+
+The scene lives in `js/arena.js`, shared by the home screen and `practice.html`.
+**ARGUE** plays a 3-second walk (`WALK_SECONDS`): the speaker turns, walks down
+the aisle with the camera following, and climbs the stage steps. The practice
+screen then opens on the same frame: `<body data-arena="stage">` draws the speaker
+frozen at the foot of the stage before the first paint, and the pages cross-fade.
+The walk is a pure function of time, so `(await import("./js/arena.js")).poseAt(2.5)`
+in the browser console holds any moment for tuning. Reduced-motion users skip
+straight to the end pose.
 
 `MAX_PIXEL_RATIO` caps the device pixel ratio at 2 to limit the rendering cost on
 high-density screens. This uses a larger drawing buffer than the original
@@ -25,7 +34,7 @@ low-resolution renderer; check performance on your target devices.
 
 ## Solo practice and feedback
 
-- **ARGUE** opens `practice.html`. The recorder requests microphone access, runs a 10-second countdown, records up to 60 seconds, and uploads to the authenticated solo API. A file upload is also available. Countdown cancellation releases the microphone; a failed upload keeps the recording in the current page for retry.
+- **ARGUE** walks the speaker to the stage, then opens `practice.html`. The recorder requests microphone access, runs a 10-second countdown, records up to 60 seconds, and uploads to the authenticated solo API. A file upload is also available. Countdown cancellation releases the microphone; a failed upload keeps the recording in the current page for retry.
 - `card.html?id=...` shows the complete grader report, verified evidence, timed transcript playback, top-three authored tips, prior-best deltas and a speech radar. Signed recording URLs are refreshed by reloading the card. Legacy reports without word timings remain readable.
 - `config.js` contains only the public API URL and Supabase URL/anonymous key. Anonymous sign-in is shared across pages through the Supabase session. Never add service-role, ElevenLabs or Gemini keys to the browser. Same-origin FastAPI serving provides public configuration automatically; GitHub Pages needs those values configured in this file.
 - Start the backend using `server/README.md`. The static HTTP server above still serves the home screen; the other screens need the API configured.

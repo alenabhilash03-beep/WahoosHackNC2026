@@ -1,0 +1,35 @@
+/* Practice screen over the 3D arena: the speaker waits at the foot of the stage
+   (web/js/arena.js, data-arena="stage") while the panel sits to one side. */
+@view-transition { navigation: auto; }
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: -1;
+}
+
+body[data-arena="stage"] { background: transparent; }
+html:has(body[data-arena="stage"]) { background: #0d0b14; }
+
+body[data-arena="stage"] .solo-panel {
+  background: rgba(28, 15, 23, 0.92);
+  animation: panel-in 360ms steps(6) both;
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Wide screens: the panel takes the left side so the speaker stays in view on the right. */
+@media (min-width: 900px) {
+  body[data-arena="stage"] .page { max-width: none; margin: 0; padding-left: max(16px, 4vw); }
+  body[data-arena="stage"] .page > * { max-width: 520px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-arena="stage"] .solo-panel { animation: none; }
+}
