@@ -5,7 +5,7 @@ import unittest
 import io
 import wave
 from fastapi.testclient import TestClient
-from server.app.leaderboard import NameTaken, rank
+from server.app.leaderboard import NameTaken, rank, boards
 from server.app.main import create_app
 from server.app.session import InvalidSession
 from server.app.settings import Settings
@@ -31,7 +31,7 @@ class Repository:
         self.names[user] = name
     def board_rows(self):
         return [dict(player_id=r['player_id'], display_name=self.names[r['player_id']], score=r['report']['overall']['score'],
-                     letter=r['report']['overall']['letter'], created_at=r['created_at'])
+                     letter=r['report']['overall']['letter'], created_at=r['created_at'], difficulty=r.get('difficulty', 'intermediate'))
                 for r in self.rows if r['player_id'] in self.names and r.get('report')]
     def prompts(self):
         return [{'id': 'm', 'text': 'Motion', 'featured': True}]
@@ -182,17 +182,31 @@ class ApiTests(unittest.TestCase):
         self.repo.rows += [dict(speech('weak', at='2026-10-10T09:00:00Z', report=low)),
                            dict(speech('theirs', at='2026-10-10T08:00:00Z', report=low), player_id='other'),
                            dict(speech('hidden'), player_id='unnamed')]
+        empty = {level: {'rows': [], 'you': None} for level in ('beginner', 'intermediate', 'expert')}
         board = self.client.get('/api/leaderboard', headers=self.headers).json()
-        self.assertEqual(board, {'rows': [], 'you': None, 'display_name': None})   # nobody has joined
+        self.assertEqual(board, {'boards': empty, 'display_name': None})   # nobody has joined
         self.repo.names.update(owner='Ada_1', other='Grace')
-        board = self.client.get('/api/leaderboard', headers=self.headers).json()
+        result = self.client.get('/api/leaderboard', headers=self.headers).json()
+        board = result['boards']['intermediate']
         best = SAMPLE['overall']
         self.assertEqual(board['rows'], [
             dict(place=1, display_name='Ada_1', score=best['score'], letter=best['letter'], attempts=2, you=True),
             dict(place=2, display_name='Grace', score=61.5, letter='D-', attempts=1, you=False)])
         self.assertEqual(board['you'], board['rows'][0])
-        self.assertEqual(board['display_name'], 'Ada_1')
+        self.assertEqual(result['display_name'], 'Ada_1')
+        self.assertEqual(result['boards']['beginner'], {'rows': [], 'you': None})
         self.assertEqual(self.client.get('/api/leaderboard').status_code, 401)
+    def test_each_difficulty_has_its_own_board(self):
+        # A 90 on an expert question is not ranked below a 92 on a beginner one.
+        row = lambda player, score, level: dict(player_id=player, display_name=player.upper(), score=score, letter='A',
+                                                 created_at='2026-10-10T12:00:00Z', difficulty=level)
+        result = boards([row('ada', 90, 'expert'), row('bo', 92, 'beginner'), row('ada', 70, 'beginner'),
+                         row('cy', 95, None), row('dee', 88, 'hard')], 'ada')
+        self.assertEqual([(r['display_name'], r['score']) for r in result['expert']['rows']], [('ADA', 90), ('DEE', 88)])
+        self.assertEqual([(r['display_name'], r['score']) for r in result['beginner']['rows']], [('BO', 92), ('ADA', 70)])
+        self.assertEqual(result['intermediate']['rows'], [])            # no level: not ranked
+        self.assertEqual((result['expert']['you']['place'], result['beginner']['you']['place']), (1, 2))
+        self.assertEqual(result['expert']['you']['attempts'], 1)        # attempts count per level
     def test_rank_breaks_ties_by_earlier_speech_and_keeps_your_row_past_the_limit(self):
         row = lambda player, score, at: dict(player_id=player, display_name=player.upper(), score=score, letter='B', created_at=at)
         board = rank([row('late', 80, '2026-10-10T12:00:00Z'), row('early', 80, '2026-10-10T11:00:00Z'),
@@ -205,7 +219,8 @@ class ApiTests(unittest.TestCase):
             headers = {'Authorization': 'Bearer local-demo'}
             board = client.get('/api/leaderboard', headers=headers).json()
             self.assertTrue(board['demo'])
-            self.assertEqual([(r['display_name'], r['score'], r['attempts']) for r in board['rows']], [('Local demo', SAMPLE['overall']['score'], 2)])
+            rows = board['boards']['intermediate']['rows']
+            self.assertEqual([(r['display_name'], r['score'], r['attempts']) for r in rows], [('Local demo', SAMPLE['overall']['score'], 2)])
             self.assertEqual(client.post('/api/me/name', headers=headers, json={'display_name': 'Ada_1'}).status_code, 503)
     def test_demo_rejects_remote_peer_and_non_demo_token(self):
         app = create_app(Settings(demo_mode=True, data_dir=Path(self.temp.name)))

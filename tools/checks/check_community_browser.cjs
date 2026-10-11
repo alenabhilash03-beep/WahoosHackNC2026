@@ -43,7 +43,7 @@ function card(){return {id:'s1',status:'done',motion_id:'m1',side:'yes',prompt:r
         const url=new URL(r.request().url()),name=url.pathname,body=r.request().postDataJSON?.bind(r.request());
         const json=(data,status=200)=>r.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
         assert.equal(r.request().headers().authorization,`Bearer ${user}`);
-        if(name==='/api/leaderboard')return json({rows:[],you:null,display_name:'Ada'});
+        if(name==='/api/leaderboard')return json({boards:{beginner:{rows:[],you:null},intermediate:{rows:[],you:null},expert:{rows:[],you:null}},display_name:'Ada'});
         if(name==='/api/prompts')return json([{id:'m1',text:'Should schools require uniforms?',featured:true}]);
         if(name==='/api/community/round')return json({round,entry:user==='speaker'?entry:null,display_name:'Ada'});
         if(name==='/api/community/leaderboard'){

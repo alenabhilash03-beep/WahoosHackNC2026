@@ -81,15 +81,18 @@ class LocalModeTests(unittest.TestCase):
         self.assertEqual(len(me['recent_overalls']), 1)
 
     def test_local_board_shows_the_one_player_under_the_chosen_name(self):
-        prompt = self.client.get('/api/prompts', headers=HEADERS).json()[0]
-        self.assertEqual(self.client.get('/api/leaderboard', headers=HEADERS).json(), {'rows': [], 'you': None, 'display_name': 'Local player'})
+        seed = self.client.get('/api/prompts', headers=HEADERS).json()[0]          # no difficulty
+        expert = self.client.post('/api/questions', headers=HEADERS, json={'category': 'Pizza', 'difficulty': 'expert'}).json()
+        empty = {level: {'rows': [], 'you': None} for level in ('beginner', 'intermediate', 'expert')}
+        self.assertEqual(self.client.get('/api/leaderboard', headers=HEADERS).json(), {'boards': empty, 'display_name': 'Local player'})
         files = {'audio': ('take.wav', b'RIFFaudio', 'audio/wav')}
-        for _ in range(2):
-            self.assertEqual(self.client.post('/api/speeches', headers=HEADERS, data={'motion_id': prompt['id'], 'side': 'yes'}, files=files).status_code, 202)
+        for motion in (expert['id'], expert['id'], seed['id']):
+            self.assertEqual(self.client.post('/api/speeches', headers=HEADERS, data={'motion_id': motion, 'side': 'yes'}, files=files).status_code, 202)
         self.assertEqual(self.client.post('/api/me/name', headers=HEADERS, json={'display_name': 'Ada_1'}).status_code, 200)
-        board = self.client.get('/api/leaderboard', headers=HEADERS).json()
-        self.assertEqual(board['rows'], [dict(place=1, display_name='Ada_1', score=SAMPLE['overall']['score'],
-                                              letter=SAMPLE['overall']['letter'], attempts=2, you=True)])
+        boards = self.client.get('/api/leaderboard', headers=HEADERS).json()['boards']
+        self.assertEqual(boards['expert']['rows'], [dict(place=1, display_name='Ada_1', score=SAMPLE['overall']['score'],
+                                                         letter=SAMPLE['overall']['letter'], attempts=2, you=True)])
+        self.assertEqual(boards['beginner']['rows'] + boards['intermediate']['rows'], [])   # the seed prompt is not ranked
         self.assertEqual(self.client.get('/api/me', headers=HEADERS).json()['display_name'], 'Ada_1')
 
     def test_audio_route_stays_inside_the_audio_folder(self):

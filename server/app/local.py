@@ -56,7 +56,9 @@ class LocalRepository:
 
     def board_rows(self):
         name = self.profile(LOCAL_TOKEN)['display_name']
-        return [row for row in (board_row(r, name) for r in self.speeches(LOCAL_TOKEN)) if row]
+        with self.lock:
+            levels = {m['id']: m.get('difficulty') for m in self._load()['motions']}
+        return [row for row in (board_row(r, name, levels.get(r['motion_id'])) for r in self.speeches(LOCAL_TOKEN)) if row]
 
     def prompts(self):
         with self.lock:
