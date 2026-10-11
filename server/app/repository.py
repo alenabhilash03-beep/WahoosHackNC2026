@@ -26,6 +26,13 @@ class SupabaseRepository:
         rows = self.client.table('motions').select('id,text,featured_on').eq('active', True).order('text').execute().data
         return [dict(id=row['id'], text=row['text'], featured=row.get('featured_on') == today) for row in rows]
 
+    def create_motion(self, text, category=None, difficulty=None):
+        rows = self.client.table('motions').select('id').eq('text', text).limit(1).execute().data
+        if rows:
+            return rows[0]['id']
+        row = dict(text=text, category=category, difficulty=difficulty)
+        return self.client.table('motions').insert(row).execute().data[0]['id']
+
     def speeches(self, user):
         # PostgREST limits one response to 1000 rows by default. Read every page
         # so unlimited practice does not hide the latest attempt or prior best.

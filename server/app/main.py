@@ -12,7 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from pydantic import BaseModel
+
 from .feedback import me_card, speech_card
+from .questions import DIFFICULTIES, UnsuitableCategory, clean_category, generate_question
 from .settings import ROOT, Settings
 
 LOG = logging.getLogger(__name__)
@@ -29,7 +32,12 @@ def real_grade(path, prompt, side, cache_dir):
     return grade(path, prompt, side, cache_dir=cache_dir)
 
 
-def create_app(settings=None, repository=None, grader=None):
+class QuestionRequest(BaseModel):
+    category: str
+    difficulty: str
+
+
+def create_app(settings=None, repository=None, grader=None, question_maker=None):
     settings = settings or Settings.from_env()
     app = FastAPI(title='SpeakUp Solo API')
     if settings.cors_origins:
@@ -39,15 +47,19 @@ def create_app(settings=None, repository=None, grader=None):
 
     @app.middleware('http')
     async def local_demo_only(request, call_next):
-        if settings.demo_mode:
+        # Demo and local modes have no accounts, so they only answer this computer.
+        if settings.demo_mode or settings.local_mode:
             origin = request.headers.get('origin')
             if request.url.hostname not in LOOPBACK or (request.client and request.client.host not in LOOPBACK) or (origin and urlparse(origin).hostname not in LOOPBACK):
-                return Response('Demo mode is restricted to loopback.', status_code=403)
+                return Response('Demo and local modes are restricted to loopback.', status_code=403)
         response = await call_next(request)
         if settings.demo_mode:
             response.headers['X-Demo-Mode'] = 'true'
         if request.url.path.startswith('/api/'):
             response.headers['Cache-Control'] = 'no-store'
+        elif settings.demo_mode or settings.local_mode:
+            # Local play serves the working copy: always revalidate, so edits show up on reload.
+            response.headers['Cache-Control'] = 'no-cache'
         return response
 
     def repo():
@@ -55,6 +67,9 @@ def create_app(settings=None, repository=None, grader=None):
             if settings.demo_mode:
                 from .demo import DemoRepository
                 app.state.repository = DemoRepository(settings)
+            elif settings.local_mode:
+                from .local import LocalRepository
+                app.state.repository = LocalRepository(settings)
             else:
                 if not settings.supabase_url or not settings.supabase_service_role_key:
                     raise HTTPException(503, 'Server is not configured. Set Supabase server credentials.')
@@ -78,13 +93,31 @@ def create_app(settings=None, repository=None, grader=None):
 
     @app.get('/config.js')
     def config():
-        public = dict(API_URL='', SUPABASE_URL='' if settings.demo_mode else settings.supabase_url,
-                      SUPABASE_ANON_KEY='' if settings.demo_mode else settings.supabase_anon_key, DEMO_MODE=settings.demo_mode)
+        accountless = settings.demo_mode or settings.local_mode
+        public = dict(API_URL='', SUPABASE_URL='' if accountless else settings.supabase_url,
+                      SUPABASE_ANON_KEY='' if accountless else settings.supabase_anon_key,
+                      DEMO_MODE=settings.demo_mode, LOCAL_MODE=settings.local_mode and not settings.demo_mode)
         return Response('window.ARENA_CONFIG = ' + json.dumps(public) + ';', media_type='application/javascript', headers={'Cache-Control': 'no-store'})
 
     @app.get('/api/prompts')
     def prompts(uid=Depends(user), db=Depends(repo)):
         return db.prompts()
+
+    @app.post('/api/questions')
+    def question(body: QuestionRequest, uid=Depends(user), db=Depends(repo)):
+        if settings.demo_mode:
+            raise HTTPException(503, 'Local demo contains saved examples only. Configure live grading to play.')
+        if body.difficulty not in DIFFICULTIES:
+            raise HTTPException(422, 'Difficulty must be beginner, intermediate or expert.')
+        try:
+            category = clean_category(body.category)
+            text = (question_maker or generate_question)(category, body.difficulty)
+        except UnsuitableCategory as error:
+            raise HTTPException(422, str(error))
+        except ValueError as error:
+            raise HTTPException(422, str(error))
+        motion_id = db.create_motion(text, category=category, difficulty=body.difficulty)
+        return {'id': motion_id, 'text': text, 'category': category, 'difficulty': body.difficulty}
 
     @app.get('/api/me')
     def me(uid=Depends(user), db=Depends(repo)):
@@ -151,6 +184,15 @@ def create_app(settings=None, repository=None, grader=None):
             raise
         background.add_task(grade_background, db, id, data, suffix, prompt['text'], side)
         return {'speech_id': id}
+
+    if settings.local_mode and not settings.demo_mode:
+        @app.get('/api/local/audio/{path:path}')
+        def local_audio(path: str, db=Depends(repo)):
+            # The <audio> element cannot send a bearer token; local mode is loopback-only.
+            target = db.audio_file(path)
+            if target is None:
+                raise HTTPException(404, 'Recording not found.')
+            return FileResponse(target)
 
     if settings.demo_mode:
         @app.get('/api/demo/audio')

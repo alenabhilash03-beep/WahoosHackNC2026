@@ -2,8 +2,8 @@
 .card-nav { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .card-panel { padding:26px; background:var(--panel); margin:8px 8px 32px; min-width:0; box-shadow:0 0 0 3px var(--gold-dark),0 0 0 7px #000,6px 10px 0 7px rgba(0,0,0,.5); }
 .card-panel h2 { line-height:1.8; overflow-wrap:anywhere; }
-.body-copy { font:17px/1.75 system-ui,sans-serif; color:var(--ink); }
-.small-copy { font:14px/1.65 system-ui,sans-serif; color:var(--ink-dim); }
+.body-copy { font:11px/2 "Press Start 2P",monospace; color:var(--ink); }
+.small-copy { font:9px/1.9 "Press Start 2P",monospace; color:var(--ink-dim); }
 .eyebrow { color:var(--gold); font-size:9px; line-height:2; }
 .overview { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:32px; align-items:center; }
 .overall { text-align:center; min-width:150px; }
@@ -47,17 +47,17 @@ button.word,button.evidence-play,.pause-button { cursor:pointer; text-decoration
 .factor-details { border-top:3px solid var(--panel-line); margin-top:18px; }
 .factor-details summary { padding:16px 0; cursor:pointer; color:var(--gold); line-height:2; }
 .metric { background:var(--bg); margin:10px 0; padding:16px; border-left:3px solid var(--panel-line); }
-.metric h4 { margin:0 0 8px; font:600 17px/1.5 system-ui,sans-serif; }
-.metric dl { margin:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 18px; font:14px/1.6 system-ui,sans-serif; }
+.metric h4 { margin:0 0 10px; font:11px/1.8 "Press Start 2P",monospace; }
+.metric dl { margin:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 18px; font:9px/1.9 "Press Start 2P",monospace; }
 .metric dl div { min-width:0; }
 .metric dt { color:var(--ink-dim); }
 .metric dd { margin:0; overflow-wrap:anywhere; }
 .metric .source { grid-column:1/-1; }
 .metric-evidence { margin:10px 0 0; }
-.metric-evidence summary { padding:4px 0; font:14px/1.6 system-ui,sans-serif; }
+.metric-evidence summary { padding:4px 0; font:9px/1.9 "Press Start 2P",monospace; }
 .radar-table { table-layout:fixed; }
 .radar-table td,.radar-table th { overflow-wrap:anywhere; font-size:8px; }
 .radar-tip { max-width:220px; }
-@media(max-width:760px) { .card-columns { grid-template-columns:1fr; gap:0; } .card-panel { padding:20px 14px; } .section-scores { gap:8px; } .section-score { padding:12px 8px; } .section-score h3 { font-size:8px; } .section-score strong { font-size:18px; } .section-score .small-copy { font-size:12px; } }
+@media(max-width:760px) { .card-columns { grid-template-columns:1fr; gap:0; } .card-panel { padding:20px 14px; } .section-scores { gap:8px; } .section-score { padding:12px 8px; } .section-score h3 { font-size:8px; } .section-score strong { font-size:18px; } .section-score .small-copy { font-size:8px; } }
 @media(max-width:480px) { .overview { grid-template-columns:1fr; gap:8px; } .overall { text-align:left; } .overall strong,.overall #letter { display:inline-block; margin-right:18px; } .metric dl { grid-template-columns:1fr; } .section-scores { grid-template-columns:1fr; } .section-score { display:grid; grid-template-columns:1fr auto; align-items:center; } .section-score p { grid-column:1/-1; } .card-nav .back { font-size:8px; } }
 [hidden] { display:none !important; }

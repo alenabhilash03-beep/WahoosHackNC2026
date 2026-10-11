@@ -34,7 +34,14 @@ low-resolution renderer; check performance on your target devices.
 
 ## Solo practice and feedback
 
-- **ARGUE** walks the speaker to the stage, then opens `practice.html`. The recorder requests microphone access, runs a 10-second countdown, records up to 60 seconds, and uploads to the authenticated solo API. A file upload is also available. Countdown cancellation releases the microphone; a failed upload keeps the recording in the current page for retry.
+- **ARGUE** walks the speaker to the stage, then opens `practice.html`, the round:
+  1. Pick a difficulty (beginner, intermediate, expert) and a category: five random well-known ones (`js/topics.js`) or your own.
+  2. The speaker climbs onto the stage and walks to the podium (~2 s) while the server writes a yes-or-no question (`POST /api/questions`). Choose YES or NO.
+  3. A 5-second countdown through the speaker's eyes, gazing left to right across the audience and the stage lights.
+  4. Speak for up to 60 seconds. The time bar along the bottom turns from white to red; FINISH stops early.
+  5. Two seconds of applause (synthesised in `js/applause.js`) while the speech uploads, then the speech card, which has RETURN TO LOBBY.
+
+  Real grading needs the server; see "Local mode" in `server/README.md`. On GitHub Pages the page explains that.
 - `card.html?id=...` shows the complete grader report, verified evidence, timed transcript playback, top-three authored tips, prior-best deltas and a speech radar. Signed recording URLs are refreshed by reloading the card. Legacy reports without word timings remain readable.
 - `config.js` contains only the public API URL and Supabase URL/anonymous key. Anonymous sign-in is shared across pages through the Supabase session. Never add service-role, ElevenLabs or Gemini keys to the browser. Same-origin FastAPI serving provides public configuration automatically; GitHub Pages needs those values configured in this file.
 - Start the backend using `server/README.md`. The static HTTP server above still serves the home screen; the other screens need the API configured.

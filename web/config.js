@@ -5,4 +5,5 @@ globalThis.ARENA_CONFIG = {
   SUPABASE_URL: '',
   SUPABASE_ANON_KEY: '',
   DEMO_MODE: false,
+  LOCAL_MODE: false,
 };

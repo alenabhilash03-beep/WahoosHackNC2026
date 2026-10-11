@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 @dataclass
 class Settings:
     demo_mode: bool = False
+    local_mode: bool = False
     supabase_url: str = ''
     supabase_service_role_key: str = ''
     supabase_anon_key: str = ''
@@ -24,6 +25,7 @@ class Settings:
                     key, value = line.split('=', 1)
                     os.environ.setdefault(key.strip(), value.strip().strip('\"\''))
         return cls(demo_mode=os.getenv('DEMO_MODE', '').lower() == 'true',
+                   local_mode=os.getenv('LOCAL_MODE', '').lower() == 'true',
                    supabase_url=os.getenv('SUPABASE_URL', ''),
                    supabase_service_role_key=os.getenv('SUPABASE_SERVICE_ROLE_KEY', ''),
                    supabase_anon_key=os.getenv('SUPABASE_ANON_KEY', ''),
