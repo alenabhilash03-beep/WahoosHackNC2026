@@ -70,6 +70,12 @@ GEMINI_ANNOTATIONS = {
     ],
 }
 
+STANCE_CHECK = {
+    "position": "Pace the frontier of AI.", "stance": "yes",
+    "evidence_quote": "I believe the frontier of AI should be paced.",
+    "explanation": "The speaker supports pacing AI, answering Yes to the question.",
+}
+
 
 def _timeline():
     """Deterministic word timings: longer words take longer, punctuation adds a pause."""
@@ -154,9 +160,12 @@ def build(folder: str) -> dict:
               "steps": [{"type": "thought", "summary": []},
                         {"type": "model_output", "content": [{"type": "text", "text": json.dumps(GEMINI_ANNOTATIONS)}]}]}
     (out / "gemini.json").write_text(json.dumps(gemini))
+    stance_checks = {"primary": STANCE_CHECK, "confirmation": STANCE_CHECK}
+    (out / "stance.json").write_text(json.dumps(stance_checks))
 
     span = words[-1]["end"] - words[0]["start"]
     truth.update({"word_count": len(words), "wpm": 60 * len(words) / span, "span": span,
                   "uptalk_sentences": sum(r for _, r, _ in SPEECH)})
     return {"audio": str(out / "speech.wav"), "scribe": scribe, "gemini_response": gemini,
-            "annotations": GEMINI_ANNOTATIONS, "truth": truth, "topic": TOPIC}
+            "annotations": GEMINI_ANNOTATIONS, "stance_checks": stance_checks,
+            "truth": truth, "topic": TOPIC}

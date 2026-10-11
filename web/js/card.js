@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { factorScores, renderRadar } from './radar.js';
-import { metricRows, sectionScores, transcriptModel, evidenceForMetric, quoteTime, retryHref, safeAudioUrl } from './card-model.js';
+import { metricRows, sectionScores, transcriptModel, evidenceForMetric, stanceEvidence, quoteTime, retryHref, safeAudioUrl } from './card-model.js';
 import { addSoundToggle, sfx, wireSounds } from './sound.js';
 
 const $ = id => document.getElementById(id);
@@ -104,6 +104,11 @@ function renderArgument(report) {
     structure.append(node('span',`${label}: ${a[key]===true?'found':a[key]===false?'not found':'not reported'}`));
   }
   target.append(structure,node('p',`Chosen side: ${a.side_chosen ?? currentCard.side ?? 'not reported'} · Argued side: ${a.stance_argued ?? 'not reported'}`));
+  if(a.stance_verification) {
+    target.append(node('p',a.stance_verification.message ?? 'Stance verification did not return a decision.'));
+    const quotes=stanceEvidence(report);
+    if(quotes.length) { const proof=node('div');renderEvidence(proof,quotes,report,'');target.append(proof); }
+  }
   const claims=list(a.arguments);
   if(!claims.length) target.append(node('p','No verified claims reported.'));
   for(const claim of claims) {

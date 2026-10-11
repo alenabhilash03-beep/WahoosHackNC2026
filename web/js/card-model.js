@@ -87,6 +87,16 @@ const quoted = (value, label='') => typeof value==='string' ? {text:value,label,
   start:finite(value?.start) ? value.start : finite(value?.at_seconds) ? value.at_seconds : finite(value?.ends_at_seconds) ? value.ends_at_seconds : null,
 };
 
+export function stanceEvidence(report) {
+  const verification=report?.evidence?.argument?.stance_verification;
+  const seen=new Set();
+  return [['Speech position',verification?.primary],['Confirmation',verification?.confirmation]]
+    .filter(([,check])=>{
+      if(check?.quote_verified!==true || typeof check.evidence_quote!=='string' || !check.evidence_quote.trim() || seen.has(check.evidence_quote)) return false;
+      seen.add(check.evidence_quote);return true;
+    }).map(([label,check])=>quoted(check.evidence_quote,label));
+}
+
 export function evidenceForMetric(report, metric) {
   const e=report?.evidence ?? {}, a=e.argument ?? {}, p=e.pace ?? {}, d=e.diction ?? {}, t=e.tone ?? {}, w=e.word_lists ?? {};
   const claims=()=>list(a.arguments).map(c=>({text:String(c.claim ?? ''),label:`${c.status ?? 'unknown'} · ${c.support_type ?? 'none'}`,quote:true}));
@@ -94,7 +104,11 @@ export function evidenceForMetric(report, metric) {
     case 'supported_arguments': case 'unsupported_claim_count': return claims();
     case 'structure_points': return [found('Thesis',a.thesis_found),found('Conclusion',a.conclusion_found)];
     case 'counterargument_level': return [found('Counterargument',a.counterargument_found),found('Rebuttal',a.rebuttal_found)];
-    case 'stance_mismatch': case 'stance_unclear': return [{text:`Chosen: ${a.side_chosen ?? report?.inputs?.side ?? 'unknown'}; argued: ${a.stance_argued ?? 'unknown'}`,quote:false}];
+    case 'stance_mismatch': case 'stance_unclear': return [
+      {text:`Chosen: ${a.side_chosen ?? report?.inputs?.side ?? 'unknown'}; argued: ${a.stance_argued ?? 'unknown'}`,quote:false},
+      ...(a.stance_verification?.message ? [{text:a.stance_verification.message,quote:false}] : []),
+      ...stanceEvidence(report),
+    ];
     case 'reasoning_fallacy_count': return list(a.fallacies).map(v=>quoted(v));
     case 'emotional_appeals': case 'manipulative_appeal_count': return list(a.emotional_appeals).map(v=>quoted(v));
     case 'fillers_per_100_words': return list(d.fillers).map(v=>quoted(v,'Filler'));

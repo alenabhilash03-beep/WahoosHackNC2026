@@ -40,6 +40,7 @@ STANDARDS, LEXICONS, _ = load_standards(CONFIG)
 def run(side="yes", **kwargs):
     kwargs.setdefault("transcript", FX["scribe"])
     kwargs.setdefault("extraction", FX["annotations"])
+    kwargs.setdefault("stance_checks", FX["stance_checks"])
     kwargs.setdefault("cache_dir", os.path.join(TMP, "cache"))
     return grade(FX["audio"], FX["topic"], side, **kwargs)
 
@@ -176,14 +177,16 @@ def test_identical_report_in_a_fresh_process_with_another_hash_seed():
     script = ("import json,sys;sys.path.insert(0,sys.argv[1]);from grader import grade;"
               "s=json.load(open(sys.argv[2]));a=json.load(open(sys.argv[3]));"
               "r=grade(sys.argv[4],sys.argv[5],'yes',transcript=s,"
-              "extraction=json.loads(a['steps'][1]['content'][0]['text']),cache_dir=sys.argv[6]);"
+              "extraction=json.loads(a['steps'][1]['content'][0]['text']),cache_dir=sys.argv[6],"
+              "stance_checks=json.load(open(sys.argv[7])));"
               "print(json.dumps(r,sort_keys=True))")
     outputs = []
     for seed in ("1", "987"):
         env = {**os.environ, "PYTHONHASHSEED": seed}
         outputs.append(subprocess.run(
             [sys.executable, "-c", script, str(ROOT), os.path.join(TMP, "scribe.json"),
-             os.path.join(TMP, "gemini.json"), FX["audio"], FX["topic"], os.path.join(TMP, "cache")],
+             os.path.join(TMP, "gemini.json"), FX["audio"], FX["topic"], os.path.join(TMP, "cache"),
+             os.path.join(TMP, "stance.json")],
             capture_output=True, text=True, check=True, env=env).stdout)
     assert outputs[0] == outputs[1]
     assert json.loads(outputs[0]) == json.loads(json.dumps(run(), sort_keys=True))
@@ -196,15 +199,18 @@ def test_changing_the_standards_regrades_without_calling_any_api():
 
     def fake_post(url, **kwargs):
         calls.append(url)
+        schema = (kwargs.get("json") or {}).get("response_format", {}).get("schema", {})
+        if "evidence_quote" in schema.get("properties", {}):
+            return FakeResponse({"output_text": json.dumps(fixtures.STANCE_CHECK)})
         return FakeResponse(FX["scribe"] if "elevenlabs" in url else FX["gemini_response"])
 
     os.environ["ELEVENLABS_API_KEY"], os.environ["GEMINI_API_KEY"] = "test-el", "test-gm"
     http.requests.post = http.requests.post = fake_post
     try:
         before = grade(FX["audio"], FX["topic"], "yes", cache_dir=cache)
-        assert len(calls) == 2                       # one transcription, one extraction
+        assert len(calls) == 3                       # transcription, extraction, focused stance
         again = grade(FX["audio"], FX["topic"], "yes", cache_dir=cache)
-        assert len(calls) == 2 and again == before   # second grade is served from disk
+        assert len(calls) == 3 and again == before   # second grade is served from disk
 
         custom = os.path.join(TMP, "config-custom")
         shutil.copytree(CONFIG, custom, dirs_exist_ok=True)
@@ -213,7 +219,7 @@ def test_changing_the_standards_regrades_without_calling_any_api():
         rubric["factors"]["pace"]["metrics"]["words_per_minute"]["buckets"] = [{"from": 180, "score": 100}]
         yaml.safe_dump(rubric, open(os.path.join(custom, "standards.yaml"), "w"))
         after = grade(FX["audio"], FX["topic"], "yes", cache_dir=cache, config_dir=custom)
-        assert len(calls) == 2                       # still no new API calls
+        assert len(calls) == 3                       # still no new API calls
         assert after["measurements"] == before["measurements"]
         assert after["overall"]["score"] != before["overall"]["score"]
         assert after["inputs"]["standards_id"] != before["inputs"]["standards_id"]

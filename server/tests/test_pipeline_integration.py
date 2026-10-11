@@ -45,7 +45,9 @@ class PipelineIntegrationTests(unittest.TestCase):
             headers = {'Authorization': 'Bearer good'}
             from grader import pipeline
             with patch.object(pipeline, 'transcribe', return_value=fixture['scribe']) as transcribe, \
-                    patch.object(pipeline, 'extract', return_value=fixture['annotations']) as extract:
+                    patch.object(pipeline, 'extract', return_value=fixture['annotations']) as extract, \
+                    patch('grader.stance.classify', return_value={**fixtures.STANCE_CHECK,
+                          'quote_verified': True, 'model': 'gemini-3.5-flash-lite'}) as stance:
                 ids = []
                 for _ in range(2):
                     response = client.post('/api/speeches', headers=headers,
@@ -55,6 +57,7 @@ class PipelineIntegrationTests(unittest.TestCase):
                     ids.append(response.json()['speech_id'])
                 self.assertEqual(transcribe.call_count, 2)
                 self.assertEqual(extract.call_count, 2)
+                self.assertEqual(stance.call_count, 2)
 
             self.assertEqual([row['status'] for row in repository.rows], ['done', 'done'])
             reports = [json.dumps(row['report'], sort_keys=True, separators=(',', ':'), allow_nan=False)
@@ -67,6 +70,7 @@ class PipelineIntegrationTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             card = response.json()
             self.assertTrue(card['report']['gradable'])
+            self.assertEqual(card['report']['evidence']['argument']['stance_verification']['result'], 'matches')
             self.assertEqual(len(card['report']['words']), 155)
             self.assertTrue(all(word['end'] >= word['start'] >= 0 for word in card['report']['words']))
             rubric_rows = sum(len(factor['metrics']) + len(factor['deductions'])
