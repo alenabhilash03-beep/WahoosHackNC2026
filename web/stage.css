@@ -33,3 +33,76 @@ body[data-arena="stage"] .solo-panel {
 @media (prefers-reduced-motion: reduce) {
   body[data-arena="stage"] .solo-panel { animation: none; }
 }
+
+/* ------------------------------------------------------------------ challenge picker */
+.level-field { border: 0; padding: 0; margin: 18px 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.level-field legend { margin-bottom: 10px; color: var(--gold); }
+.level {
+  font: inherit; color: var(--ink); background: var(--velvet); border: 0; padding: 14px 18px; cursor: pointer;
+  box-shadow: 0 0 0 3px #000, inset 0 -4px 0 #2a0910, 0 5px 0 #000;
+}
+.level:hover { background: #5a1620; }
+.level[aria-pressed="true"] { background: var(--red); box-shadow: 0 0 0 3px var(--gold), inset 0 -4px 0 var(--red-dark), 0 5px 0 #000; }
+.level-field:disabled .level { opacity: 0.45; cursor: default; }
+#category-step select, .own-field input { font: inherit; }
+.text-button { font: inherit; font-size: 9px; color: var(--gold); background: none; border: 0; padding: 6px 0; cursor: pointer; text-decoration: underline; }
+.own-field { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.own-field .field { flex: 1 1 220px; }
+
+/* ------------------------------------------------------------------ the round */
+body[data-arena="stage"]:not([data-phase="setup"]) .valance,
+body[data-arena="stage"]:not([data-phase="setup"]) .page { opacity: 0; pointer-events: none; transition: opacity 300ms steps(4); }
+
+.round { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+.round button, .round a { pointer-events: auto; }
+body[data-phase="applause"] .round { opacity: 0; transition: opacity 1.2s ease; }
+
+.question-card {
+  max-width: 760px; width: 100%; text-align: center; padding: 18px 22px; background: rgba(28, 15, 23, 0.9);
+  box-shadow: 0 0 0 3px var(--gold-dark), 0 0 0 7px #000, 6px 10px 0 7px rgba(0, 0, 0, 0.5);
+}
+.question-card h2 { margin: 6px 0 0; font-size: clamp(12px, 1.9vw, 18px); line-height: 1.7; color: var(--ink); font-weight: 400; }
+.question-card.revealed h2 { animation: question-in 500ms steps(5) both; }
+@keyframes question-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.side-pick { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
+.side-pick p { margin: 0; width: 100%; color: var(--gold); font-size: 9px; }
+.side {
+  font: inherit; font-size: 12px; color: var(--ink); border: 0; padding: 14px 20px; cursor: pointer; background: var(--red);
+  box-shadow: 0 0 0 3px #000, inset 0 -4px 0 var(--red-dark), 0 5px 0 #000;
+}
+.side[data-side="yes"] { background: #2f7a4a; box-shadow: 0 0 0 3px #000, inset 0 -4px 0 #1b4a2c, 0 5px 0 #000; }
+.side:hover { filter: brightness(1.15); }
+.side-chosen { margin: 12px 0 0; color: var(--gold); font-size: 11px; }
+.round-status { margin: 10px 0 0; color: var(--ink-dim); font-size: 9px; }
+.round-status:empty { display: none; }
+.round-actions { display: flex; justify-content: center; gap: 12px; }
+
+.countdown {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: clamp(64px, 14vw, 160px); color: var(--ink); text-shadow: 6px 6px 0 var(--red-dark), 12px 12px 0 #000;
+}
+
+.speaking { position: fixed; left: 16px; right: 16px; bottom: 34px; display: flex; justify-content: space-between; align-items: flex-end; }
+.clock { margin: 0; font-size: 28px; color: var(--ink); text-shadow: 3px 3px 0 #000; }
+.clock small { display: block; font-size: 8px; color: var(--ink-dim); }
+
+.timebar { position: fixed; left: 0; right: 0; bottom: 0; height: 16px; background: rgba(0, 0, 0, 0.65); box-shadow: 0 -3px 0 #000; }
+#timebar-fill { height: 100%; width: 0; background: #fff; }
+
+/* Warm glare from the stage lights while the speaker looks out at the audience. */
+.glare {
+  position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse 80% 45% at 50% 0%, rgba(255, 232, 170, 0.28), transparent 70%);
+  transition: opacity 600ms ease;
+}
+body[data-phase="countdown"] .glare, body[data-phase="speaking"] .glare { opacity: 1; animation: glare 3.2s ease-in-out infinite alternate; }
+@keyframes glare { from { filter: brightness(0.85); } to { filter: brightness(1.15); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .question-card.revealed h2, body[data-phase="countdown"] .glare, body[data-phase="speaking"] .glare { animation: none; }
+}
+
+/* The speech card fades in over the stage while the applause dies away. */
+.stats-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; opacity: 0; background: #0d0b14;
+  transition: opacity var(--fade, 1.6s) ease; z-index: 10; }
+.stats-frame.shown { opacity: 1; }

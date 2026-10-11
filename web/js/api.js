@@ -7,9 +7,10 @@ export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
     import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
       .then(({createClient}) => createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY)));
   async function token(refresh = false) {
-    if (config.DEMO_MODE) {
-      if (!['localhost','127.0.0.1','[::1]','::1'].includes(hostname)) throw new Error('Demo mode is local only.');
-      return 'local-demo';
+    if (config.DEMO_MODE || config.LOCAL_MODE) {
+      // No accounts: the server only answers this computer.
+      if (!['localhost','127.0.0.1','[::1]','::1'].includes(hostname)) throw new Error('Local play only works on this computer.');
+      return config.DEMO_MODE ? 'local-demo' : 'local-player';
     }
     if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) throw new Error('Sign-in is not configured. Set the public Supabase values and API_URL in config.js.');
     if (!sessionPromise) sessionPromise = (async () => {
@@ -40,7 +41,7 @@ export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
       let response;
       try {
         response = await fetchImpl(`${(config.API_URL ?? '').replace(/\/$/,'')}${path}`,{...options,body,headers,signal});
-        if (response.status === 401 && !refresh && !config.DEMO_MODE) return await send(true);
+        if (response.status === 401 && !refresh && !config.DEMO_MODE && !config.LOCAL_MODE) return await send(true);
         const raw = await response.text();
         let data;
         try { data = JSON.parse(raw); } catch { throw new Error(`The server returned HTTP ${response.status} without JSON. Check API_URL and the server connection.`); }

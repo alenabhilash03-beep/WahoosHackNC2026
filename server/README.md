@@ -15,6 +15,23 @@ Copy `server/.env.example` to `server/.env`. Set the Supabase URL, service-role 
 
 For a separate static host, set its exact origin in `CORS_ORIGINS`, and set `web/config.js` to the server API URL and public Supabase values. Same-origin serving fills public configuration from server environment automatically. Service-role and grading keys are never returned to the browser.
 
+## Local mode: play and grade on this computer, no accounts
+
+The quickest way to play with real grading. Speeches, prompts and recordings are stored in
+`server/data/local/`; ElevenLabs and Gemini keys come from `softskills-grader/.env`. No Supabase.
+
+```sh
+LOCAL_MODE=true python -m uvicorn server.app.main:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://localhost:8000` and press ARGUE. The browser sends the fixed `local-player` token, and
+the server only answers requests from this computer (host, origin and client must be loopback). Static
+files are served with `Cache-Control: no-cache`, so edits show up on reload.
+
+Accounts mode later: leave `LOCAL_MODE` unset and configure Supabase as above, then apply
+`supabase/migrations/0004_generated_prompts.sql`. `LocalRepository` (`server/app/local.py`) and
+`SupabaseRepository` have the same methods, so routes and the web page are unchanged.
+
 ## Local saved-example viewer
 
 Set `DEMO_MODE=true` and run on `127.0.0.1`. Open `http://localhost:8000/card.html?id=demo-best` or `http://localhost:8000/progress.html`. Fixture IDs are `demo-first`, `demo-best`, and `demo-ungradable`; prompt ID is `demo-ai-pacing`. The browser sends the explicit `local-demo` token. Fixtures persist in `server/data/demo.json` and contain the sample report, a lower-scoring synthetic report, and an ungradable example. Audio reuses the original synthetic buzz and canned word timeline from `softskills-grader/tests/fixtures.py`, **not real spoken audio**. Fixture words and their simulated timings are labeled synthetic so timed highlights can be tested without claiming real speech. Responses identify demo mode. Recordings are rejected with 503; this viewer does not claim to grade real speech. Host, origin, and client address must all be loopback. The grader's NumPy/SciPy dependencies are required for this fixture viewer as well as live grading.
@@ -24,6 +41,7 @@ Set `DEMO_MODE=true` and run on `127.0.0.1`. Open `http://localhost:8000/card.ht
 All live `/api/` routes require `Authorization: Bearer <Supabase access token>`. The server calls `auth.get_user(token)` and derives the owner from that result. It never accepts a client player ID. Responses use `Cache-Control: no-store`.
 
 - `GET /api/prompts`: array of `{id,text,featured}`. `featured` matches `featured_on` to today's UTC date.
+- `POST /api/questions`: JSON `{category, difficulty}` (`beginner`, `intermediate` or `expert`). Gemini writes a yes-or-no question for the category; it is saved as a prompt and returned as `{id,text,category,difficulty}`. Categories are cleaned to 40 characters; a category Gemini judges unsuitable returns 422 with a reason. If Gemini is unavailable, a template question is used so play continues.
 - `POST /api/speeches`: multipart `motion_id`, `side` (`yes` or `no`), `audio`, returns 202 `{speech_id}`. Maximum 15 MB; WAV, WebM, Ogg, MP4, MP3, FLAC. Uploads use owner-prefixed private storage paths. A background worker invokes the real grader and saves the unchanged report.
 - `GET /api/speeches/{id}`: owner-only `{id,status,motion_id,side,prompt,report,audio_url,fixes,sections,deltas,previous_best,error}`. Other owners' IDs return 404 before signing any audio. Signed URLs expire after 300 seconds; reload the card to renew. `status` is `queued`, `grading`, `done`, `ungradable`, or `failed`. Ungradable keeps its explanation and transcript without contributing any zero grade.
 - `GET /api/me`: `{id,display_name,prompts,speeches,bests,recent_overalls,season_tier:null,judge_xp:0}`. Speeches are in recording order, each with `{id,motion_id,side,created_at,status,overall,factor_scores}`. Failed/ungradable attempts have null overall/factors. Best per prompt uses highest graded overall, ties earliest. Recent overalls contains the last ten graded attempts.
