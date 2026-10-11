@@ -43,6 +43,8 @@ CATALOG = {
     "unsupported_claim_count": ("Claims with no support", "count", GEM),
     "stance_mismatch": ("Argued the opposite side", "0/1", GEM),
     "stance_unclear": ("Side not clear", "0/1", GEM),
+    "off_topic": ("Speech does not address the question", "0/1", GEM),
+    "topic_drift": ("Speech drifts away from the question", "0/1", GEM),
     "emotional_appeals": ("Emotional appeals", "count", GEM),
     "appeal_variety": ("Kinds of emotional appeal", "count", GEM),
     "emotion_words_per_100_words": ("Emotionally charged words", "per 100 words", TXT),
@@ -317,6 +319,8 @@ def verify_extraction(extraction: dict, words: list[dict], lexicons: dict, side:
     fallacies = tagged("fallacies", REASONING_FALLACIES + MANIPULATIVE_FALLACIES, "fallacy")
     appeals = tagged("emotional_appeals", APPEAL_TYPES, "emotional appeal")
     stance = extraction.get("stance") if extraction.get("stance") in ("yes", "no") else "unclear"
+    # A missing or malformed answer gets the benefit of the doubt.
+    on_topic = extraction.get("on_topic") if extraction.get("on_topic") in ("yes", "partly", "no") else "yes"
 
     metrics = {
         "supported_arguments": sum(a["status"] == "supported" for a in arguments),
@@ -327,10 +331,13 @@ def verify_extraction(extraction: dict, words: list[dict], lexicons: dict, side:
         "manipulative_appeal_count": sum(f["type"] in MANIPULATIVE_FALLACIES for f in fallacies),
         "stance_mismatch": int(stance != "unclear" and stance != side),
         "stance_unclear": int(stance == "unclear"),
+        "off_topic": int(on_topic == "no"),
+        "topic_drift": int(on_topic == "partly"),
         "emotional_appeals": len(appeals),
         "appeal_variety": len({a["type"] for a in appeals}),
     }
-    evidence = {"stance_argued": stance, "side_chosen": side, "thesis_found": thesis,
+    position = extraction.get("position") if isinstance(extraction.get("position"), str) else ""
+    evidence = {"on_topic": on_topic, "position_read": position, "stance_argued": stance, "side_chosen": side, "thesis_found": thesis,
                 "conclusion_found": conclusion, "counterargument_found": counter,
                 "rebuttal_found": bool(rebuttal), "arguments": arguments, "fallacies": fallacies,
                 "emotional_appeals": appeals, "discarded_from_gemini": dropped}

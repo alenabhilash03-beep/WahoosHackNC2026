@@ -46,6 +46,16 @@ def losses(report):
                 if loss > 0:
                     items.append(dict(factor=name, metric=metric['metric'], label=metric['label'], kind=kind,
                                       lost_points=round(loss, 8), tip=tip_for(metric)))
+    # A critical failure caps the overall below the average of the parts. The binding
+    # (lowest) cap owns the gap, so the losses still add up to 100 minus the overall.
+    overall = report.get('overall') or {}
+    capped_by = overall.get('capped_by') or []
+    if capped_by and measured(overall.get('uncapped')) and measured(overall.get('score')):
+        gap = overall['uncapped'] - overall['score']
+        rule = capped_by[0]
+        if gap > 0:
+            items.append(dict(factor=rule['factor'], metric=rule['metric'], label=rule['reason'], kind='critical',
+                              lost_points=round(gap, 8), tip=tip_for(rule)))
     return items
 
 
