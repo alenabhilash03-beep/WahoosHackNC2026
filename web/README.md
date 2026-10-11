@@ -39,7 +39,22 @@ low-resolution renderer; check performance on your target devices.
   2. The speaker climbs onto the stage and walks to the podium (~2 s) while the server writes a yes-or-no question (`POST /api/questions`). Choose YES or NO.
   3. A 5-second countdown through the speaker's eyes, gazing left to right across the audience and the stage lights.
   4. Speak for up to 60 seconds. The time bar along the bottom turns from white to red; FINISH stops early.
-  5. Two seconds of applause (synthesised in `js/applause.js`) while the speech uploads, then the speech card, which has RETURN TO LOBBY.
+  5. Applause while the speech uploads, with the audience clapping; the speech card fades in as it dies away, then plays a fanfare for the grade (A loud, B softer, C a jingle, D/F a sad trombone). The card has RETURN TO LOBBY.
+
+## Sound
+
+All audio is synthesised in `js/sound.js` (Web Audio, no files): the lobby's chiptune loop, click and
+hover sounds on every control (`wireSounds`), the question chime, countdown beeps, applause and grade
+fanfares. The ♪ ON / OFF button (`addSoundToggle`) is remembered in `localStorage`. Browsers allow
+sound only after a press on the page, so the music starts with the first click. Inside the stage page,
+the speech card asks that page (`postMessage`) to play the fanfare, since it already has permission.
+
+## Audience
+
+Everyone in the hall comes from `createCrowd` in `js/arena.js`: one `InstancedMesh` per body part. Each
+person has a mood from neutral to beaming (mouth, smile corners, eyebrows), blinks on their own clock,
+and glances and nods; during applause the mood lifts and box hands clap under the chin. The front rows
+are always shown; the rest of the house and the balcony only from the podium.
 
   Real grading needs the server; see "Local mode" in `server/README.md`. On GitHub Pages the page explains that.
 - `card.html?id=...` shows the complete grader report, verified evidence, timed transcript playback, top-three authored tips, prior-best deltas and a speech radar. Signed recording URLs are refreshed by reloading the card. Legacy reports without word timings remain readable.
