@@ -17,6 +17,7 @@ Apply in numeric order; do not rewrite already-applied migrations.
 | 0004 | Generated prompt category/difficulty |
 | 0005 | Case-insensitive unique display names; name validation for new writes; repair audio bucket privacy |
 | 0006 | Community rounds, shared entries, emoji reactions and their server-only functions; recording expiry columns ([guide](../docs/implementation/community-backend.md)) |
+| 0007 | Downvote reactions and net community favorites scores; preserves existing reactions |
 
 Unnamed profiles may all use `player`. Named profiles have 3–20 ASCII letters,
 digits or underscores. The server translates concurrent unique-name conflicts to

@@ -2,7 +2,7 @@
 
 One prompt is open at a time (a round, midnight to midnight UTC). A speaker records it,
 then explicitly shares that speech; listeners with an account can play it and leave one
-reaction each. Two rankings cover the same shared speeches: highest graded and most reacted.
+reaction each. Two rankings cover the same shared speeches: highest graded and net reactions.
 
 What the community may see is decided in the database (migration 0006): the round is open,
 the entry is shared, review approved it, it has a grade and its recording still exists.
@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from .leaderboard import UNNAMED
 
 LOG = logging.getLogger(__name__)
-REACTIONS = ('love', 'like', 'fire', 'amazing')
+REACTIONS = ('love', 'like', 'fire', 'amazing', 'downvote')
 
 
 class EntryConflict(Exception):
@@ -316,7 +316,7 @@ def register(app, settings, repo, user):
         """Set, change or (with null) remove the caller's one reaction. Returns the counted totals."""
         speech_id = uuid_or_404(speech_id, 'Speech')
         if body.reaction is not None and body.reaction not in REACTIONS:
-            raise HTTPException(422, 'Reaction must be love, like, fire or amazing.')
+            raise HTTPException(422, 'Reaction must be love, like, fire, amazing or downvote.')
         db.profile(uid)                      # a listener who has only ever opened the board has no profile row yet
         result = db.react(speech_id, uid, body.reaction, settings.community_reactions_per_minute) or {}
         status = result.get('status')
@@ -327,7 +327,7 @@ def register(app, settings, repo, user):
         if status == 'closed':
             raise HTTPException(409, CLOSED)
         if status == 'invalid':
-            raise HTTPException(422, 'Reaction must be love, like, fire or amazing.')
+            raise HTTPException(422, 'Reaction must be love, like, fire, amazing or downvote.')
         if status == 'limited':
             wait = int(result.get('retry_after') or 60)
             raise HTTPException(429, f'Too many reactions. Try again in {wait} seconds.', headers={'Retry-After': str(wait)})
@@ -335,8 +335,9 @@ def register(app, settings, repo, user):
 
 
 def reaction_result(row):
-    counts = row.get('counts') or {}
-    return dict(counts={name: int(counts.get(name) or 0) for name in REACTIONS},
+    counts = {name: int((row.get('counts') or {}).get(name) or 0) for name in REACTIONS}
+    score = sum(counts[name] for name in REACTIONS if name != 'downvote') - counts['downvote']
+    return dict(counts=counts, reaction_score=score,
                 total_reactions=int(row.get('total_reactions') or 0), my_reaction=row.get('my_reaction'))
 
 

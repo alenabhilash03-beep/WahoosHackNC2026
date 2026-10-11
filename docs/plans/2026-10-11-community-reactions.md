@@ -1,5 +1,11 @@
 # Community speech reactions: implementation plan
 
+Downvote extension: migration `0007_community_downvotes.sql` adds a fifth reaction, `downvote`.
+Each listener still has one reaction per speech. Positive reactions contribute +1 and downvotes
+contribute -1 to Community favorites; Highest graded is unchanged. `total_reactions` counts all
+listeners, while `reaction_score` is the net score. The original positive-only plan below records
+the initial scope; the updated API and rollout are in the implementation guides.
+
 Status: phases 1, 2 and 4 (schema, backend, review, rotation and cleanup) are implemented and tested against real Postgres, Storage and Auth; see the [backend guide](../implementation/community-backend.md). Phase 3 (frontend) was already implemented behind the feature flag; see [frontend implementation and API contract](../implementation/community-frontend.md). Still pending from phase 5: the deployed two-account browser pass, automatic content review, an external scheduler and a storage budget. The flag stays off until the operator turns it on.
 Date: 2026-10-11
 Repository: alenabhilash03-beep/WahoosHackNC2026

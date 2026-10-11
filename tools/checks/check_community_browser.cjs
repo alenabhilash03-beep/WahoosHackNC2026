@@ -9,11 +9,11 @@ const root=path.resolve(__dirname,'../../web');
 const out=path.resolve(__dirname,'../../work/browser-qa');
 const report=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../../softskills-grader/sample_report.json'),'utf8'));
 const sdk=`export const createClient=()=>{const session={access_token:localStorage.getItem('account'),user:{id:localStorage.getItem('account'),is_anonymous:false}};return {auth:{getSession:async()=>({data:{session}}),refreshSession:async()=>({data:{session}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}};};`;
-const counts=()=>({love:0,like:0,fire:0,amazing:0});
+const counts=()=>({love:0,like:0,fire:0,amazing:0,downvote:0});
 let round={id:'r1',starts_at:new Date(Date.now()-60000).toISOString(),ends_at:new Date(Date.now()+3600000).toISOString(),prompt:{id:'m1',text:'Should schools require uniforms?'}};
 let entry=null, moderation='pending', enabled=true, failReaction=false, failBoard=false, holdBoard=null, heldResolve=null;
 let votes={}, lastUpload, audioRequests=0, boardRequests=0, extraEntry=false, reverseOrder=false, audioExpiresAt=null;
-function result(user){const breakdown=counts();for(const value of Object.values(votes))breakdown[value]++;return {counts:breakdown,total_reactions:Object.keys(votes).length,my_reaction:votes[user]??null};}
+function result(user){const breakdown=counts();for(const value of Object.values(votes))breakdown[value]++;return {counts:breakdown,total_reactions:Object.keys(votes).length,reaction_score:Object.keys(votes).length-2*breakdown.downvote,my_reaction:votes[user]??null};}
 function row(user){return {id:'e1',speech_id:'s1',rank:1,display_name:'Ada',side:'yes',overall:95.7,letter:'A',is_owner:user==='speaker',...result(user)};}
 function board(user){
   const entries=entry&&!entry.withdrawn_at&&moderation==='approved'?[row(user)]:[];
@@ -63,7 +63,7 @@ function card(){return {id:'s1',status:'done',motion_id:'m1',side:'yes',prompt:r
         if(name==='/api/community/speeches/s1/reaction'){
           if(user==='speaker')return json({detail:'Cannot react to your own speech'},403);
           if(failReaction)return json({detail:'Network interrupted'},503);
-          const value=body().reaction;assert.ok(['love','like','fire','amazing',null].includes(value));
+          const value=body().reaction;assert.ok(['love','like','fire','amazing','downvote',null].includes(value));
           if(value===null)delete votes[user];else votes[user]=value;
           return json(result(user));
         }
@@ -97,6 +97,18 @@ function card(){return {id:'s1',status:'done',motion_id:'m1',side:'yes',prompt:r
     await b.locator('#community-favorites').click();await b.getByRole('button',{name:'Fire: 0 reactions',exact:true}).waitFor();
     await b.getByRole('button',{name:'Fire: 0 reactions',exact:true}).click();await b.getByRole('button',{name:'Fire: 1 reactions',exact:true}).waitFor();
     await b.reload();await b.getByRole('button',{name:'Fire: 1 reactions',exact:true}).waitFor();assert.equal(await b.getByRole('button',{name:'Fire: 1 reactions',exact:true}).getAttribute('aria-pressed'),'true');
+    await b.getByRole('button',{name:'Downvote: 0 reactions',exact:true}).click();await b.getByRole('button',{name:'Downvote: 1 reactions',exact:true}).waitFor();
+    assert.equal(Object.keys(votes).length,1);assert.equal(votes.listener,'downvote');
+    await b.locator('.community-entry .community-copy').filter({hasText:'Community score: -1'}).waitFor();
+    await b.reload();await b.getByRole('button',{name:'Downvote: 1 reactions',exact:true}).waitFor();
+    assert.equal(await b.getByRole('button',{name:'Downvote: 1 reactions',exact:true}).getAttribute('aria-pressed'),'true');
+    failReaction=true;await b.getByRole('button',{name:'Love: 0 reactions',exact:true}).click();await b.locator('.community-entry [role=status]').filter({hasText:'Showing your previous reaction'}).waitFor();
+    assert.equal(await b.getByRole('button',{name:'Downvote: 1 reactions',exact:true}).getAttribute('aria-pressed'),'true');failReaction=false;
+    await b.getByRole('button',{name:'Downvote: 1 reactions',exact:true}).click();await b.getByRole('button',{name:'Downvote: 0 reactions',exact:true}).waitFor();
+    assert.equal(Object.keys(votes).length,0);await b.locator('.community-entry .community-copy').filter({hasText:'Community score: 0'}).waitFor();
+    await b.getByRole('button',{name:'Downvote: 0 reactions',exact:true}).click();await b.getByRole('button',{name:'Downvote: 1 reactions',exact:true}).waitFor();
+    await b.getByRole('button',{name:'Fire: 0 reactions',exact:true}).click();await b.getByRole('button',{name:'Fire: 1 reactions',exact:true}).waitFor();
+    assert.equal(votes.listener,'fire');assert.equal(result('listener').counts.downvote,0);
     failReaction=true;await b.getByRole('button',{name:'Like: 0 reactions',exact:true}).click();await b.locator('.community-entry [role=status]').filter({hasText:'Showing your previous reaction'}).waitFor();assert.equal(await b.getByRole('button',{name:'Fire: 1 reactions',exact:true}).getAttribute('aria-pressed'),'true');failReaction=false;
     // Hold a poll snapshot across a vote. The old count cannot undo the vote.
     let release;const held=new Promise(resolve=>heldResolve=resolve);holdBoard=new Promise(resolve=>release=resolve);
@@ -114,6 +126,7 @@ function card(){return {id:'s1',status:'done',motion_id:'m1',side:'yes',prompt:r
     await b.locator('.community-entry audio').evaluate(audio=>audio.dispatchEvent(new Event('error')));await b.locator('.community-entry [role=status]').filter({hasText:'expired'}).waitFor();
     await b.getByRole('button',{name:'Refresh recording link',exact:true}).click();await b.locator('.community-entry [role=status]').filter({hasText:'Recording ready'}).waitFor();assert.equal(audioRequests,2);
     await a.goto(`${base}/leaderboard.html`);await a.locator('.reactions button').first().waitFor();assert.equal(await a.locator('.reactions button').first().isDisabled(),true);
+    assert.equal(await a.getByRole('button',{name:'Downvote: 0 reactions. You cannot react to your own speech',exact:true}).isDisabled(),true);
     // Keyboard tab navigation, mobile layout, literal display strings.
     await b.locator('#community-grade').focus();await b.keyboard.press('ArrowRight');assert.equal(await b.locator('#community-favorites').getAttribute('aria-selected'),'true');
     await b.getByRole('button',{name:'Amazing: 1 reactions',exact:true}).waitFor();

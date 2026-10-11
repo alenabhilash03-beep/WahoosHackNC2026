@@ -274,10 +274,11 @@ The **Daily Prompt** is one shared question per day, midnight to midnight UTC:
 - **Recording:** everyone answers the same question, recorded on stage like any other round.
 - **Sharing is opt-in:** after grading you can choose **Share with the community**. Choosing a
   display name never shares audio by itself.
-- **Reactions:** signed-in listeners play shared speeches and react with **Love, Like, Fire or
-  Amazing**. That's one reaction per person per speech, and you can't react to your own.
+- **Reactions:** signed-in listeners play shared speeches and react with **Love, Like, Fire,
+  Amazing or Downvote**. That's one reaction per person per speech, and you can't react to your own.
 - **Two rankings** of the same shared speeches: **Highest graded** (the AI score) and
-  **Community favorites** (the number of people who reacted).
+  **Community favorites** (positive reactions minus downvotes). Each positive reaction adds one;
+  a downvote subtracts one. The community score is separate from the grade and total reaction count.
 - **Review:** shared speeches stay hidden until approved, using
   [`server/scripts/review_community.py`](server/scripts/review_community.py) or
   `COMMUNITY_AUTO_APPROVE=true`.
@@ -289,6 +290,8 @@ The **Daily Prompt** is one shared question per day, midnight to midnight UTC:
 The rules on who may see what (round open, entry shared, approved, graded, recording still
 present) are enforced in the database, migration
 [`0006_community_reactions.sql`](supabase/migrations/0006_community_reactions.sql).
+Downvotes extend those rules in [`0007_community_downvotes.sql`](supabase/migrations/0007_community_downvotes.sql),
+which preserves existing votes and must be applied before deploying the downvote backend and frontend.
 
 ---
 
@@ -329,7 +332,7 @@ used, so switching modes is configuration only.
 | [`web/`](web/README.md) | The game: lobby and 3D arena (`js/arena.js`), the round (`practice.html`, `js/practice.js`, `js/recorder.js`), the speech card (`card.html`, `js/card.js`), progress and radar (`progress.html`, `js/radar.js`), leaderboards and community (`leaderboard.html`, `js/community-*.js`), sound (`js/sound.js`), sign-in (`login.html`, `js/auth.js`, `js/account.js`) |
 | [`server/`](server/README.md) | FastAPI app (`app/main.py`), Supabase and local stores (`app/repository.py`, `app/local.py`), questions, coaching, leaderboards, community routes, feedback ("fix these first"), maintenance scripts, tests |
 | [`softskills-grader/`](softskills-grader/README.md) | The grader: ElevenLabs transcription, audio analysis, Gemini extraction and stance checks, features, scoring, the rubric (`config/standards.yaml`), tests, `time_grade.py` for timing real runs |
-| [`supabase/`](supabase/README.md) | Migrations `0001`–`0006` and database setup and verification |
+| [`supabase/`](supabase/README.md) | Migrations `0001`–`0007` and database setup and verification |
 | [`Arena/`](Arena/) | Crowd-rating math (`arena_ratings.py`: Bradley-Terry strengths with side-bias removal, rater weighting, Elo) and the parked two-player duel judge (`match_judge.py`) |
 | [`tools/`](tools/checks/README.md) | Browser acceptance checks (Playwright), Supabase checks, database constraint tests |
 | [`Dockerfile`](Dockerfile), [`fly.toml`](fly.toml) | One container: the API plus the static site |

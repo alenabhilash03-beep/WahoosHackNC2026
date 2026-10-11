@@ -24,6 +24,8 @@ test('round boundaries, malformed metadata and no round fail closed',()=>{
 test('reaction selection supports change and removal; rejects arbitrary emoji',()=>{
   assert.equal(nextReaction(null,'love'),'love');assert.equal(nextReaction('like','fire'),'fire');
   assert.equal(nextReaction('fire','fire'),null);assert.throws(()=>nextReaction(null,'angry'));
+  assert.equal(nextReaction(null,'downvote'),'downvote');assert.equal(nextReaction('love','downvote'),'downvote');
+  assert.equal(nextReaction('downvote','like'),'like');assert.equal(nextReaction('downvote','downvote'),null);
 });
 test('sharing is opt-in and requires an eligible recording and display name',()=>{
   assert.equal(shareState(card,data).action,'share');
@@ -49,6 +51,17 @@ test('pending and rejected entries can be withdrawn; withdrawal permits only the
 function board() {
   const state=createBoardState();state.accept(state.stamp(),{round,entries:[{speech_id:'speech',counts:{love:2},total_reactions:2,my_reaction:'love'}]});return state;
 }
+test('downvote saves the server score, replaces a positive reaction, and toggles off',async()=>{
+  const state=board();
+  await state.react('speech','downvote',async value=>{
+    assert.equal(value,'downvote');return {counts:{love:1,downvote:1},total_reactions:2,reaction_score:0,my_reaction:value};
+  });
+  assert.equal(state.entries[0].reaction_score,0);assert.equal(state.entries[0].my_reaction,'downvote');
+  await state.react('speech','downvote',async value=>{
+    assert.equal(value,null);return {counts:{love:1,downvote:0},total_reactions:1,reaction_score:1,my_reaction:value};
+  });
+  assert.equal(state.entries[0].reaction_score,1);assert.equal(state.entries[0].my_reaction,null);
+});
 test('slow polling cannot erase a newer mutation; counts come from server',async()=>{
   const state=board(), stamp=state.stamp();let release;
   const mutation=state.react('speech','fire',value=>new Promise(resolve=>{assert.equal(value,'fire');release=resolve;}));

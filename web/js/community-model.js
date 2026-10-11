@@ -3,6 +3,7 @@ import {nameProblem} from './leaderboard-model.js';
 export const REACTIONS = Object.freeze([
   {id:'love', emoji:'❤️', label:'Love'}, {id:'like', emoji:'👍', label:'Like'},
   {id:'fire', emoji:'🔥', label:'Fire'}, {id:'amazing', emoji:'⭐', label:'Amazing'},
+  {id:'downvote', emoji:'👎', label:'Downvote'},
 ]);
 export const RETENTION_NOTICE = "This round's recording will be deleted shortly after the prompt changes. Your grade stays saved.";
 export function communityEnabled(config = globalThis.ARENA_CONFIG ?? {}) {
@@ -68,7 +69,7 @@ export function createBoardState() {
       try {
         const result = await send(nextReaction(entry.my_reaction, clicked));
         if (state.round?.id === roundId && state.entries.includes(entry)) {
-          entry.counts = result.counts; entry.total_reactions = result.total_reactions; entry.my_reaction = result.my_reaction;
+          entry.counts = result.counts; entry.total_reactions = result.total_reactions; entry.reaction_score = result.reaction_score; entry.my_reaction = result.my_reaction;
         }
         return true;
       } finally { state.pending.delete(speechId); ++revision; }
