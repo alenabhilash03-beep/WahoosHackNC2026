@@ -4,7 +4,7 @@ from supabase import create_client
 from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
-from .leaderboard import UNNAMED, NameTaken
+from .leaderboard import UNNAMED, NameTaken, level
 from .session import InvalidSession
 
 PENDING = ('queued', 'grading')
@@ -90,11 +90,13 @@ class SupabaseRepository:
             lambda: self.client.table('profiles').select('id,display_name').neq('display_name', UNNAMED).order('id'))}
         if not names:
             return []
+        levels = {row['id']: row['difficulty'] for row in self._pages(
+            lambda: self.client.table('motions').select('id,difficulty').order('id'))}
         rows = self._pages(lambda: self.client.table('speeches')
-                           .select('id,player_id,overall,created_at,letter:report->overall->>letter')
+                           .select('id,player_id,motion_id,overall,created_at,letter:report->overall->>letter')
                            .eq('status', 'done').order('created_at').order('id'))
         return [dict(player_id=row['player_id'], display_name=names[row['player_id']], score=float(row['overall']),
-                     letter=row.get('letter'), created_at=row['created_at'])
+                     letter=row.get('letter'), created_at=row['created_at'], difficulty=level(levels.get(row.get('motion_id'))))
                 for row in rows if row['player_id'] in names and row.get('overall') is not None]
 
     def speech(self, id, user):

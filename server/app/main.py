@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .feedback import me_card, speech_card
-from .leaderboard import UNNAMED, NameTaken, clean_name, rank
+from .leaderboard import UNNAMED, NameTaken, boards, clean_name
 from .questions import DIFFICULTIES, UnsuitableCategory, clean_category, generate_question
 from .session import InvalidSession
 from .settings import ROOT, Settings
@@ -162,8 +162,8 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
     @app.get('/api/leaderboard')
     def leaderboard(uid=Depends(user), db=Depends(repo)):
         display_name = db.profile(uid)['display_name']
-        result = rank(db.board_rows(), uid)
-        result['display_name'] = None if display_name == UNNAMED else display_name
+        result = {'boards': boards(db.board_rows(), uid),
+                  'display_name': None if display_name == UNNAMED else display_name}
         if settings.demo_mode:
             result['demo'] = True
         return result

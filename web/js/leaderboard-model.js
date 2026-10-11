@@ -1,3 +1,13 @@
+// One board per difficulty (server/app/leaderboard.py), so a 90 on an expert question is
+// never ranked below a 92 on a beginner one.
+export const LEVELS = ['beginner', 'intermediate', 'expert'];
+
+/** The board for one difficulty, shaped for the page: {display_name, demo, rows, you}. */
+export function boardFor(result, level) {
+  const board = result?.boards?.[level] ?? {rows: [], you: null};
+  return {display_name: result?.display_name ?? null, demo: Boolean(result?.demo), rows: board.rows ?? [], you: board.you ?? null};
+}
+
 // The same rule the server enforces (server/app/leaderboard.py).
 export function nameProblem(value) {
   const name = String(value ?? '').trim();

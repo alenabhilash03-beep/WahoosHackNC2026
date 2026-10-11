@@ -68,7 +68,8 @@ class DemoRepository:
         return [copy.deepcopy(row) for row in self.rows if row['player_id'] == user]
 
     def board_rows(self):
-        return [row for row in (board_row(r, 'Local demo') for r in self.rows) if row]
+        # The saved examples are shown on the intermediate board.
+        return [row for row in (board_row(r, 'Local demo', 'intermediate') for r in self.rows) if row]
 
     def speech(self, id, user):
         return next((copy.deepcopy(row) for row in self.rows if row['id'] == id and row['player_id'] == user), None)

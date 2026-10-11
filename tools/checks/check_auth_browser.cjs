@@ -60,7 +60,7 @@ export function createClient() {
     await context.route('https://fonts.googleapis.com/**', route => route.fulfill({contentType:'text/css',body:''}));
     await context.route('**/api/me', route => route.fulfill({contentType:'application/json',body:JSON.stringify({id:'test-user',display_name:'player',prompts:[],speeches:[]})}));
     await context.route('**/api/prompts', route => route.fulfill({contentType:'application/json',body:'[]'}));
-    await context.route('**/api/leaderboard', route => route.fulfill({contentType:'application/json',body:JSON.stringify({rows:[],you:null,display_name:null})}));
+    await context.route('**/api/leaderboard', route => route.fulfill({contentType:'application/json',body:JSON.stringify({boards:{beginner:{rows:[],you:null},intermediate:{rows:[],you:null},expert:{rows:[],you:null}},display_name:null})}));
     await context.route('**/api/speeches/test-stance-card', route => route.fulfill({contentType:'application/json',body:JSON.stringify({
       id:'test-stance-card',status:'done',motion_id:'m',side:'yes',prompt:{id:'m',text:stanceReport.inputs.topic},
       report:stanceReport,audio_url:null,fixes:[],previous_best:null,deltas:null})}));

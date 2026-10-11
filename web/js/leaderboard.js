@@ -1,10 +1,37 @@
 import {api} from './api.js';
-import {nameProblem,scoreLine,youLine} from './leaderboard-model.js';
+import {LEVELS,boardFor,nameProblem,scoreLine,youLine} from './leaderboard-model.js';
 import {mountCommunityBoard} from './community-board.js';
 
 const $=id=>document.getElementById(id);
 const REFRESH_MS=30000;
-let saving=false;
+let saving=false,latest=null;
+const LEVEL_KEY='arena:board-level';
+let level=(()=>{ try { const saved=localStorage.getItem(LEVEL_KEY); return LEVELS.includes(saved) ? saved : 'beginner'; } catch { return 'beginner'; } })();
+function showTabs() {
+  for (const tab of document.querySelectorAll('[data-level]')) {
+    const selected=tab.dataset.level===level;
+    tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected ? 0 : -1;
+  }
+  $('board-title').textContent=`TOP SPEAKERS · ${level.toUpperCase()}`;
+}
+function choose(next) {
+  level=next;
+  try { localStorage.setItem(LEVEL_KEY,level); } catch { /* not remembered */ }
+  showTabs();
+  if (latest) draw(boardFor(latest,level));
+}
+for (const tab of document.querySelectorAll('[data-level]')) {
+  tab.addEventListener('click',()=>choose(tab.dataset.level));
+  // Arrow keys move between the tabs, as in any tab list.
+  tab.addEventListener('keydown',event=>{
+    const step=event.key==='ArrowRight' ? 1 : event.key==='ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    event.preventDefault();
+    const next=LEVELS[(LEVELS.indexOf(level)+step+LEVELS.length)%LEVELS.length];
+    choose(next);document.querySelector(`[data-level="${next}"]`).focus();
+  });
+}
+showTabs();
 mountCommunityBoard({api});
 function draw(board) {
   $('you').textContent=board.demo ? 'LOCAL PREVIEW · Sample scores. Connect Supabase to join the board.' : youLine(board);
@@ -15,7 +42,7 @@ function draw(board) {
   // Don't overwrite a name the player is typing when the board refreshes.
   if (document.activeElement!==$('name') && !saving) $('name').value=board.display_name ?? '';
   $('board').replaceChildren();
-  if (!board.rows.length) { $('board').textContent='Nobody is on the board yet. Be the first.'; return; }
+  if (!board.rows.length) { $('board').textContent=`Nobody is on the ${level} board yet. Be the first.`; return; }
   const rows=board.you && !board.rows.some(row=>row.you) ? [...board.rows,board.you] : board.rows;
   for (const row of rows) {
     const li=document.createElement('li'),place=document.createElement('span'),name=document.createElement('span'),score=document.createElement('span');
@@ -29,9 +56,9 @@ function draw(board) {
 async function load(quiet=false) {
   if (!quiet) { $('reload').hidden=true;$('content').hidden=true;$('status').textContent='Loading the board…'; }
   try {
-    const board=await api('/api/leaderboard');
-    $('status').textContent='Best score per speaker · updates every 30 seconds';
-    $('reload').hidden=true;$('content').hidden=false;draw(board);
+    latest=await api('/api/leaderboard');
+    $('status').textContent='Best score per speaker at each difficulty · updates every 30 seconds';
+    $('reload').hidden=true;$('content').hidden=false;draw(boardFor(latest,level));
   } catch(error) {
     if (quiet) return;               // keep showing the last board; the next refresh retries
     $('status').textContent=error.message;$('reload').hidden=false;
