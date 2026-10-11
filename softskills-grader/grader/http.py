@@ -16,7 +16,11 @@ from typing import Callable
 import requests
 
 BUSY = {429, 500, 502, 503, 504}     # rate limit or temporary server trouble
-OVERLOADED = BUSY - {429}            # for callers with another model to switch to on a rate limit
+OVERLOADED = BUSY - {429}            # for single-model callers: wait out overload on the same model
+# For callers with fallback models: a rate limit (429) or an overloaded model (503) usually
+# lasts longer than our waits, so hand over to the next model at once; retry only plain
+# server errors on the same model.
+RETRY_SAME_MODEL = BUSY - {429, 503}
 WAITS = (2, 5, 10)                   # seconds before the 2nd, 3rd and 4th attempt
 TIMEOUT = (5, 30)                    # seconds to connect, seconds to wait for the answer
 DEADLINE = 45                        # seconds one post_with_retry call may take in total

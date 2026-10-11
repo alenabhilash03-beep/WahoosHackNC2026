@@ -97,7 +97,7 @@ def _ask_gemini(topic, transcript, items):
         sys.path.insert(0, grader_dir)
     from grader.config import load_standards
     from grader.extract import URL, api_keys, key_attempts, parse_response
-    from grader.http import OVERLOADED, first_success, post_with_retry
+    from grader.http import RETRY_SAME_MODEL, first_success, post_with_retry
     from grader.pipeline import load_env
 
     load_env()
@@ -116,8 +116,8 @@ def _ask_gemini(topic, transcript, items):
     }
     models = [cfg['model']] + [m for m in cfg.get('fallback_models') or [] if m != cfg['model']]
     attempts = key_attempts(models, lambda model, headers, over: post_with_retry(
-        URL, deadline=20, retry_on=OVERLOADED, cancelled=over, headers=headers, json={**request, 'model': model}))
-    response, _ = first_success(attempts, hedge_after=8)
+        URL, deadline=20, retry_on=RETRY_SAME_MODEL, cancelled=over, headers=headers, json={**request, 'model': model}))
+    response, _ = first_success(attempts, hedge_after=4)
     wanted = {item['metric'] for item in items}
     answer = parse_response(response.json())
     lines = {}

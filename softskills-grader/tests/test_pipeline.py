@@ -347,8 +347,8 @@ def _gemini_with(statuses_by_model):
         http.requests.post, http.time.sleep = original_post, original_sleep
 
 
-def test_busy_gemini_is_retried_then_succeeds():
-    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503, 503, 200]})
+def test_server_errors_are_retried_on_the_same_model():
+    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [500, 502, 200]})
     assert result == FX["annotations"]
     assert calls == ["gemini-3.8-flash"] * 3 and sleeps == [2, 5]
 
@@ -359,14 +359,15 @@ def test_rate_limited_model_hands_over_at_once():
     assert calls == ["gemini-3.8-flash", "gemini-3.6-flash"] and sleeps == []
 
 
-def test_overloaded_model_falls_back_to_the_next_one():
-    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503] * 4, "gemini-3.6-flash": [200]})
+def test_overloaded_model_hands_over_at_once():
+    # A 503 means the model is overloaded: waiting 2, 5 and 10 s on it rarely helps.
+    result, calls, sleeps = _gemini_with({"gemini-3.8-flash": [503], "gemini-3.6-flash": [200]})
     assert result == FX["annotations"]
-    assert calls == ["gemini-3.8-flash"] * 4 + ["gemini-3.6-flash"]
+    assert calls == ["gemini-3.8-flash", "gemini-3.6-flash"] and sleeps == []
 
 
 def test_every_model_failing_gives_one_readable_error():
-    busy = {"gemini-3.8-flash": [503] * 4, "gemini-3.6-flash": [503] * 4, "gemini-3.5-flash-lite": [400]}
+    busy = {"gemini-3.8-flash": [503], "gemini-3.6-flash": [429], "gemini-3.5-flash-lite": [400]}
     try:
         _gemini_with(busy)
     except RuntimeError as error:
