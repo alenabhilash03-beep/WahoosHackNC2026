@@ -51,7 +51,7 @@ Open `https://<app>.fly.dev/practice.html`. Keep one machine: `fly.toml` disable
 
 **Live now:** https://wahoos-debate-arena.fly.dev (a temporary app name; `fly.toml` holds it). First deployed on 2026-10-11 with one machine in `iad` and the `arena_data` volume. Checked against that URL with a spoken 50-second WAV: anonymous sign-in, prompts, upload, grading and the card work, the card was ready 8.3 s after upload, the same file uploaded again gave the identical report, and another player got 404 on the speech. A real microphone recording on the deployed page has not been checked.
 
-The Fly account is still on the free trial, which stops a machine 5 minutes after it starts until a payment card is added at https://fly.io/trial. Until then the site wakes on the next request (`auto_start_machines`) and a grading that is running when the machine stops is lost. Add the card before a demo.
+If the machine is ever stopped, the next request starts it again (`auto_start_machines`); a grading that was running when it stopped is lost. A Fly trial account without a payment card stops machines 5 minutes after they start, which is how the first deployment went down; the card has since been added.
 
 To ship a newer `main`, run `fly deploy` from the repository root. If the build stops with `x509: certificate signed by unknown authority` (a network that inspects TLS), use `fly deploy --depot=false`.
 
