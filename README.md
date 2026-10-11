@@ -15,6 +15,8 @@ other's speeches head to head.
   [Research basis for the standards](softskills-grader/README.md#research-basis-for-the-standards).
 - [`Arena/arena_ratings.py`](Arena/arena_ratings.py): turns community votes into crowd scores.
 - [`supabase/migrations/`](supabase/migrations/): the database schema.
+- [Database setup and verification](supabase/README.md): local Supabase, migration upgrades,
+  RLS/private Storage checks, and concurrent display-name protection.
 - [`web/`](web/README.md): the pixel-art home screen.
 - [GitHub accounts](docs/implementation/social-accounts.md): Supabase
   OAuth app registration, login, and deployment setup; no SMTP needed.

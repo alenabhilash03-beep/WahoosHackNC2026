@@ -1,11 +1,18 @@
 # First-hour checks
 
+For the current SpeakUp app, run `python tools/checks/check_supabase.py` for a
+read-only schema, prompt, public-key isolation and private-bucket check. Use the
+[database guide](../../supabase/README.md) for migrations and constraint/RLS tests.
+An existing GitHub account token can optionally verify authenticated isolation;
+anonymous login and Realtime are not required by the current app.
+
+The conversation-engine/broadcast checks below belong to archived NetworkMaxx.
+
 Three small tools that confirm the live services behave the way the implementation guide assumes.
 Each takes a few minutes. Run them in this order.
 
 | When | Tool | Proves |
 | --- | --- | --- |
-| Phase 0, step 7 (Supabase project exists) | `python tools/checks/check_supabase.py` | Anonymous sign-in works; the server accepts an anonymous user's token with `auth.get_user`; a broadcast sent the way `server/app/realtime.py` sends it reaches a `channel(topic)` listener on the same topic name |
 | Phase 0, step 7 | open `tools/checks/broadcast.html` in a browser | The same broadcast reaches a browser using `supabase-js` |
 | Phase 1, step 2 (engine created) | `python tools/checks/check_engine.py` (`--fix` to repair) | The Speech Engine forwards every event the call screen listens for, the first-message override is on, and `ws_url` points at your server |
 | Phase 1, step 9 (call screen works) | `/dev/voice-check` page (copy `voice-check/page.tsx` to `web/app/dev/voice-check/page.tsx`) | The conversation id, event types, payload keys and timing your account actually produces |

@@ -1,6 +1,7 @@
 """Service-role operations. Every speech query explicitly scopes its owner."""
 from datetime import datetime, timezone
 from supabase import create_client
+from postgrest.exceptions import APIError
 
 from .leaderboard import UNNAMED, NameTaken
 
@@ -40,7 +41,13 @@ class SupabaseRepository:
         pattern = name.replace('_', r'\_')
         if self.client.table('profiles').select('id').ilike('display_name', pattern).neq('id', user).limit(1).execute().data:
             raise NameTaken(name)
-        self.client.table('profiles').upsert({'id': user, 'display_name': name}, on_conflict='id').execute()
+        try:
+            self.client.table('profiles').upsert({'id': user, 'display_name': name}, on_conflict='id').execute()
+        except APIError as error:
+            # The pre-check is friendly, but only the unique index resolves races.
+            if error.code == '23505':
+                raise NameTaken(name) from error
+            raise
 
     def _pages(self, build, page_size=500):
         # PostgREST limits one response to 1000 rows by default. Read every page

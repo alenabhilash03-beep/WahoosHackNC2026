@@ -58,7 +58,7 @@ Fixes have `{factor,metric,label,kind,lost_points,tip}`. Metric loss is `weight_
 
 `Dockerfile`, `.dockerignore` and `fly.toml` at the repository root build one container that serves the API and `web/` from the same origin, so `/config.js` is filled from the server environment and `web/config.js` and `CORS_ORIGINS` can stay empty. The image installs FFmpeg, runs a single Uvicorn worker, and keeps `DATA_DIR` on a volume mounted at `/data`.
 
-Before deploying: create the Supabase project, configure GitHub accounts using the [account guide](../docs/implementation/social-accounts.md), apply migrations 0001 to 0004, and have the ElevenLabs and Gemini keys ready. Then, from the repository root:
+Before deploying: create the Supabase project, configure GitHub accounts using the [account guide](../docs/implementation/social-accounts.md), apply migrations 0001 to 0005 using the [database guide](../supabase/README.md), and have the ElevenLabs and Gemini keys ready. Then, from the repository root:
 
 ```sh
 fly launch --no-deploy --copy-config        # keep fly.toml; choose the app name
