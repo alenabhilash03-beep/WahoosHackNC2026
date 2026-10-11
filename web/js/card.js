@@ -126,6 +126,18 @@ function renderArgument(report) {
   if(discarded) target.append(node('p',`${discarded} model extraction${discarded===1?' was':'s were'} excluded because verification failed.`,'small-copy'));
 }
 
+// Gemini's one-line advice per metric, fetched after the card renders.
+let coachingLines={};
+async function loadCoaching(id) {
+  try {
+    const result=await api(`/api/speeches/${encodeURIComponent(id)}/coaching`);
+    coachingLines=result.lines ?? {};
+  } catch { coachingLines={}; }
+  for(const line of document.querySelectorAll('[data-coach]')) {
+    line.textContent=coachingLines[line.dataset.coach] ?? 'Open the numbers below to see what to work on.';
+  }
+}
+
 function renderMetrics(report) {
   const target=$('metrics');target.replaceChildren();
   const rows=metricRows(report);
@@ -135,13 +147,22 @@ function renderMetrics(report) {
     details.append(node('summary',`${key.toUpperCase()} · ${fmt(factor.score)} / 100 · ${fmt(factor.weight_pct)}% OF OVERALL${typeof delta==='number'?` · ${delta>0?'+':''}${fmt(delta)} VS PREVIOUS BEST`:''}`));
     const body=node('div');
     for(const row of rows.filter(r=>r.factor===key)) {
-      const item=node('article',undefined,'metric');item.dataset.metric=row.metric;
-      item.append(node('h4',row.label));
+      // Each metric is a closed box: its name and a score chip until it is opened.
+      const item=node('details',undefined,'metric');item.dataset.metric=row.metric;
+      const lost=row.kind==='metric' ? row.overallLost : row.points_lost;
+      const chip=row.kind==='metric'
+        ? (typeof row.score==='number' ? `${fmt(row.score)}/100` : 'NOT MEASURED')
+        : (row.points_lost ? `-${fmt(row.points_lost)} PTS` : 'NO PENALTY');
+      const summary=node('summary',undefined,'metric-summary');
+      summary.append(node('span',row.label,'metric-name'),node('span',chip,`metric-chip${lost>0?' lost':''}`));
+      item.append(summary);
+      const coach=node('p',coachingLines[row.metric] ?? 'Writing your coaching…','metric-coach');coach.dataset.coach=row.metric;
+      item.append(coach);
       const dl=node('dl');
       const entries=row.kind==='metric'
-        ? [['Measured',`${fmt(row.value)} ${row.unit ?? ''}`],['Rubric bucket',row.bucket ?? 'Not reported'],['Metric score',`${fmt(row.score)} / 100`],['Weight within this part',fmt(row.weight)],['Overall points lost',fmt(row.overallLost)],['Source',row.source ?? 'Not reported']]
-        : [['Measured',`${fmt(row.value)} occurrences`],['Free allowance',fmt(row.free)],['Penalty per excess',`${fmt(row.points_each)} points`],['Penalty cap',`${fmt(row.max_points)} points`],['Part points deducted',fmt(row.points_lost)],['Overall points lost',fmt(row.overallLost)],['Source',`Rubric deduction · ${report.inputs?.standards_version ?? 'version not reported'}`]];
-      for(const [label,value] of entries) { const cell=node('div',undefined,label==='Source'?'source':'');cell.append(node('dt',label),node('dd',value));dl.append(cell); }
+        ? [['Measured',`${fmt(row.value)} ${row.unit ?? ''}`],['Rubric bucket',row.bucket ?? 'Not reported'],['Metric score',`${fmt(row.score)} / 100`],['Weight within this part',fmt(row.weight)],['Overall points lost',fmt(row.overallLost)]]
+        : [['Measured',`${fmt(row.value)} occurrences`],['Free allowance',fmt(row.free)],['Penalty per excess',`${fmt(row.points_each)} points`],['Penalty cap',`${fmt(row.max_points)} points`],['Part points deducted',fmt(row.points_lost)],['Overall points lost',fmt(row.overallLost)]];
+      for(const [label,value] of entries) { const cell=node('div');cell.append(node('dt',label),node('dd',value));dl.append(cell); }
       item.append(dl);
       const evidence=evidenceForMetric(report,row.metric);
       if(evidence.length) {
@@ -152,7 +173,6 @@ function renderMetrics(report) {
     }
     details.append(body);target.append(details);
   }
-  $('rubric-version').textContent=`Rubric: ${report.inputs?.standards_version ?? 'not reported'} · ${report.inputs?.standards_id ?? ''}`;
 }
 
 let fanfarePlayed=false;
@@ -208,6 +228,7 @@ function render(card) {
   const emphasis=report.measurements?.loudness_variation_db;
   if(typeof emphasis==='number') $('audio-status').append(document.createTextNode(` Measured emphasis: ${fmt(emphasis)} dB loudness variation.`));
   renderMetrics(report);
+  loadCoaching(card.id ?? speechId);
 }
 
 async function load() {

@@ -28,8 +28,6 @@ body[data-arena="home"] .menu { bottom: max(5vh, 24px); width: min(780px, calc(1
 body.dropping .title, body.dropping .menu, body.dropping .account-nav, body.dropping .sound-toggle { opacity: 0; pointer-events: none; }
 body.dropping .intro-transition { animation: mic-blackout 1.8s ease-in forwards; }
 @keyframes mic-blackout { 0%, 68% { opacity: 0; } 100% { opacity: 1; } }
-body[data-arena="home"] .account-nav { top: 16px; right: 100px; max-width: calc(100% - 116px); }
-body[data-arena="home"] .account-label { max-width: 30vw; font-size: 12px; }
 @media (max-width: 600px) {
   body[data-arena="home"] .title { top: 100px; }
   body[data-arena="home"] .kicker { font-size: 8px; letter-spacing: 2px; line-height: 1.8; }
