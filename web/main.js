@@ -1,5 +1,11 @@
 import { WALK_SECONDS, showHome, walkToStage } from "./js/arena.js";
 import {requireAccount} from './js/auth.js';
+import { addSoundToggle, sfx, startMusic, stopMusic, wireSounds } from "./js/sound.js";
+
+// Lobby music starts with the first press anywhere (browsers block sound before that).
+wireSounds();
+addSoundToggle({ music: true });
+startMusic();
 
 // ARGUE: the speaker walks down the aisle and up the stage steps, then the
 // practice screen opens on the same frame (see practice.html, data-arena="stage").
@@ -19,6 +25,8 @@ argue.addEventListener("click", async (event) => {
   }
   walking = true;
   document.body.classList.add("walking");
+  sfx.confirm();
+  stopMusic(1.5);
   // Animation frames pause in a hidden tab; the timer makes sure the page still moves on.
   const fallback = new Promise((resolve) => setTimeout(resolve, WALK_SECONDS * 1000 + 1500));
   await Promise.race([walkToStage(), fallback]);
@@ -32,4 +40,5 @@ window.addEventListener("pageshow", (event) => {
   walking = false;
   document.body.classList.remove("walking");
   showHome();
+  startMusic();
 });

@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { factorScores, renderRadar } from './radar.js';
 import { metricRows, sectionScores, transcriptModel, evidenceForMetric, quoteTime, retryHref, safeAudioUrl } from './card-model.js';
+import { addSoundToggle, sfx, wireSounds } from './sound.js';
 
 const $ = id => document.getElementById(id);
 const list = value => Array.isArray(value) ? value : [];
@@ -149,6 +150,15 @@ function renderMetrics(report) {
   $('rubric-version').textContent=`Rubric: ${report.inputs?.standards_version ?? 'not reported'} · ${report.inputs?.standards_id ?? ''}`;
 }
 
+let fanfarePlayed=false;
+/** The grade fanfare, once. Inside the stage page, that page plays it: it already has permission to make sound. */
+function announceGrade(letter) {
+  if(fanfarePlayed || !letter) return;
+  fanfarePlayed=true;
+  if(window.parent!==window) window.parent.postMessage({type:'arena:grade',letter},location.origin);
+  else sfx.grade(letter);
+}
+
 function render(card) {
   const report=card.report;
   $('status-panel').hidden=true;$('card').hidden=false;
@@ -156,6 +166,7 @@ function render(card) {
   $('demo-banner').hidden=!card.demo;
   $('side').textContent=String(card.side ?? report.inputs?.side ?? 'SIDE NOT REPORTED').toUpperCase();
   $('score').textContent=fmt(report.overall?.score);$('letter').textContent=report.overall?.letter ?? '';
+  announceGrade(report.overall?.letter);
   const cap=list(report.overall?.capped_by)[0];
   $('capped').hidden=!cap;
   $('capped').textContent=cap ? `Capped at ${fmt(cap.cap)}: ${cap.reason} Without this, your parts average ${fmt(report.overall.uncapped)}.` : '';
@@ -219,5 +230,6 @@ async function load() {
 $('audio').addEventListener('error',()=>{$('audio-status').textContent='The recording could not load. Check again to refresh its private playback link.';$('reload').hidden=false;$('status-panel').hidden=false;status('PLAYBACK UNAVAILABLE','The signed recording link may have expired. Refresh the card to get a new link.',{reload:true});});
 $('reload').addEventListener('click',()=>{pollingStarted=Date.now();load();});
 window.addEventListener('pagehide',()=>{active=false;clearTimeout(timer);$('audio').pause();});
+wireSounds();addSoundToggle();
 if(!speechId) status('RECORD YOUR FIRST SPEECH','A speech card opens after you finish a recording. Choose a prompt to begin.',{practice:true});
 else { pollingStarted=Date.now();load(); }
