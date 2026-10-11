@@ -6,15 +6,19 @@ const label = document.createElement('span'); label.className = 'account-label';
 const login = document.createElement('a'); login.className = 'account-control'; login.href = loginUrl(); login.textContent = 'SIGN IN';
 const logout = document.createElement('button'); logout.className = 'account-control'; logout.type = 'button'; logout.textContent = 'SIGN OUT'; logout.hidden = true;
 nav.append(label, login, logout); document.body.prepend(nav);
+// The sound switch joins this strip so the two never overlap (see sound.js).
+const adoptSoundToggle = () => { const toggle = document.querySelector('.sound-toggle'); if (toggle && !nav.hidden) nav.append(toggle); };
 
 async function initialize() {
   const config = globalThis.ARENA_CONFIG ?? {};
   if (config.LOCAL_MODE || config.DEMO_MODE) { nav.hidden = true; return; }
+  adoptSoundToggle();
   try {
     const {auth} = await getAuthClient();
     function render(session) {
       const account = accountSession(session);
       label.textContent = account?.user.email ?? '';
+      label.title = label.textContent;
       login.hidden = Boolean(account); logout.hidden = !account;
     }
     let lastUser, signingOut = false;

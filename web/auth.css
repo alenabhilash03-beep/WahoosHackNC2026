@@ -17,8 +17,19 @@
 .auth-panel :focus-visible, .account-control:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
 .auth-panel :disabled { opacity: .6; cursor: not-allowed; }
 [hidden] { display: none !important; }
-.account-nav { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 14px 20px; flex-wrap: wrap; }
-.account-label { font: 400 18px/1.4 var(--font-copy); max-width: 60vw; overflow-wrap: anywhere; }
-.account-control { font: inherit; font-size: 10px; color: var(--gold); border: 1px solid var(--gold-dark); background: #100b13; padding: 12px; text-decoration: none; min-height: 44px; cursor: pointer; }
-body[data-arena="home"] .account-nav { position: fixed; top: 12px; right: 12px; z-index: 10; max-width: 45vw; }
-@media (max-width: 680px) { body[data-arena="home"] .account-nav { top: 170px; max-width: 100%; } }
+/* The account strip: email (shortened with an ellipsis), sign in/out, and the sound
+   switch, in one pixel-font row pinned to the top right so nothing can overlap. */
+.account-nav { position: fixed; top: 10px; right: 10px; z-index: 20; display: flex; align-items: center; gap: 8px;
+  max-width: calc(100vw - 20px); padding: 6px 6px 6px 12px; background: rgba(28, 15, 23, 0.92);
+  box-shadow: 0 0 0 2px #000, 0 3px 0 #000; font: 9px/1 "Press Start 2P", monospace; }
+.account-label { font: 400 16px/1 var(--font-copy); min-width: 0; max-width: 32ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-dim, #b7a98a); }
+.account-label:empty { display: none; }
+.account-control { flex-shrink: 0; font: inherit; color: var(--gold, #f2b84b); border: 1px solid var(--gold-dark, #9a5b16); background: #100b13;
+  padding: 8px 9px; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.account-control:hover { color: #f4ead2; }
+.account-nav .sound-toggle { position: static; flex-shrink: 0; box-shadow: none; border: 1px solid #3b2030; padding: 8px 9px; }
+/* Pages with a curtain header leave room for the strip above it. */
+body:not([data-arena="home"]):has(.account-nav:not([hidden])) { padding-top: 52px; }
+/* During a round the question owns the top of the screen. */
+body[data-arena="stage"]:not([data-phase="setup"]) .account-nav { opacity: 0; pointer-events: none; transition: opacity 300ms; }
+@media (max-width: 480px) { .account-label { max-width: 14ch; } }
