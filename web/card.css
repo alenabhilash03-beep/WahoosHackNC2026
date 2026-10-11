@@ -48,14 +48,23 @@ button.word,button.evidence-play,.pause-button { cursor:pointer; text-decoration
 .structure span { color:var(--ink-dim); }
 .factor-details { border-top:3px solid var(--panel-line); margin-top:18px; }
 .factor-details summary { padding:16px 0; cursor:pointer; color:var(--gold); line-height:2; }
-.metric { background:var(--bg); margin:10px 0; padding:16px; border-left:3px solid var(--panel-line); }
+.metric { background:var(--bg); margin:8px 0; border-left:3px solid var(--panel-line); }
+.metric[open] { border-left-color:var(--gold-dark); padding-bottom:14px; }
+.metric-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; cursor:pointer; list-style:none; font:10px/1.7 "Press Start 2P",monospace; }
+.metric-summary::-webkit-details-marker { display:none; }
+.metric-summary::before { content:"▸"; color:var(--gold); margin-right:10px; }
+.metric[open] > .metric-summary::before { content:"▾"; }
+.metric-summary:hover { background:#1a1018; }
+.metric-name { flex:1; min-width:0; }
+.metric-chip { flex-shrink:0; color:var(--ink-dim); font-size:8px; }
+.metric-chip.lost { color:#ffaaa3; }
+.metric-coach { margin:0 16px 14px; padding:10px 12px; background:var(--velvet); color:var(--ink); font:10px/1.9 "Press Start 2P",monospace; }
 .metric h4 { margin:0 0 10px; font:11px/1.8 "Press Start 2P",monospace; }
-.metric dl { margin:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 18px; font:9px/1.9 "Press Start 2P",monospace; }
+.metric dl { margin:0 16px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 18px; font:9px/1.9 "Press Start 2P",monospace; }
 .metric dl div { min-width:0; }
 .metric dt { color:var(--ink-dim); }
 .metric dd { margin:0; overflow-wrap:anywhere; }
-.metric .source { grid-column:1/-1; }
-.metric-evidence { margin:10px 0 0; }
+.metric-evidence { margin:10px 16px 0; }
 .metric-evidence summary { padding:4px 0; font:9px/1.9 "Press Start 2P",monospace; }
 .radar-table { table-layout:fixed; }
 .radar-table td,.radar-table th { overflow-wrap:anywhere; font-size:8px; }
