@@ -37,6 +37,11 @@ jobs:
           eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
           export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
           python tools/checks/check_supabase.py
+      - name: Real SDK round trip (accounts, persistence, private audio, retry claims)
+        run: |
+          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+          export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          SUPABASE_INTEGRATION_TEST=true python -m pytest server/tests/test_supabase_integration.py -q
       - name: Stop disposable Supabase
         if: always()
         run: supabase stop --no-backup

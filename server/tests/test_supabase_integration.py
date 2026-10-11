@@ -8,6 +8,7 @@ It creates two temporary accounts and removes them, their speeches and their aud
 from concurrent.futures import ThreadPoolExecutor
 import copy
 import io
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -22,8 +23,9 @@ import httpx
 from server.app.main import create_app
 from server.app.settings import Settings
 from server.scripts import recover_grading
-from test_feedback import SAMPLE
 
+# Read the sample directly: importing it from test_feedback would pull in the grader's NumPy stack.
+SAMPLE = json.loads((Path(__file__).resolve().parents[2] / 'softskills-grader/sample_report.json').read_text(encoding='utf-8'))
 ENABLED = os.getenv('SUPABASE_INTEGRATION_TEST', '').lower() == 'true'
 PASSWORD = 'integration-test-only-' + uuid4().hex
 
