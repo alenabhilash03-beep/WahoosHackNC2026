@@ -336,6 +336,8 @@ def _gemini_with(statuses_by_model):
         return FakeResponse(FX["gemini_response"] if status == 200 else {"error": {"code": status}}, status)
 
     os.environ["GEMINI_API_KEY"] = "test-gm"
+    # One key only: a developer's real extra keys (server/.env) would add a retry per key.
+    extra_keys = os.environ.pop("GEMINI_API_KEYS", None)
     http.requests.post, http.time.sleep = fake_post, sleeps.append
     cache = tempfile.mkdtemp(dir=TMP)
     try:
@@ -345,6 +347,8 @@ def _gemini_with(statuses_by_model):
         return result, calls, sleeps
     finally:
         http.requests.post, http.time.sleep = original_post, original_sleep
+        if extra_keys is not None:
+            os.environ["GEMINI_API_KEYS"] = extra_keys
 
 
 def test_server_errors_are_retried_on_the_same_model():

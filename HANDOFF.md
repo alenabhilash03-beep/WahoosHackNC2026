@@ -94,8 +94,9 @@ sign-in, and 404 for the other account on the speech, its retry and its coaching
   one request without paging (PostgREST returns at most 1000 rows by default).
 - The crowd needs volume (about 12 listener-minutes per speech for 10 judgments); plan to seed.
 - CI covers the database (`.github/workflows/database.yml`, including the real Supabase round trip)
-  and the frontend tests (`community-frontend.yml`). The Python API and grader suites below are not
-  in CI; run them before merging.
+  the frontend tests (`community-frontend.yml`) and the Python API, grader and Arena suites
+  (`checks.yml`), on pull requests and on pushes to `main`. A push straight to `main` is only
+  checked after it lands, and nothing deploys automatically: run `fly deploy` after merging.
 - `.gitignore` excludes credentials, recordings, caches and local environments; never commit `.env`.
 
 ## Run all tests

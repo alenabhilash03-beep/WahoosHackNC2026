@@ -1,0 +1,30 @@
+name: Application checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            server/requirements-dev.txt
+            softskills-grader/requirements.txt
+      - run: python -m pip install -r server/requirements-dev.txt -r softskills-grader/requirements.txt
+      # Provider calls are mocked; no keys are needed. The Supabase round trip is
+      # skipped here and runs in the database workflow against a disposable stack.
+      - name: API and grader tests
+        run: python -m pytest server/tests softskills-grader/tests -q
+      - name: Crowd rating and duel checks
+        run: |
+          python Arena/test_arena_ratings.py
+          python Arena/test_match_judge.py
