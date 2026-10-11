@@ -52,16 +52,24 @@ http://localhost:8000/login.html
 http://127.0.0.1:8000/login.html
 http://localhost:5173/login.html
 http://127.0.0.1:5173/login.html
-https://alenabhilash03-beep.github.io/WahoosHackNC2026/login.html
 ```
+
+The GitHub Pages copy is served from the repository's `web/` folder and signs in on its own
+origin, so it needs its own callback:
+
+```text
+https://alenabhilash03-beep.github.io/WahoosHackNC2026/web/login.html
+```
+
+Without it, Supabase returns the player to the Site URL instead of the Pages copy.
 
 The page saves a validated return path in sessionStorage before OAuth, so the callback
 stays exactly `login.html` with no wildcard redirects. Supabase JS consumes the
 implicit-flow session before the page redirects back to practice or progress.
 Failed or cancelled callbacks show a retry message and clear provider error details.
 
-Disable anonymous sign-ins **after** deploying the new account client. The old client
-still needs anonymous sign-in until then. Allow new user signups. With social-only
+Keep anonymous sign-ins disabled. They were switched off once the account client was
+deployed, and the server rejects anonymous tokens. Allow new user signups. With social-only
 accounts, Email can be disabled after checking that no existing password accounts
 need it; leave email confirmation enabled if Email remains enabled. Email/password
 signup, magic links, and reset emails still need SMTP if added later.

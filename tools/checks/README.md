@@ -1,4 +1,23 @@
-# First-hour checks
+# Checks
+
+## Current: browser checks
+
+Both drive a real browser against a local server with mocked sign-in; no live account or provider is
+used. Set-up and what each one covers: [Phase 2](../../docs/implementation/phase-2-solo.md#checks)
+and the [accounts guide](../../docs/implementation/social-accounts.md#verify).
+
+```sh
+npm install --prefix tools/checks
+npm --prefix tools/checks exec -- playwright install chromium
+npm run test:auth --prefix tools/checks                       # GitHub sign-in, sessions, sign-out
+node tools/checks/check_solo_browser.cjs http://127.0.0.1:8000  # solo round, card, progress (DEMO_MODE server)
+```
+
+## From the archived plan
+
+`check_engine.py` and `voice-check/` were written for the NetworkMaxx plan in
+`docs/implementation/archive/` (the cut Speech Engine) and no longer match the app. They are kept
+for reference only. `check_supabase.py` is not one of them: it was rewritten for SpeakUp.
 
 For the current SpeakUp app, run `python tools/checks/check_supabase.py` for a
 read-only schema, prompt, public-key isolation and private-bucket check. Use the

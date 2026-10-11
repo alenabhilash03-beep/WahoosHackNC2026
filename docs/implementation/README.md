@@ -21,30 +21,30 @@ routes, screens and the schedule. This page is the short checklist for starting 
 stage 2 starts" passes. The Build Plan's "Which archived steps to take" table lists what to skip in
 each archived doc (Next.js, Speech Engine, voice mask, AI opponent, conversation XP).
 
-## Target layout
+## Layout
 
 ```
 WahoosHackNC2026/
   softskills-grader/            exists - rates one speech
   Arena/arena_ratings.py        exists - crowd scores (stage 2)
   Arena/match_judge.py          exists - parked two-player duel
-  supabase/migrations/          0001_init.sql + 0002_prompts.sql
-  tools/checks/check_supabase.py  first-hour check
-  web/                          exists - static site on GitHub Pages; add practice, card, me, today, judge
+  supabase/migrations/          0001 to 0005, applied to the live project
+  tools/checks/                 browser checks of sign-in and the solo round
+  web/                          exists - static site served by the server: home, practice, card, progress, leaderboard, login
     js/radar.js                 exists - speech radar (first vs best per part); progress.html shows it
-  server/                       Phase 0 - FastAPI on Fly.io
-    app/main.py settings.py auth.py db.py storage.py tips.py safety.py
-    app/routes/                 prompts.py, speeches.py, me.py, leaderboard.py, judgments.py
-    app/workers/                grade.py, aggregate.py
-    scripts/                    seed_prompts.py, simulate_judges.py
+  server/                       exists - FastAPI on Fly.io
+    app/main.py                 every route, the token check and background grading
+    app/repository.py local.py demo.py   Supabase, local-files and saved-example storage
+    app/feedback.py tips.py coaching.py questions.py leaderboard.py settings.py
     tests/
+  not built (stage 2)           safety check, publishing, judgments, aggregation job, seeding scripts
 ```
 
 ## Run all tests before every merge
 
 ```bash
 python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratings.py \
-  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs && pytest server/tests -q
+  && python Arena/test_match_judge.py && node --test web/test/*.test.mjs \n  && python -m pytest server/tests softskills-grader/tests/test_stance.py softskills-grader/tests/test_timing.py -q
 ```
 
 ## Environment variables
@@ -54,9 +54,10 @@ python softskills-grader/tests/test_pipeline.py && python Arena/test_arena_ratin
 | `ELEVENLABS_API_KEY` | server | Scribe transcription (in the grader) |
 | `GEMINI_API_KEY` | server | Argument extraction, safety check |
 | `SUPABASE_URL` | server, web | Project URL |
+| `GEMINI_API_KEYS` | server | Optional extra Gemini keys, comma separated, each from a different Google project |
 | `SUPABASE_SERVICE_ROLE_KEY` | server only | Database and storage |
-| `SUPABASE_ANON_KEY` | web (in a config script) | Public anon/publishable key for Google/GitHub sign-in; RLS blocks every table |
-| `API_URL` | web (in a config script) | The FastAPI base URL |
+| `SUPABASE_ANON_KEY` | server, which passes it to the web page in `/config.js` | Public anon/publishable key for GitHub sign-in; RLS blocks every table |
+| `API_URL` | web (`web/config.js`), only on a separate static host | The FastAPI base URL; empty when the server serves the site |
 | `SIGNING_SECRET` | server | Matchup tokens (stage 2) |
 
 ## Archive
