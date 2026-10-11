@@ -277,14 +277,18 @@ class CommunityTests(unittest.TestCase):
         self.assertEqual(data['round']['id'], self.round)
         self.assertEqual(data['round']['prompt'], {'id': self.motion, 'text': 'Should cities ban cars?'})
         self.assertEqual((data['entry'], data['display_name']), (None, 'Ada_1'))
+        self.assertEqual(data['attempts'], {'used': 0, 'limit': 5})
         speech_id, entry_id = self.shared()
+        self.speech(round=False)                                             # private practice does not use a recording
+        self.assertEqual(self.client.get('/api/community/round', headers=self.auth('ada')).json()['attempts'], {'used': 1, 'limit': 5})
+        self.assertEqual(self.client.get('/api/community/round', headers=self.auth('grace')).json()['attempts'], {'used': 0, 'limit': 5})
         mine = self.client.get('/api/community/round', headers=self.auth('ada')).json()['entry']
         self.assertEqual(mine, {'id': entry_id, 'speech_id': speech_id, 'withdrawn_at': None})
         other = self.client.get('/api/community/round', headers=self.auth('linus')).json()
         self.assertEqual((other['entry'], other['display_name']), (None, None))
         self.close_round()
         self.assertEqual(self.client.get('/api/community/round', headers=self.auth('ada')).json(),
-                         {'round': None, 'entry': None, 'display_name': 'Ada_1'})
+                         {'round': None, 'entry': None, 'display_name': 'Ada_1', 'attempts': None})
 
     # recording for a round
     def test_round_recording_is_tagged_and_expires_five_minutes_after_the_round(self):
@@ -311,9 +315,14 @@ class CommunityTests(unittest.TestCase):
         self.assertEqual((self.repo.uploads, self.repo.rows), ([], []))
 
     def test_recordings_per_round_are_capped_per_account(self):
+        self.assertEqual(Settings().community_attempts_per_round, 5)        # the default: five recordings of the Daily Prompt
         self.settings.community_attempts_per_round = 2
         self.speech(); self.speech()
-        self.assertEqual(self.record().status_code, 429)
+        refused = self.record()
+        self.assertEqual(refused.status_code, 429)
+        self.assertIn('all 2 recordings', refused.json()['detail'])
+        self.assertEqual(len(self.repo.uploads), 2)                          # the sixth take is refused before it is stored
+        self.assertEqual(self.client.get('/api/community/round', headers=self.auth('ada')).json()['attempts'], {'used': 2, 'limit': 2})
         self.assertEqual(self.record('grace').status_code, 202)          # the cap is per account
         self.assertEqual(self.record(round=False).status_code, 202)      # private practice is not capped
 

@@ -20,7 +20,9 @@ const OWN = '__own';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const dailyMode = params.get('mode') === 'daily';
-const communityMode = params.get('mode') === 'community';
+// With community rounds on, the Daily Prompt is the community round: the same question, and
+// the recording can be uploaded to the community board from its card. Otherwise it is private.
+let communityMode = params.get('mode') === 'community' || (dailyMode && communityEnabled());
 let communityRound=null;
 $('community-practice').hidden=!communityEnabled();
 if (communityMode) {
@@ -33,7 +35,9 @@ if (communityMode) {
 if (dailyMode) {
   document.title = 'Daily Prompt · SpeakUp';
   $('setup-title').textContent = 'DAILY PROMPT';
-  document.querySelector('.lede').textContent = 'The question of the day. Choose your side, then make your case in 60 seconds.';
+  document.querySelector('.lede').textContent = communityMode
+    ? 'The question of the day. Choose your side and make your case in 60 seconds. Afterwards you can upload it to the community board.'
+    : 'The question of the day. Choose your side, then make your case in 60 seconds.';
   $('levels').hidden = true;
   $('round-leave').href = 'practice.html?mode=daily';
 }
@@ -52,15 +56,25 @@ async function checkService() {
       if(!communityEnabled()) throw new Error('Community recording is not available yet. Choose private practice in the arena.');
       const data=await api('/api/community/round');
       communityRound=data.round;
-      if(roundState(communityRound)!=='active') {
-        $('status').textContent=closingLine(communityRound);$('reload').hidden=false;return;
+      if(roundState(communityRound)==='active') {
+        if(!communityRound.prompt?.id || !communityRound.prompt?.text) throw new Error('The community prompt is unavailable. Retry.');
+        // Each account gets a few recordings per round. Say so before a minute is spent speaking.
+        const attempts=data.attempts;
+        if(attempts && attempts.used>=attempts.limit) {
+          $('status').textContent=`You have used all ${attempts.limit} recordings for today's prompt. Upload one from YOUR PROGRESS, or come back for the next prompt.`;
+          return;
+        }
+        $('status').textContent=attempts
+          ? `Recording ${attempts.used+1} of ${attempts.limit} for today's prompt · private until you upload it.`
+          : 'Community prompt · private until you explicitly share.';
+        $('community-notice').hidden=false;
+        $('community-retention').textContent=RETENTION_NOTICE;
+        $('community-round-closing').textContent=closingLine(communityRound);
+        begin(communityRound.prompt,null);return;
       }
-      if(!communityRound.prompt?.id || !communityRound.prompt?.text) throw new Error('The community prompt is unavailable. Retry.');
-      $('status').textContent='Community prompt · private until you explicitly share.';
-      $('community-notice').hidden=false;
-      $('community-retention').textContent=RETENTION_NOTICE;
-      $('community-round-closing').textContent=closingLine(communityRound);
-      begin(communityRound.prompt,null);return;
+      if(!dailyMode) { $('status').textContent=closingLine(communityRound);$('reload').hidden=false;return; }
+      // No round is open: the Daily Prompt still works as private practice.
+      communityMode=false;
     }
     const prompts = await api('/api/prompts');
     if (globalThis.ARENA_CONFIG?.DEMO_MODE) {
@@ -130,7 +144,7 @@ function begin(motion, side, category) {
   round.started = true;
   phase('walk');
   $('round').hidden = false;
-  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : communityMode ? 'COMMUNITY PROMPT' : dailyMode ? 'DAILY PROMPT' : 'THE QUESTION';
+  $('question-meta').textContent = category ? `${round.difficulty.toUpperCase()} · ${category.toUpperCase()}` : dailyMode ? 'DAILY PROMPT' : communityMode ? 'COMMUNITY PROMPT' : 'THE QUESTION';
   // The speaker walks on while the question is written; both take about 2 seconds.
   walkToPodium().then(() => { round.atPodium = true; maybeStartCountdown(); });
   if (motion) showQuestion(motion, side);

@@ -3,7 +3,11 @@
 Implements the schema, API, review path, rotation and cleanup of the
 [community reactions plan](../plans/2026-10-11-community-reactions.md), to the response contract
 the [frontend](community-frontend.md) already uses. It is off unless the server sets
-`COMMUNITY_ENABLED=true`.
+`COMMUNITY_ENABLED=true`; `fly.toml` and `web/config.js` set it for the live site.
+
+For a player it is the **Daily Prompt**: record today's question (up to five times), then press
+**Upload to the community board** on the speech card. Other signed-in players see the score,
+listen and react.
 
 ## What it does
 
@@ -51,7 +55,7 @@ return 503. Ids that are not UUIDs are 404.
 
 | Route | Result |
 | --- | --- |
-| `GET /api/community/round` | `{round, entry, display_name}`; `round` is null when none is open |
+| `GET /api/community/round` | `{round, entry, display_name, attempts}`; `round` is null when none is open; `attempts` is `{used, limit}`, the caller's recordings in this round |
 | `POST /api/speeches` + `community_round_id` | Tags the speech and sets its audio expiry. 404 unknown round, 409 closed, 422 other prompt, 413 over 4 MB, 429 after 5 recordings in the round |
 | `POST /api/community/entries` `{speech_id}` | 201 `{entry}`; 200 when repeated. 404 not yours, 409 private practice, closed round, another speech already shared, not graded, recording expired, rejected, or no display name |
 | `POST /api/community/entries/{id}/visibility` `{shared}` | `{entry}`. Withdrawing always works; sharing again needs the round open |
@@ -71,8 +75,10 @@ the recording has expired. Board rows carry ids, display name, side, grade, lett
 | `COMMUNITY_AUTO_APPROVE` | `false` | Approve at share time instead of waiting for review. Only for a demo among people who trust each other; it never overrides a rejection |
 | `COMMUNITY_MAINTENANCE_SECONDS` | `600` | How often the running server creates missing rounds and deletes expired recordings; `0` turns that off |
 
-The GitHub Pages copy reads the static `web/config.js`, where `COMMUNITY_ENABLED` stays `false`
-until it is changed there too.
+The live site sets `COMMUNITY_ENABLED` and `COMMUNITY_AUTO_APPROVE` to `true` in `fly.toml`, so an
+uploaded speech is public to signed-in players at once and nobody reviews it first. Set
+`COMMUNITY_AUTO_APPROVE = "false"` there to hold each upload for the review script. The GitHub Pages
+copy reads the static `web/config.js`, which carries the same `COMMUNITY_ENABLED` switch.
 
 ## Operating it
 
@@ -115,4 +121,5 @@ To turn the feature off again, unset `COMMUNITY_ENABLED`. The tables can stay.
   switch.
 - A scheduler outside the server process, and alerts when cleanup keeps failing (it logs counts).
 - A project-wide storage budget. The per-recording size cap and the per-account round cap exist.
-- The plan's deployed two-account browser pass with real microphones.
+- A pass with two people and real microphones. The browser checks used a fake microphone that
+  plays a spoken recording, and temporary accounts.

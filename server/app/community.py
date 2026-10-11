@@ -219,9 +219,11 @@ def register(app, settings, repo, user):
     @app.get('/api/community/round', dependencies=[Depends(enabled)])
     def current(uid=Depends(user), db=Depends(repo)):
         round = db.current_round()
+        # How many of this round's recordings the caller has used, so the page can say so before they speak.
+        attempts = dict(used=db.community_attempts(round['id'], uid), limit=settings.community_attempts_per_round) if round else None
         return dict(round=public_round(round),
                     entry=public_entry(db.entry_for(round['id'], uid)) if round else None,
-                    display_name=display_name(db, uid))
+                    display_name=display_name(db, uid), attempts=attempts)
 
     @app.post('/api/community/entries', dependencies=[Depends(enabled)])
     def share(body: EntryRequest, uid=Depends(user), db=Depends(repo)):
