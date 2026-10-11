@@ -156,6 +156,9 @@ function render(card) {
   $('demo-banner').hidden=!card.demo;
   $('side').textContent=String(card.side ?? report.inputs?.side ?? 'SIDE NOT REPORTED').toUpperCase();
   $('score').textContent=fmt(report.overall?.score);$('letter').textContent=report.overall?.letter ?? '';
+  const cap=list(report.overall?.capped_by)[0];
+  $('capped').hidden=!cap;
+  $('capped').textContent=cap ? `Capped at ${fmt(cap.cap)}: ${cap.reason} Without this, your parts average ${fmt(report.overall.uncapped)}.` : '';
   $('retry').href=retryHref(card);
   const deltas=card.deltas;
   $('comparison').textContent=card.previous_best

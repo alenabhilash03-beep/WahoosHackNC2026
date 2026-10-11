@@ -12,6 +12,11 @@
 #   4. Factor score  = base minus DEDUCTIONS, clamped to 0-100.
 #        deduction = points_each x (count - free), capped at max_points.
 #   5. Overall score = weighted average of the factor scores.
+#   6. CRITICAL rules cap the overall score when something is badly wrong, however
+#      good the other factors are. Each rule tests one metric (below / at_least)
+#      or the factor's own score (score_below). If several trigger, the lowest
+#      cap wins. Caps and thresholds are team decisions (RULE), set well past the
+#      bucket floors so only clear failures trigger them.
 #
 # WHERE THE NUMBERS COME FROM (full sources and caveats: README, "Research basis")
 #
@@ -38,7 +43,7 @@
 # Every metric name must exist in the catalogue (python grade.py --list-metrics).
 # ---------------------------------------------------------------------------
 
-version: "2026-10-10.2-research"
+version: "2026-10-11.1-critical"
 
 session:
   allotted_seconds: 60        # how long the speaker is given
@@ -113,6 +118,11 @@ factors:
     deductions:
       # One pause over 2 s is within what spontaneous speech normally contains.
       - {metric: long_pause_count, free: 1, points_each: 5, max_points: 20}
+    critical:                      # RULES.
+      - {metric: words_per_minute, below: 95, cap: 55,
+         reason: "Far too slow: under 95 words per minute, listeners lose the thread."}
+      - {metric: time_used_pct, below: 40, cap: 55,
+         reason: "Used under 40% of the time: too little was said to make the case."}
 
   # --------------------------------------------------------------- DICTION
   diction:
@@ -140,6 +150,11 @@ factors:
     deductions:
       # Bortfeld et al. 2001: 1.47 repeats per 100 words, about 2 in a 150-word speech.
       - {metric: repeated_word_count, free: 2, points_each: 3, max_points: 15}
+    critical:                      # RULES.
+      - {metric: vocabulary_variety_pct, below: 55, cap: 55,
+         reason: "Extremely repetitive wording: the same few words over and over."}
+      - {metric: fillers_per_100_words, at_least: 15, cap: 55,
+         reason: "One word in every seven is a filler: the argument gets lost in them."}
 
   # ------------------------------------------------------------------ TONE
   tone:
@@ -167,6 +182,11 @@ factors:
           - {from: 37,         score: 65}    # the rate measured on a TV quiz show (weak anchor)
     deductions:
       - {metric: monotone_window_count, free: 1, points_each: 5, max_points: 15}
+    critical:                      # RULES.
+      - {metric: pitch_variation_pct, below: 10, cap: 60,
+         reason: "Very flat, meek delivery: flatter than any speaker in the research."}
+      - {metric: hedges_per_100_words, at_least: 4, cap: 60,
+         reason: "Constant hedging (maybe, I guess, sort of): the speech sounds unsure of itself."}
 
   # ----------------------------------------------------------------- LOGIC
   logic:
@@ -202,6 +222,16 @@ factors:
       - {metric: unsupported_claim_count, free: 1, points_each: 5,  max_points: 15}
       - {metric: stance_mismatch,         free: 0, points_each: 40, max_points: 40}
       - {metric: stance_unclear,          free: 0, points_each: 15, max_points: 15}
+      - {metric: topic_drift,             free: 0, points_each: 20, max_points: 20}
+    critical:                      # RULES. A great delivery cannot rescue these.
+      - {metric: off_topic, at_least: 1, cap: 25,
+         reason: "The speech does not address the question."}
+      - {metric: stance_mismatch, at_least: 1, cap: 40,
+         reason: "Argued the opposite side from the one chosen."}
+      - {metric: supported_arguments, below: 1, cap: 50,
+         reason: "No argument for your side was backed by a reason or evidence."}
+      - {score_below: 50, cap: 60,
+         reason: "Logic scored below 50: a weak argument cannot be carried by delivery."}
 
   # --------------------------------------------------- APPEAL TO EMOTION
   emotion:
@@ -228,3 +258,6 @@ factors:
         else: 65
     deductions:                    # RULE.
       - {metric: manipulative_appeal_count, free: 0, points_each: 10, max_points: 20}
+    critical:                      # RULE.
+      - {metric: manipulative_appeal_count, at_least: 2, cap: 50,
+         reason: "Leans on fear-mongering or personal attacks instead of fair appeals."}

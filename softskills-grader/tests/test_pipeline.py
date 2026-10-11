@@ -453,6 +453,85 @@ def test_retries_stop_at_the_deadline():
     assert sleeps == [2] and calls == [http.TIMEOUT, http.TIMEOUT]   # the 5 s wait would pass the deadline
 
 
+# -------------------------------------------------------------- critical failures
+def _strong_features():
+    """A speech that is excellent everywhere: no critical rule should fire."""
+    return dict(copy.deepcopy(run()["measurements"]))
+
+
+def test_a_strong_speech_is_not_capped():
+    report = score_all(_strong_features(), STANDARDS)
+    assert report["overall"]["capped_by"] == []
+    assert report["overall"]["score"] == report["overall"]["uncapped"]
+
+
+def test_off_topic_speech_gets_a_very_low_grade_despite_great_delivery():
+    features = _strong_features()
+    features["off_topic"] = 1
+    report = score_all(features, STANDARDS)
+    assert report["overall"]["uncapped"] > 80                  # delivery alone would still pass
+    assert report["overall"]["score"] == 25 and report["overall"]["letter"] == "F"
+    assert report["overall"]["capped_by"][0]["metric"] == "off_topic"
+
+
+def test_each_part_has_a_failure_that_sinks_the_grade():
+    cases = {"words_per_minute": 80, "time_used_pct": 30, "vocabulary_variety_pct": 45,
+             "fillers_per_100_words": 16, "pitch_variation_pct": 8, "hedges_per_100_words": 5,
+             "stance_mismatch": 1, "supported_arguments": 0, "manipulative_appeal_count": 2}
+    for metric, value in cases.items():
+        features = _strong_features()
+        features[metric] = value
+        report = score_all(features, STANDARDS)
+        assert report["overall"]["score"] <= 60, (metric, report["overall"])
+        assert metric in [row["metric"] for row in report["overall"]["capped_by"]], metric
+
+
+def test_weak_logic_caps_the_grade_even_when_no_single_rule_fires():
+    features = _strong_features()
+    features.update(supported_arguments=1, structure_points=0, counterargument_level=1,
+                    connectives_per_100_words=0, unsupported_claim_count=4, reasoning_fallacy_count=2)
+    report = score_all(features, STANDARDS)
+    assert report["factors"]["logic"]["score"] < 50
+    assert report["overall"]["score"] <= 60
+    assert report["overall"]["capped_by"][0]["metric"] == "logic_score"
+
+
+def test_the_lowest_cap_wins_and_every_failure_is_listed():
+    features = _strong_features()
+    features.update(off_topic=1, words_per_minute=80)
+    capped = score_all(features, STANDARDS)["overall"]
+    assert capped["score"] == 25
+    assert [row["cap"] for row in capped["capped_by"]] == sorted(row["cap"] for row in capped["capped_by"])
+    assert {"off_topic", "words_per_minute"} <= {row["metric"] for row in capped["capped_by"]}
+
+
+def test_on_topic_label_becomes_metrics_and_missing_label_is_not_punished():
+    words = words_from_scribe(FX["scribe"])
+    for label, off, drift in (("no", 1, 0), ("partly", 0, 1), ("yes", 0, 0), (None, 0, 0), ("banana", 0, 0)):
+        extraction = dict(FX["annotations"], on_topic=label)
+        metrics, evidence = verify_extraction(extraction, words, LEXICONS, "yes")
+        assert (metrics["off_topic"], metrics["topic_drift"]) == (off, drift), label
+
+
+def test_bad_critical_rules_are_rejected():
+    bad_rules = [
+        {"metric": "words_per_minute", "cap": 50, "reason": "x"},                          # no test
+        {"metric": "words_per_minute", "below": 90, "at_least": 1, "cap": 50, "reason": "x"},
+        {"metric": "nonsense", "below": 90, "cap": 50, "reason": "x"},
+        {"metric": "words_per_minute", "below": 90, "cap": 150, "reason": "x"},
+        {"metric": "words_per_minute", "below": 90, "cap": 50},                           # no reason
+        {"metric": "words_per_minute", "score_below": 50, "cap": 50, "reason": "x"},
+    ]
+    for rule in bad_rules:
+        broken = copy.deepcopy(STANDARDS)
+        broken["factors"]["pace"]["critical"] = [rule]
+        try:
+            validate(broken, LEXICONS)
+        except StandardsError:
+            continue
+        raise AssertionError(f"accepted a bad rule: {rule}")
+
+
 def test_bad_standards_are_rejected_with_a_clear_message():
     overlapping = copy.deepcopy(STANDARDS)
     overlapping["factors"]["pace"]["metrics"]["words_per_minute"]["buckets"] = [

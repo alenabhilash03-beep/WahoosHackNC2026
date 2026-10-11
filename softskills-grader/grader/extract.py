@@ -18,7 +18,7 @@ from pathlib import Path
 from .http import OVERLOADED, first_success, post_with_retry
 
 URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
-PROMPT_VERSION = "2026-10-10.1"   # bump when the prompt or schema changes (invalidates cache)
+PROMPT_VERSION = "2026-10-11.1"   # bump when the prompt or schema changes (invalidates cache)
 HEDGE_AFTER = 8                   # seconds; a normal answer takes about 3
 
 SUPPORT_TYPES = ["none", "reasoning", "example", "statistic", "authority", "analogy"]
@@ -30,12 +30,26 @@ APPEAL_TYPES = ["personal_story", "vivid_imagery", "shared_values", "human_stake
 
 _QUOTE = "Copied word for word from the transcript. Empty string if there is none."
 
+TOPIC_LEVELS = ["yes", "partly", "no"]
+
 SCHEMA = {
     "type": "object",
     "properties": {
+        "on_topic": {
+            "type": "string", "enum": TOPIC_LEVELS,
+            "description": ("Does the speech answer the topic question? 'yes' if it argues about the "
+                            "question asked; 'partly' if much of it drifts to other subjects; 'no' if it "
+                            "is about something else, or never engages with the question at all."),
+        },
+        "position": {
+            "type": "string",
+            "description": "One short sentence in your own words: what does the speaker want to happen?",
+        },
         "stance": {
             "type": "string", "enum": ["yes", "no", "unclear"],
-            "description": "Which side of the topic question the speech argues for.",
+            "description": ("The speaker's answer to the topic question exactly as it is worded. Read "
+                            "the question literally: for 'Should homework be banned?', a speaker who "
+                            "wants to keep homework answers 'no'. 'unclear' if no answer can be told."),
         },
         "thesis_quote": {"type": "string", "description": "The sentence stating the speaker's position. " + _QUOTE},
         "conclusion_quote": {"type": "string", "description": "A closing sentence that restates or wraps up the position. " + _QUOTE},
@@ -82,7 +96,7 @@ SCHEMA = {
         },
     },
     "required": ["stance", "thesis_quote", "conclusion_quote", "arguments",
-                 "counterargument_quote", "rebuttal_quote", "fallacies", "emotional_appeals"],
+                 "counterargument_quote", "rebuttal_quote", "fallacies", "emotional_appeals", "on_topic", "position"],
 }
 
 SYSTEM = """You annotate transcripts of short spoken arguments. You extract structure; you do not grade.
@@ -93,7 +107,9 @@ Rules:
 - Do not judge whether claims are true. Record only whether the speaker backed them up.
 - Do not give scores, ratings or opinions on quality.
 - List each claim once. A claim and its support must be different passages.
-- Only flag a fallacy when it is clear-cut."""
+- Only flag a fallacy when it is clear-cut.
+- Judge on_topic by whether the speech engages with the topic question, not by how well it argues.
+- For stance, first state the speaker's position, then decide whether that position answers the topic question as literally worded with yes or with no."""
 
 
 def build_prompt(transcript: str, topic: str) -> str:

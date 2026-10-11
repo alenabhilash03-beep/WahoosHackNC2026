@@ -67,18 +67,50 @@ def letter_for(score: float, grades: list[dict]) -> str:
     return grades[-1]["letter"]
 
 
+def check_critical(name: str, factor: dict, result: dict, features: dict) -> list[dict]:
+    """Evaluate a factor's critical rules. Each one that triggers caps the overall grade."""
+    rows = []
+    for rule in factor.get("critical") or []:
+        if "score_below" in rule:
+            metric, label = f"{name}_score", f"{name.capitalize()} score"
+            value, limit = result["score"], rule["score_below"]
+            triggered = value is not None and value < limit
+            condition = f"below {_fmt(limit)}"
+        else:
+            metric, label = rule["metric"], CATALOG[rule["metric"]][0]
+            value = features.get(metric)
+            if "below" in rule:
+                limit, condition = rule["below"], f"below {_fmt(rule['below'])}"
+                triggered = value is not None and value < limit
+            else:
+                limit, condition = rule["at_least"], f"{_fmt(rule['at_least'])} or more"
+                triggered = value is not None and value >= limit
+        rows.append({"metric": metric, "label": label, "value": value, "condition": condition,
+                     "cap": float(rule["cap"]), "reason": rule["reason"], "triggered": triggered})
+    return rows
+
+
 def score_all(features: dict, standards: dict) -> dict:
     factors, total_weight, weighted = {}, 0.0, 0.0
     for name, factor in standards["factors"].items():
         result = score_factor(factor, features)
         result["weight"] = factor["weight"]
+        result["critical"] = check_critical(name, factor, result, features)
         factors[name] = result
         if result["score"] is not None:
             total_weight += factor["weight"]
             weighted += factor["weight"] * result["score"]
-    overall = round(weighted / total_weight, 1) if total_weight else 0.0
+    uncapped = round(weighted / total_weight, 1) if total_weight else 0.0
     for result in factors.values():
         counted = result["score"] is not None and total_weight
         result["weight_pct"] = round(100.0 * result["weight"] / total_weight, 1) if counted else 0.0
-    return {"overall": {"score": overall, "letter": letter_for(overall, standards["grades"])},
+
+    # A critical failure caps the overall grade no matter how good the other parts are.
+    # Every triggered rule whose cap is below the average is listed, lowest cap first.
+    capped_by = sorted(({**row, "factor": name} for name, result in factors.items()
+                        for row in result["critical"] if row["triggered"] and row["cap"] < uncapped),
+                       key=lambda row: row["cap"])
+    overall = min([uncapped] + [row["cap"] for row in capped_by])
+    return {"overall": {"score": overall, "letter": letter_for(overall, standards["grades"]),
+                        "uncapped": uncapped, "capped_by": capped_by},
             "factors": factors}

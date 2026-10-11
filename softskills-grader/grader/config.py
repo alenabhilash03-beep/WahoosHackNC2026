@@ -49,6 +49,25 @@ def _check_buckets(rule: dict, where: str) -> None:
         raise StandardsError(f"{where}: 'else' must be between 0 and 100")
 
 
+def _check_critical(rule: dict, where: str) -> None:
+    tests = [key for key in ("score_below", "below", "at_least") if key in rule]
+    if len(tests) != 1:
+        raise StandardsError(f"{where}: needs exactly one of score_below, below or at_least")
+    extra = set(rule) - {"metric", "score_below", "below", "at_least", "cap", "reason"}
+    if extra:
+        raise StandardsError(f"{where}: unknown keys {sorted(extra)}")
+    if tests[0] == "score_below":
+        if "metric" in rule:
+            raise StandardsError(f"{where}: score_below applies to the whole factor; remove 'metric'")
+    elif rule.get("metric") not in CATALOG:
+        raise StandardsError(f"{where}: unknown metric {rule.get('metric')!r}")
+    _number(rule[tests[0]], where)
+    if not 0 <= _number(rule.get("cap"), where + " cap") <= 100:
+        raise StandardsError(f"{where}: cap must be between 0 and 100")
+    if not isinstance(rule.get("reason"), str) or not rule["reason"].strip():
+        raise StandardsError(f"{where}: needs a 'reason' to show the player")
+
+
 def validate(standards: dict, lexicons: dict) -> None:
     for section in ("session", "analysis", "apis", "grades", "factors"):
         if section not in standards:
@@ -80,6 +99,8 @@ def validate(standards: dict, lexicons: dict) -> None:
                 raise StandardsError(f"{spot}: max_points must be at least points_each")
             if _number(rule.get("free", 0), spot) < 0:
                 raise StandardsError(f"{spot}: free cannot be negative")
+        for i, rule in enumerate(factor.get("critical") or []):
+            _check_critical(rule, f"{where} critical rule {i + 1}")
     for name in LEXICONS:
         if not isinstance(lexicons.get(name), list):
             raise StandardsError(f"lexicons.yaml is missing the '{name}' list")

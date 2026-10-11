@@ -9,7 +9,7 @@ test('the card keeps every metric and deduction, including zero penalties', () =
   const rows = metricRows(sample);
   const expected = Object.values(sample.factors).reduce((n, f) => n + f.metrics.length + f.deductions.length, 0);
   assert.equal(rows.length, expected);
-  assert.equal(rows.filter(r => r.kind === 'deduction' && r.points_lost === 0).length, 8);
+  assert.equal(rows.filter(r => r.kind === 'deduction' && r.points_lost === 0).length, 9);
   assert.ok(Math.abs(rows.reduce((n, r) => n + r.overallLost, 0) - 4.275) < 0.01);
   for (const row of rows) assert.ok(row.label && row.factor && row.metric);
 });

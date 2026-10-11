@@ -23,6 +23,9 @@ TIPS = {
     'emotional_appeals': 'Connect the argument to a specific human consequence or shared value.',
     'audience_address_per_100_words': 'Connect the issue to your listeners using you, we, or our naturally.',
     'emotion_words_per_100_words': 'Describe the real human stakes with precise language; avoid exaggeration.',
+    'off_topic': 'Answer the question you were given: say yes or no to it in your first sentence, then argue that answer.',
+    'topic_drift': 'Cut the tangents; tie every point back to the question in one sentence.',
+    'logic_score': 'Build the argument first: a clear position, two or three supported reasons, and an answer to the other side.',
     'manipulative_appeal_count': 'Replace personal attacks and fear-mongering with evidence and fair human stakes.',
 }
 
