@@ -67,7 +67,11 @@ fly deploy
 
 Open `https://<app>.fly.dev/practice.html`. Keep one machine: `fly.toml` disables auto-stop and scaling out is unsupported (see below). To also serve the GitHub Pages copy, set `API_URL`, `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `web/config.js` and add the Pages origin (`https://alenabhilash03-beep.github.io`) to `CORS_ORIGINS` with `fly secrets set`. Never set `DEMO_MODE` on the deployed server.
 
-The image has not been built end to end or deployed yet: no hosting account or live credentials were available.
+**Live now:** https://speak-up.fly.dev (the Fly app is `speak-up`; `fly.toml` holds the name). First deployed on 2026-10-11 with one machine in `iad` and the `arena_data` volume. Checked against that URL with a spoken 50-second WAV: anonymous sign-in, prompts, upload, grading and the card work, the card was ready 8.3 s after upload, the same file uploaded again gave the identical report, and another player got 404 on the speech. A real microphone recording on the deployed page has not been checked.
+
+If the machine is ever stopped, the next request starts it again (`auto_start_machines`); a grading that was running when it stopped is lost. A Fly trial account without a payment card stops machines 5 minutes after they start, which is how the first deployment went down; the card has since been added.
+
+To ship a newer `main`, run `fly deploy` from the repository root. If the build stops with `x509: certificate signed by unknown authority` (a network that inspects TLS), use `fly deploy --depot=false`.
 
 ## Deployment and verification limits
 

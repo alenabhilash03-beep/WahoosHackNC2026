@@ -1,1 +1,1 @@
-"""Debate Arena private solo API."""
+"""SpeakUp private solo API."""
