@@ -13,10 +13,11 @@ const speechId = new URLSearchParams(location.search).get('id');
 let currentCard, audioAvailable=false, timer, pollingStarted=0, active=true, loading=false;
 const sharing=mountCommunityShare({api});
 
-function status(heading,message,{reload=false,practice=false}={}) {
+function status(heading,message,{reload=false,practice=false,retry=false}={}) {
   $('status-panel').hidden=false;
   $('status-heading').textContent=heading;
   $('status').textContent=message;
+  $('retry-saved').hidden=!retry;
   $('reload').hidden=!reload;
   $('status-practice').hidden=!practice;
   $('status-practice').href=retryHref(currentCard);
@@ -248,7 +249,7 @@ async function load() {
       status(card.status==='queued'?'IN THE QUEUE':'GRADING YOUR SPEECH','Measuring delivery and verifying your argument. This page checks every 3 seconds.');
       timer=setTimeout(load,3000);return;
     }
-    if(card.status==='failed') { $('card').hidden=true;status('GRADING DID NOT FINISH',card.error ?? card.reason ?? 'The grading service could not finish this take. Record again or check for an update.',{reload:true,practice:true});return; }
+    if(card.status==='failed') { $('card').hidden=true;status('GRADING DID NOT FINISH',card.error ?? card.reason ?? 'The grading service could not finish this take. Record again or check for an update.',{reload:!card.can_retry,practice:true,retry:card.can_retry===true});return; }
     if(card.report?.gradable===false || card.status==='ungradable') { $('card').hidden=true;status('NOT GRADABLE',card.report?.reason ?? card.reason ?? 'This recording did not contain enough clear speech to grade.',{practice:true});return; }
     if(!card.report?.gradable || !card.report?.factors) throw new Error('The speech report is not ready.');
     render(card);
@@ -258,6 +259,20 @@ async function load() {
 }
 
 $('audio').addEventListener('error',()=>{$('audio-status').textContent='The recording could not load. Check again to refresh its private playback link.';$('reload').hidden=false;$('status-panel').hidden=false;status('PLAYBACK UNAVAILABLE','The signed recording link may have expired. Refresh the card to get a new link.',{reload:true});});
+// Grade the recording already saved on the server again: same speech, nothing re-recorded.
+async function retrySaved() {
+  if(loading || !speechId) return;
+  const button=$('retry-saved');button.disabled=true;
+  try {
+    await api(`/api/speeches/${encodeURIComponent(speechId)}/retry`,{method:'POST'});
+  } catch(error) {
+    // 409: another tab or click already queued it, so fall through and show its progress.
+    if(error.status!==409) { button.disabled=false;$('status').textContent=`Could not retry: ${error.message || 'try again.'}`;return; }
+  }
+  button.disabled=false;pollingStarted=Date.now();load();
+}
+
+$('retry-saved').addEventListener('click',retrySaved);
 $('reload').addEventListener('click',()=>{pollingStarted=Date.now();load();});
 const expiryClock=setInterval(()=>{
   if(!active || !currentCard?.audio_expires_at || Date.parse(currentCard.audio_expires_at)>Date.now() || !audioAvailable) return;

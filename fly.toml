@@ -9,6 +9,9 @@ primary_region = "iad"
 
 [env]
   DATA_DIR = "/data"
+  # The GitHub Pages copy calls this API from another origin. A Fly secret named
+  # CORS_ORIGINS overrides this line, so keep the two the same.
+  CORS_ORIGINS = "https://alenabhilash03-beep.github.io"
 
 [http_service]
   internal_port = 8000
@@ -22,7 +25,7 @@ primary_region = "iad"
 
   [[http_service.checks]]
     method = "GET"
-    path = "/config.js"
+    path = "/api/health"
     interval = "30s"
     timeout = "5s"
     grace_period = "20s"

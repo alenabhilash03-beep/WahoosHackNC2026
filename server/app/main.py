@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import sys
 import tempfile
+import threading
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -17,12 +18,14 @@ from pydantic import BaseModel
 from .feedback import me_card, speech_card
 from .leaderboard import UNNAMED, NameTaken, clean_name, rank
 from .questions import DIFFICULTIES, UnsuitableCategory, clean_category, generate_question
+from .session import InvalidSession
 from .settings import ROOT, Settings
 
 LOG = logging.getLogger(__name__)
 LOOPBACK = {'localhost', '127.0.0.1', '::1'}
 MIME_SUFFIX = {'audio/wav': '.wav', 'audio/x-wav': '.wav', 'audio/webm': '.webm', 'video/webm': '.webm',
                'audio/ogg': '.ogg', 'audio/mp4': '.mp4', 'audio/mpeg': '.mp3', 'audio/flac': '.flac'}
+GRADING_FAILED = 'Grading did not finish. Retry the saved recording, or record again.'
 
 
 def real_grade(path, prompt, side, cache_dir):
@@ -49,6 +52,7 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
         app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                            allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type', 'X-Demo-Mode'])
     app.state.repository = repository
+    repository_lock = threading.Lock()
 
     @app.middleware('http')
     async def local_demo_only(request, call_next):
@@ -68,27 +72,33 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
         return response
 
     def repo():
-        if app.state.repository is None:
-            if settings.demo_mode:
-                from .demo import DemoRepository
-                app.state.repository = DemoRepository(settings)
-            elif settings.local_mode:
-                from .local import LocalRepository
-                app.state.repository = LocalRepository(settings)
-            else:
-                if not settings.supabase_url or not settings.supabase_service_role_key:
-                    raise HTTPException(503, 'Server is not configured. Set Supabase server credentials.')
-                from .repository import SupabaseRepository
-                app.state.repository = SupabaseRepository(settings)
-        return app.state.repository
+        # Requests run on a thread pool: without the lock, the first few can each build a client.
+        with repository_lock:
+            if app.state.repository is None:
+                if settings.demo_mode:
+                    from .demo import DemoRepository
+                    app.state.repository = DemoRepository(settings)
+                elif settings.local_mode:
+                    from .local import LocalRepository
+                    app.state.repository = LocalRepository(settings)
+                else:
+                    if not settings.supabase_url or not settings.supabase_service_role_key:
+                        raise HTTPException(503, 'Server is not configured. Set Supabase server credentials.')
+                    from .repository import SupabaseRepository
+                    app.state.repository = SupabaseRepository(settings)
+            return app.state.repository
 
     def user(authorization: str | None = Header(default=None), db=Depends(repo)):
         if not authorization or not authorization.startswith('Bearer ') or not authorization[7:]:
             raise HTTPException(401, 'Sign in to continue.', headers={'WWW-Authenticate': 'Bearer'})
         try:
             return db.resolve_token(authorization[7:])
-        except Exception:
+        except InvalidSession:
             raise HTTPException(401, 'Your session expired. Sign in again.', headers={'WWW-Authenticate': 'Bearer'})
+        except Exception as exc:
+            # The sign-in provider is unreachable or failing. A 401 here would sign every player out.
+            LOG.error('Session check failed (%s)', type(exc).__name__)
+            raise HTTPException(503, 'Sign-in is temporarily unavailable. Try again.')
 
     @app.exception_handler(Exception)
     async def unavailable(request, exc):
@@ -103,6 +113,11 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
                       SUPABASE_ANON_KEY='' if accountless else settings.supabase_anon_key,
                       DEMO_MODE=settings.demo_mode, LOCAL_MODE=settings.local_mode and not settings.demo_mode)
         return Response('window.ARENA_CONFIG = ' + json.dumps(public) + ';', media_type='application/javascript', headers={'Cache-Control': 'no-store'})
+
+    @app.get('/api/health')
+    def health():
+        # Process liveness only: it does not claim the database or the grading providers are ready.
+        return {'status': 'ok'}
 
     @app.get('/api/prompts')
     def prompts(uid=Depends(user), db=Depends(repo)):
@@ -160,6 +175,7 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
             raise HTTPException(404, 'Speech not found.')
         prompt = next((p for p in db.prompts() if p['id'] == row['motion_id']), {'id': row['motion_id'], 'text': row.get('prompt_text', 'Archived prompt')})
         result = speech_card(row, db.speeches(uid), {key: prompt[key] for key in ('id', 'text')}, db.signed_audio(row['audio_path']) if row.get('audio_path') else None)
+        result['can_retry'] = retry_suffix(row) is not None and not settings.demo_mode
         if settings.demo_mode:
             result['demo'] = True
         return result
@@ -176,9 +192,17 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
         from .coaching import coaching_lines
         return {'lines': (coach or coaching_lines)(report, settings.data_dir / 'coaching')}
 
-    def grade_background(db, id, data, suffix, prompt, side):
+    def retry_suffix(row):
+        """The saved recording's file suffix if this failed speech can be graded again, else None."""
+        suffix = Path(row.get('audio_path') or '').suffix
+        return suffix if row.get('status') == 'failed' and suffix in MIME_SUFFIX.values() else None
+
+    def grade_background(db, id, data, suffix, prompt, side, audio_path=None):
         try:
             db.update_speech(id, {'status': 'grading'})
+            if data is None:
+                # A retry: fetch the saved recording. The grader cache is keyed by its bytes.
+                data = db.download(audio_path)
             settings.data_dir.mkdir(parents=True, exist_ok=True)
             with tempfile.TemporaryDirectory(dir=settings.data_dir) as directory:
                 path = Path(directory) / ('recording' + suffix)
@@ -190,7 +214,7 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
                                      standards_id=report.get('inputs', {}).get('standards_id'), error=None))
         except Exception as exc:
             LOG.error('Grading failed for %s (%s)', id, type(exc).__name__)
-            db.update_speech(id, {'status': 'failed', 'error': 'Grading failed. Please record again.'})
+            db.update_speech(id, {'status': 'failed', 'error': GRADING_FAILED})
 
     @app.post('/api/speeches', status_code=202)
     async def upload(background: BackgroundTasks, motion_id: str = Form(...), side: str = Form(...), audio: UploadFile = File(...), uid=Depends(user), db=Depends(repo)):
@@ -223,6 +247,26 @@ def create_app(settings=None, repository=None, grader=None, question_maker=None,
             raise
         background.add_task(grade_background, db, id, data, suffix, prompt['text'], side)
         return {'speech_id': id}
+
+    @app.post('/api/speeches/{speech_id}/retry', status_code=202)
+    def retry(speech_id: str, background: BackgroundTasks, uid=Depends(user), db=Depends(repo)):
+        """Grade the owner's saved recording again after a failure. Same speech id, time and history."""
+        if settings.demo_mode:
+            raise HTTPException(503, 'Local demo contains saved examples only. Configure live grading to play.')
+        row = db.speech(speech_id, uid)
+        if row is None:
+            raise HTTPException(404, 'Speech not found.')
+        suffix = retry_suffix(row)
+        if suffix is None:
+            raise HTTPException(409, 'Only a speech whose grading did not finish can be retried.')
+        prompt = next((p for p in db.prompts() if p['id'] == row['motion_id']), None)
+        if prompt is None:
+            raise HTTPException(409, 'This prompt is no longer available. Record a new speech.')
+        # The claim is conditional in the database, so a double click or second tab grades once.
+        if db.claim_retry(speech_id, uid) is None:
+            raise HTTPException(409, 'This speech is already being graded.')
+        background.add_task(grade_background, db, speech_id, None, suffix, prompt['text'], row['side'], row['audio_path'])
+        return {'speech_id': speech_id, 'status': 'queued'}
 
     if settings.local_mode and not settings.demo_mode:
         @app.get('/api/local/audio/{path:path}')

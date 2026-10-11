@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from .leaderboard import board_row
+from .session import InvalidSession
 
 LOCAL_TOKEN = 'local-player'
 SEED_PROMPTS = ('Should the frontier of AI be paced?',
@@ -39,7 +40,7 @@ class LocalRepository:
 
     def resolve_token(self, token):
         if token != LOCAL_TOKEN:
-            raise ValueError('Invalid local session')
+            raise InvalidSession('Invalid local session')
         return LOCAL_TOKEN
 
     def profile(self, user):
@@ -97,6 +98,12 @@ class LocalRepository:
     def remove_audio(self, path):
         (self.audio_dir / path).unlink(missing_ok=True)
 
+    def download(self, path):
+        target = self.audio_file(path)
+        if target is None:
+            raise FileNotFoundError(path)
+        return target.read_bytes()
+
     def create_speech(self, row):
         with self.lock:
             data = self._load()
@@ -111,3 +118,15 @@ class LocalRepository:
                 if row['id'] == id:
                     row.update(values)
             self._save(data)
+
+    def claim_retry(self, id, user):
+        """Queue this owner's failed speech again. None unless it was failed at this moment."""
+        with self.lock:
+            data = self._load()
+            row = next((r for r in data['speeches']
+                        if r['id'] == id and r['player_id'] == user and r['status'] == 'failed'), None)
+            if row is None:
+                return None
+            row.update(status='queued', error=None)
+            self._save(data)
+            return dict(row)
