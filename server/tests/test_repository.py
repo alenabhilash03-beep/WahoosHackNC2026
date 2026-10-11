@@ -28,6 +28,11 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(self.repo.resolve_token('opaque.jwt'), 'resolved-user')
         self.assertEqual(self.trace, [('get_user', 'opaque.jwt')])
 
+    def test_anonymous_token_cannot_access_account_api(self):
+        self.repo.client.auth.get_user = lambda token: SimpleNamespace(user=SimpleNamespace(id='guest', is_anonymous=True))
+        with self.assertRaises(ValueError):
+            self.repo.resolve_token('valid-anonymous.jwt')
+
     def test_both_speech_reads_scope_player_id(self):
         self.repo.speech('some-id', 'resolved-user')
         self.assertIn(('eq', ('player_id', 'resolved-user'), {}), self.trace)

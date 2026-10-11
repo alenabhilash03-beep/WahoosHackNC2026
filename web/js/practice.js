@@ -39,13 +39,13 @@ async function checkService() {
     // recording privately for its player.
     $('status').textContent = globalThis.ARENA_CONFIG?.LOCAL_MODE
       ? 'Private practice. Your recording and report stay on this computer.'
-      : 'Private practice. Your recording and report are visible only to you.';
+      : 'Private practice. Your recording and report are saved to your account and visible only to you.';
     $('levels').disabled = false;
     // "Retry this prompt" from a speech card: skip the picker, same question and side.
     const retry = prompts.find(p => p.id === params.get('motion_id'));
     if (retry) begin({id: retry.id, text: retry.text}, ['yes', 'no'].includes(params.get('side')) ? params.get('side') : null);
   } catch (error) {
-    $('status').textContent = `${error.message} To play, start the server in local mode (see server/README.md).`;
+    $('status').textContent = error.message;
     $('reload').hidden = false;
   }
 }

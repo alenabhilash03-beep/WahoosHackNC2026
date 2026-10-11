@@ -1,4 +1,5 @@
 import { WALK_SECONDS, showHome, walkToStage } from "./js/arena.js";
+import {requireAccount} from './js/auth.js';
 import { addSoundToggle, sfx, startMusic, stopMusic, wireSounds } from "./js/sound.js";
 
 // Lobby music starts with the first press anywhere (browsers block sound before that).
@@ -16,6 +17,12 @@ argue.addEventListener("click", async (event) => {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
   if (walking) return;
+  try {
+    if (!await requireAccount('practice.html')) return;
+  } catch (error) {
+    document.querySelector('.hint').textContent = error.message;
+    return;
+  }
   walking = true;
   document.body.classList.add("walking");
   sfx.confirm();
