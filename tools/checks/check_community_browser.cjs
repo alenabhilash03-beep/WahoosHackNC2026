@@ -85,7 +85,7 @@ function card(){return {id:'s1',status:'done',motion_id:'m1',side:'yes',prompt:r
       const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));return {context,page};
     }
     const speaker=await session('speaker'),listener=await session('listener');const a=speaker.page,b=listener.page;
-    await a.goto(`${base}/card.html?id=s1`);await a.getByRole('button',{name:'Share with the community',exact:true}).click();
+    await a.goto(`${base}/card.html?id=s1`);await a.getByRole('button',{name:'Upload to the community board',exact:true}).click();
     await a.locator('#share-status').filter({hasText:'Submitted for review'}).waitFor();assert.ok(entry);assert.equal(moderation,'pending');
     await b.goto(`${base}/leaderboard.html`);await b.locator('#community-status').filter({hasText:'No shared speeches'}).waitFor();
     moderation='approved';await a.locator('#share-retry').click();
@@ -127,9 +127,9 @@ function card(){return {id:'s1',status:'done',motion_id:'m1',side:'yes',prompt:r
     await b.evaluate(()=>{window.testHidden=false;document.dispatchEvent(new Event('visibilitychange'));});await b.waitForTimeout(100);assert.ok(boardRequests>requests);
     await b.clock.resume();
     failBoard=true;await b.locator('#community-retry').click();await b.locator('#community-error').filter({hasText:'Connection unavailable'}).waitFor();failBoard=false;
-    await a.goto(`${base}/card.html?id=s1`);await a.getByRole('button',{name:'Withdraw from community',exact:true}).click();await a.getByRole('button',{name:'Share again with the community',exact:true}).waitFor();
+    await a.goto(`${base}/card.html?id=s1`);await a.getByRole('button',{name:'Remove from the community board',exact:true}).click();await a.getByRole('button',{name:'Upload again',exact:true}).waitFor();
     await b.locator('#community-retry').click();await b.locator('#community-status').filter({hasText:'No shared speeches'}).waitFor();
-    await a.getByRole('button',{name:'Share again with the community',exact:true}).click();await a.getByRole('button',{name:'Withdraw from community',exact:true}).waitFor();
+    await a.getByRole('button',{name:'Upload again',exact:true}).click();await a.getByRole('button',{name:'Remove from the community board',exact:true}).waitFor();
     moderation='rejected';await a.locator('#share-retry').click();await a.locator('#share-status').filter({hasText:'Review rejected'}).waitFor();moderation='approved';
     // Community recording tags the upload; ordinary retry never adds a round ID.
     await a.goto(`${base}/practice.html?mode=community`);await a.locator('#community-retention').filter({hasText:'grade stays saved'}).waitFor();await a.locator('[data-side=yes]').click();

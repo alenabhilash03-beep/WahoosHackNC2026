@@ -32,13 +32,16 @@
       </section>
       <div id="sections" class="section-scores" aria-label="Section scores"></div>
       <section id="community-share" class="community-panel" aria-labelledby="share-title" hidden>
-        <h2 id="share-title">SHARE YOUR SPEECH</h2>
+        <h2 id="share-title">UPLOAD TO THE COMMUNITY BOARD</h2>
         <p id="share-status" class="community-copy" role="status"></p>
         <p id="share-retention" class="community-copy"></p>
-        <p class="community-copy">Withdrawal stops new playback links immediately. Links already issued can work for up to five minutes.</p>
-        <a id="share-name" href="leaderboard.html#name-form" hidden>SET YOUR DISPLAY NAME</a>
-        <button id="share-action" type="button" hidden>Share with the community</button>
-        <button id="share-retry" type="button">Check sharing status</button>
+        <label id="share-name" class="community-copy" hidden>NAME ON THE BOARD
+          <input id="share-name-input" type="text" maxlength="20" autocomplete="nickname" placeholder="3 to 20 letters, digits or _" aria-describedby="share-error" />
+        </label>
+        <button id="share-action" type="button" hidden>Upload to the community board</button>
+        <button id="share-retry" type="button">Check upload status</button>
+        <a id="share-board" class="community-copy" href="leaderboard.html#community">SEE THE COMMUNITY BOARD</a>
+        <p class="community-copy">Removing it stops new playback links immediately. Links already issued can work for up to five minutes.</p>
         <p id="share-error" class="community-copy community-error" role="alert"></p>
       </section>
       <div class="card-columns">

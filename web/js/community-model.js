@@ -27,19 +27,22 @@ export function nextReaction(selected, clicked) {
   return selected === clicked ? null : clicked;
 }
 export function shareState(card, data, now = Date.now()) {
-  if (!card.community_round_id) return {message:'Private practice. Record the current community prompt to share a speech.'};
+  if (!card.community_round_id) return {message:'Private practice. Record the Daily Prompt to upload a speech to the community board.'};
   if (roundState(data.round, now) !== 'active' || data.round.id !== card.community_round_id) return {message:'This community round has closed. Your grade stays saved.'};
   if (card.audio_deleted_at || (card.audio_expires_at && Date.parse(card.audio_expires_at) <= now)) return {message:'This recording has expired. Your grade stays saved.'};
   const entry = data.entry;
   if (entry && entry.speech_id !== card.id) return {message:'You already shared another speech in this round. You can only re-share that speech.'};
   if (entry && !entry.withdrawn_at) {
     const review = card.moderation_status === 'approved' ? 'Shared with the community.' : card.moderation_status === 'rejected' ? 'Review rejected this speech. It is hidden from the community.' : 'Submitted for review. It stays hidden until approved.';
-    return {message:review, action:'withdraw', label:'Withdraw from community'};
+    return {message:review, action:'withdraw', label:'Remove from the community board'};
   }
   if (card.moderation_status === 'rejected') return {message:'Review rejected this speech. It cannot appear on the community board.'};
-  if (card.status !== 'done' || card.report?.gradable !== true || !card.audio_url) return {message:'Only completed, gradable speeches with an available recording can be shared.'};
-  if (nameProblem(data.display_name)) return {message:'Choose a display name before sharing.', needsName:true};
-  return {message:'Sharing lets signed-in listeners hear this recording until the round closes. Your report stays private.', action:entry ? 'reshare' : 'share', label:entry ? 'Share again with the community' : 'Share with the community'};
+  if (card.status !== 'done' || card.report?.gradable !== true || !card.audio_url) return {message:'Only completed, gradable speeches with an available recording can be uploaded.'};
+  const explain = 'Uploading puts your score on the community board and lets signed-in listeners hear this recording and react until the round closes. Your report stays private.';
+  if (entry) return {message:explain, action:'reshare', label:'Upload again'};
+  // One step for a new speaker: the name they pick is saved, then the speech is uploaded.
+  if (nameProblem(data.display_name)) return {message:`Pick the name the board will show. ${explain}`, action:'share', needsName:true, label:'Save name and upload'};
+  return {message:explain, action:'share', label:'Upload to the community board'};
 }
 
 // Invalidate reads started before any mutation or round/tab change. Never allow

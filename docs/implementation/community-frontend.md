@@ -10,6 +10,13 @@ Keep the flag off until plan phases 1, 2 and 4 are implemented, moderation works
 
 ## User flow
 
+Since the backend landed, the **Daily Prompt** button is this flow: with community on,
+`practice.html?mode=daily` records for the open round (`mode=community` still works), shows
+"Recording N of 5", and the speech card's panel is titled **Upload to the community board**. A
+speaker without a display name types one in that panel and uploads with the same button. The
+labels below are the original ones: Share is now Upload, Withdraw is Remove, Share again is
+Upload again.
+
 - Practice and leaderboard offer **Current community prompt**, opening `practice.html?mode=community`. Before recording, it shows the prompt, closing time/countdown, private-until-shared explanation and retention notice. Only this mode adds `community_round_id` to the existing multipart upload. Daily and ordinary practice remain private flows.
 - An eligible completed card offers **Share with the community**. A missing/invalid name links to the leaderboard name form. No automatic publication occurs. The card supports pending review, rejected, shared, withdrawn and expired states. An existing entry for a different speech prevents replacing it in that round.
 - The community leaderboard is separate from the global board. Highest graded and Community favorites use server rankings and pagination, not client sorting. Emoji selection/change/removal uses authoritative server counts. Owners cannot react to their own speeches.

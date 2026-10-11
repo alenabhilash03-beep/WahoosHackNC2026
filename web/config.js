@@ -7,5 +7,5 @@ globalThis.ARENA_CONFIG = {
   "SUPABASE_ANON_KEY": "sb_publishable_wKI45TBNgOdLIZ43z5Dw4A_0V_h8BzI",
   "API_URL": "https://speak-up.fly.dev",
   "LOCAL_MODE": false,
-  "COMMUNITY_ENABLED": false
+  "COMMUNITY_ENABLED": true
 };

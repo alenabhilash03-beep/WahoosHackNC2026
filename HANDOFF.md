@@ -60,8 +60,9 @@ sign-in, and 404 for the other account on the speech, its retry and its coaching
   [`docs/plans/2026-10-11-community-reactions.md`](docs/plans/2026-10-11-community-reactions.md).
   Its browser side (PR #28, [notes](docs/implementation/community-frontend.md)) and its backend
   ([guide](docs/implementation/community-backend.md): migration 0006, `/api/community/*`, review,
-  rotation and cleanup) are both built. It stays off until the server sets `COMMUNITY_ENABLED=true`;
-  review is by hand unless `COMMUNITY_AUTO_APPROVE=true`.
+  rotation and cleanup) are both built and switched on for the live site (`fly.toml`,
+  `web/config.js`). The Daily Prompt is the community round: record it up to five times, then
+  upload from the speech card. Uploads are auto-approved; nobody reviews them first.
 - **Phase 5.** No backup video, saved card or rehearsal notes are in the repository.
 
 ## What to do next

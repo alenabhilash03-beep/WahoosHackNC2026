@@ -134,6 +134,9 @@ class CommunityDatabaseTests(unittest.TestCase):
         ends = community.moment(self.repository.community_round(self.round)['ends_at'])
         self.assertEqual(community.moment(row['audio_expires_at']), ends + timedelta(minutes=5))
         self.assertEqual(self.repository.community_attempts(self.round, ada), 2)
+        attempts = lambda who: self.client.get('/api/community/round', headers=self.users[who]['headers']).json()['attempts']
+        self.assertEqual((attempts('ada'), attempts('grace'), attempts('linus')),
+                         ({'used': 2, 'limit': 5}, {'used': 1, 'limit': 5}, {'used': 0, 'limit': 5}))   # private practice is not counted
 
         # Sharing: explicit, one speech per speaker per round, the speaker's own speech from this round only.
         self.assertEqual(self.share(private, 'ada').status_code, 409)

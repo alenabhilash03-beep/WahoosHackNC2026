@@ -27,7 +27,11 @@ test('reaction selection supports change and removal; rejects arbitrary emoji',(
 });
 test('sharing is opt-in and requires an eligible recording and display name',()=>{
   assert.equal(shareState(card,data).action,'share');
-  assert.equal(shareState(card,{...data,display_name:'player'}).needsName,true);
+  assert.equal(shareState(card,data).label,'Upload to the community board');assert.equal(shareState(card,data).needsName,undefined);
+  // A speaker without a name picks one in the same step: still one button.
+  const unnamed=shareState(card,{...data,display_name:'player'});
+  assert.deepEqual([unnamed.needsName,unnamed.action,unnamed.label],[true,'share','Save name and upload']);
+  assert.equal(shareState(card,{...data,display_name:null}).needsName,true);
   assert.equal(shareState({...card,community_round_id:null},data).action,undefined);
   for(const change of [{status:'grading'},{report:{gradable:false}},{audio_url:null},{audio_deleted_at:'today'},{audio_expires_at:new Date(now-1).toISOString()}])assert.equal(shareState({...card,...change},data).action,undefined);
   assert.equal(shareState(card,{...data,round:null}).action,undefined);
@@ -38,7 +42,8 @@ test('pending and rejected entries can be withdrawn; withdrawal permits only the
   assert.equal(shareState(card,shared).action,'withdraw');assert.match(shareState(card,shared).message,/hidden until approved/);
   assert.equal(shareState({...card,moderation_status:'rejected'},shared).action,'withdraw');
   const withdrawn={...shared,entry:{...shared.entry,withdrawn_at:'today'}};
-  assert.equal(shareState(card,withdrawn).action,'reshare');
+  assert.equal(shareState(card,withdrawn).action,'reshare');assert.equal(shareState(card,withdrawn).label,'Upload again');
+  assert.equal(shareState(card,shared).label,'Remove from the community board');
   assert.equal(shareState({...card,moderation_status:'rejected'},withdrawn).action,undefined);
 });
 function board() {
