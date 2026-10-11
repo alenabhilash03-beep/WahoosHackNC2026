@@ -2,8 +2,12 @@
 from datetime import datetime, timezone
 from supabase import create_client
 from postgrest.exceptions import APIError
+from supabase_auth.errors import AuthApiError
 
 from .leaderboard import UNNAMED, NameTaken
+from .session import InvalidSession
+
+PENDING = ('queued', 'grading')
 
 
 class SupabaseRepository:
@@ -11,9 +15,17 @@ class SupabaseRepository:
         self.client = create_client(settings.supabase_url, settings.supabase_service_role_key)
 
     def resolve_token(self, token):
-        user = self.client.auth.get_user(token).user
+        try:
+            response = self.client.auth.get_user(token)
+        except AuthApiError as error:
+            # Auth answered and refused this token. Rate limits, 5xx and network
+            # failures are outages: they propagate, so nobody is signed out by them.
+            if 400 <= error.status < 500 and error.status != 429:
+                raise InvalidSession('Invalid session') from error
+            raise
+        user = response.user if response else None
         if not user or getattr(user, 'is_anonymous', False):
-            raise ValueError('Invalid session')
+            raise InvalidSession('Invalid session')
         return user.id
 
     def profile(self, user):
@@ -30,11 +42,19 @@ class SupabaseRepository:
         return [dict(id=row['id'], text=row['text'], featured=row.get('featured_on') == today) for row in rows]
 
     def create_motion(self, text, category=None, difficulty=None):
-        rows = self.client.table('motions').select('id').eq('text', text).limit(1).execute().data
+        existing = lambda: self.client.table('motions').select('id').eq('text', text).limit(1).execute().data
+        rows = existing()
         if rows:
             return rows[0]['id']
         row = dict(text=text, category=category, difficulty=difficulty)
-        return self.client.table('motions').insert(row).execute().data[0]['id']
+        try:
+            return self.client.table('motions').insert(row).execute().data[0]['id']
+        except APIError as error:
+            # Two players generated the same question at once: reuse the winner's motion.
+            rows = existing() if error.code == '23505' else []
+            if rows:
+                return rows[0]['id']
+            raise
 
     def set_display_name(self, user, name):
         # Names differing only by case are the same name. '_' is a wildcard in ILIKE.
@@ -90,8 +110,29 @@ class SupabaseRepository:
     def remove_audio(self, path):
         self.client.storage.from_('audio').remove([path])
 
+    def download(self, path):
+        return self.client.storage.from_('audio').download(path)
+
     def create_speech(self, row):
         self.client.table('speeches').insert(row).execute()
 
     def update_speech(self, id, values):
         self.client.table('speeches').update(values).eq('id', id).execute()
+
+    def claim_retry(self, id, user):
+        """Queue this owner's failed speech again. None unless it was failed at this moment.
+
+        One conditional UPDATE: of two simultaneous retries only one matches the row.
+        """
+        rows = (self.client.table('speeches').update({'status': 'queued', 'error': None})
+                .eq('id', id).eq('player_id', user).eq('status', 'failed').execute().data)
+        return rows[0] if rows else None
+
+    def pending_count(self):
+        return self.client.table('speeches').select('id', count='exact').in_('status', PENDING).limit(1).execute().count or 0
+
+    def fail_pending(self, message):
+        """Mark every queued or grading speech failed. Only for a stopped worker: see scripts/recover_grading.py."""
+        rows = (self.client.table('speeches').update({'status': 'failed', 'error': message})
+                .in_('status', PENDING).execute().data)
+        return len(rows)

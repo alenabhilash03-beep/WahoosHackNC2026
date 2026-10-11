@@ -38,7 +38,10 @@ export function createClient() {
     if (!file.startsWith(root + path.sep)) { response.writeHead(404).end(); return; }
     try {
       response.setHeader('Content-Type', ({'.html':'text/html','.js':'application/javascript','.css':'text/css'})[path.extname(file)] || 'application/octet-stream');
-      response.end(fs.readFileSync(file));
+      const body = fs.readFileSync(file);
+      // This script navigates faster than a person can, which aborts cross-page view
+      // transitions and raises a page error. Turn them off here only; the site keeps them.
+      response.end(['.html','.css'].includes(path.extname(file)) ? body.toString().replaceAll('@view-transition { navigation: auto; }','') : body);
     } catch { response.writeHead(404).end(); }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -80,6 +83,32 @@ export function createClient() {
     const verification=stanceReport.evidence.argument.stance_verification;
     await page.getByText(verification.message,{exact:true}).first().waitFor();
     assert.ok((await page.locator('#argument').innerText()).includes(verification.primary.evidence_quote));
+    // A failed speech offers its saved recording again; the retry is an authenticated POST and resumes the card.
+    let retries=0;
+    const failedCard={id:'test-failed-card',status:'failed',motion_id:'m',side:'yes',prompt:{id:'m',text:stanceReport.inputs.topic},
+      report:null,audio_url:null,fixes:[],previous_best:null,deltas:null,error:'Grading did not finish. Retry the saved recording, or record again.',can_retry:true};
+    await context.route('**/api/speeches/test-failed-card', route => route.fulfill({contentType:'application/json',body:JSON.stringify(
+      retries ? {...failedCard,status:'done',report:stanceReport,error:null,can_retry:false} : failedCard)}));
+    await context.route('**/api/speeches/test-failed-card/retry', route => {
+      assert.equal(route.request().method(),'POST');
+      assert.equal(route.request().headers().authorization,'Bearer test-token');
+      retries++;
+      return route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({speech_id:'test-failed-card',status:'queued'})});
+    });
+    await page.goto(base+'/card.html?id=test-failed-card');
+    const retrySaved=page.getByRole('button',{name:'RETRY SAVED RECORDING',exact:true});
+    await retrySaved.waitFor({state:'visible'});
+    assert.equal(await page.getByRole('button',{name:'TRY AGAIN',exact:true}).isVisible(),false);
+    assert.ok((await page.locator('#status').innerText()).includes('Retry the saved recording'));
+    await retrySaved.click();
+    await page.locator('#card').waitFor({state:'visible'});
+    assert.equal(retries,1);
+    assert.equal(await retrySaved.isVisible(),false);
+    // Without a saved recording to retry, the card keeps the plain TRY AGAIN reload.
+    await context.route('**/api/speeches/test-lost-card', route => route.fulfill({contentType:'application/json',body:JSON.stringify({...failedCard,id:'test-lost-card',can_retry:false})}));
+    await page.goto(base+'/card.html?id=test-lost-card');
+    await page.getByRole('button',{name:'TRY AGAIN',exact:true}).waitFor({state:'visible'});
+    assert.equal(await retrySaved.isVisible(),false);
     await page.getByRole('button',{name:'SIGN OUT',exact:true}).click(); await page.waitForURL('**/index.html');
     await page.goto(base+'/card.html?id=test-stance-card');
     await page.waitForURL('**/login.html?next=card.html%3Fid%3Dtest-stance-card');
@@ -131,7 +160,7 @@ export function createClient() {
     localMode=true; await page.reload(); await page.locator('#local-play').waitFor({state:'visible'});
     assert.equal(await github.isEnabled(),false);
     assert.deepEqual(errors,[]);
-    console.log('PASS: GitHub-only login, authenticated stance card/evidence, signed-out card protection, private return paths, provider failures, cancellation, disabled provider, retry, logout, cross-tab logout, unsafe redirects, guest rejection, mobile layout, local mode; no page errors.');
+    console.log('PASS: GitHub-only login, authenticated stance card/evidence, saved-recording retry, signed-out card protection, private return paths, provider failures, cancellation, disabled provider, retry, logout, cross-tab logout, unsafe redirects, guest rejection, mobile layout, local mode; no page errors.');
   } finally {
     if(browser) await browser.close();
     await new Promise(resolve=>server.close(resolve));

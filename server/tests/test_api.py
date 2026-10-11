@@ -7,6 +7,7 @@ import wave
 from fastapi.testclient import TestClient
 from server.app.leaderboard import NameTaken, rank
 from server.app.main import create_app
+from server.app.session import InvalidSession
 from server.app.settings import Settings
 from test_feedback import SAMPLE, speech
 
@@ -17,9 +18,10 @@ class Repository:
         self.names = {}
         self.signed = []
         self.uploads = []
+        self.downloads = []
     def resolve_token(self, token):
         if token != 'good':
-            raise ValueError('bad')
+            raise InvalidSession('bad')
         return 'owner'
     def profile(self, user):
         return {'id': user, 'display_name': self.names.get(user, 'player')}
@@ -46,6 +48,14 @@ class Repository:
         self.rows.append(dict(row, created_at='2026-10-10T12:01:00Z'))
     def update_speech(self, id, values):
         next(row for row in self.rows if row['id'] == id).update(values)
+    def download(self, path):
+        self.downloads.append(path)
+        return next(data for stored, data, _ in self.uploads if stored == path)
+    def claim_retry(self, id, user):
+        row = next((r for r in self.rows if r['id'] == id and r['player_id'] == user and r['status'] == 'failed'), None)
+        if row:
+            row.update(status='queued', error=None)
+        return copy.deepcopy(row)
 
 
 class ApiTests(unittest.TestCase):
@@ -60,6 +70,30 @@ class ApiTests(unittest.TestCase):
     def test_missing_invalid_auth_rejected(self):
         self.assertEqual(self.client.get('/api/me').status_code, 401)
         self.assertEqual(self.client.get('/api/me', headers={'Authorization': 'Bearer wrong'}).status_code, 401)
+    def test_auth_provider_outage_is_a_generic_503_not_a_sign_out(self):
+        def outage(token):
+            raise ConnectionError('secret auth host unreachable')
+        self.repo.resolve_token = outage
+        response = self.client.get('/api/me', headers=self.headers)
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn('secret', response.text)
+        self.assertNotIn('WWW-Authenticate', response.headers)
+    def test_health_reports_liveness_without_an_account_or_the_database(self):
+        client = TestClient(create_app(Settings(data_dir=Path(self.temp.name))))   # no Supabase credentials
+        response = client.get('/api/health')
+        self.assertEqual((response.status_code, response.json()), (200, {'status': 'ok'}))
+        self.assertEqual(client.get('/api/me', headers=self.headers).status_code, 503)
+    def test_pages_origin_preflight_and_errors_carry_cors_headers(self):
+        origin = 'https://alenabhilash03-beep.github.io'
+        client = TestClient(create_app(Settings(data_dir=Path(self.temp.name), cors_origins=[origin]), self.repo))
+        ask = lambda method: client.options('/api/speeches/current/retry', headers={
+            'Origin': origin, 'Access-Control-Request-Method': method, 'Access-Control-Request-Headers': 'authorization'})
+        self.assertEqual((ask('POST').status_code, ask('POST').headers['access-control-allow-origin']), (200, origin))
+        self.assertEqual(ask('DELETE').status_code, 400)
+        rejected = client.get('/api/me', headers={'Origin': origin, 'Authorization': 'Bearer wrong'})
+        self.assertEqual((rejected.status_code, rejected.headers['access-control-allow-origin']), (401, origin))
+        other = client.options('/api/me', headers={'Origin': 'https://evil.example', 'Access-Control-Request-Method': 'GET'})
+        self.assertNotIn('access-control-allow-origin', other.headers)
     def test_owner_only_private_audio_no_cross_user_leak(self):
         self.repo.rows.append(dict(speech('private'), player_id='other'))
         self.assertEqual(self.client.get('/api/speeches/private', headers=self.headers).status_code, 404)
@@ -89,6 +123,9 @@ class ApiTests(unittest.TestCase):
         row = self.repo.rows[-1]
         self.assertEqual(row['status'], 'failed')
         self.assertNotIn('secret', row['error'])
+        card = client.get('/api/speeches/' + row['id'], headers=self.headers).json()
+        self.assertEqual((card['status'], card['can_retry']), ('failed', True))
+        self.assertFalse(client.get('/api/speeches/current', headers=self.headers).json()['can_retry'])
     def test_demo_is_loopback_only_marked_persistent_and_no_fake_upload(self):
         settings = Settings(demo_mode=True, data_dir=Path(self.temp.name))
         app = create_app(settings)

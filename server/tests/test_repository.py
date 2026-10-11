@@ -34,6 +34,84 @@ class RepositoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.repo.resolve_token('valid-anonymous.jwt')
 
+    def test_only_a_refusal_from_auth_is_an_invalid_session(self):
+        from server.app.session import InvalidSession
+        from supabase_auth.errors import AuthApiError, AuthRetryableError
+
+        def failing(error):
+            def get_user(token):
+                raise error
+            self.repo.client.auth.get_user = get_user
+        for status in (400, 401, 403, 404):
+            failing(AuthApiError('invalid JWT', status, 'bad_jwt'))
+            with self.assertRaises(InvalidSession):
+                self.repo.resolve_token('expired.jwt')
+        self.repo.client.auth.get_user = lambda token: None
+        with self.assertRaises(InvalidSession):
+            self.repo.resolve_token('unknown.jwt')
+        # Outages must not look like an expired session, or every player is signed out.
+        for outage in (AuthApiError('rate limited', 429, 'over_request_rate_limit'), AuthApiError('boom', 500, None),
+                       AuthRetryableError('bad gateway', 502), AuthRetryableError('connection refused', 0),
+                       ConnectionError('dns')):
+            failing(outage)
+            with self.assertRaises(type(outage)) as raised:
+                self.repo.resolve_token('good.jwt')
+            self.assertNotIsInstance(raised.exception, InvalidSession)
+
+    def test_concurrent_identical_question_reuses_the_existing_motion(self):
+        trace = self.trace
+        class Raced(Query):
+            selects = 0
+            def execute(self):
+                Raced.selects += 1
+                # Absent on the first look; present once the other request has inserted it.
+                return SimpleNamespace(data=[] if Raced.selects == 1 else [{'id': 'winner'}])
+            def insert(self, row):
+                trace.append(('insert', row))
+                raise APIError({'code': '23505', 'message': 'duplicate key value violates unique constraint "motions_text_key"', 'details': None, 'hint': None})
+        self.repo.client.table = lambda name: Raced(trace)
+        self.assertEqual(self.repo.create_motion('Should X?', category='Food', difficulty='beginner'), 'winner')
+        self.assertEqual(len([item for item in trace if item[0] == 'insert']), 1)
+
+    def test_other_motion_insert_failures_are_not_swallowed(self):
+        class Broken(Query):
+            def insert(self, row):
+                raise APIError({'code': '23514', 'message': 'check violation', 'details': None, 'hint': None})
+        self.repo.client.table = lambda name: Broken(self.trace)
+        with self.assertRaises(APIError):
+            self.repo.create_motion('Should X?')
+
+    def test_retry_claim_is_one_conditional_update_scoped_to_the_owner(self):
+        self.assertIsNone(self.repo.claim_retry('speech-id', 'resolved-user'))   # no row matched
+        self.assertEqual(self.trace, [('update', ({'status': 'queued', 'error': None},), {}),
+                                      ('eq', ('id', 'speech-id'), {}), ('eq', ('player_id', 'resolved-user'), {}),
+                                      ('eq', ('status', 'failed'), {}), ('execute', (), {})])
+        class Claimed(Query):
+            def execute(self):
+                return SimpleNamespace(data=[{'id': 'speech-id', 'status': 'queued'}])
+        self.repo.client.table = lambda name: Claimed(self.trace)
+        self.assertEqual(self.repo.claim_retry('speech-id', 'resolved-user'), {'id': 'speech-id', 'status': 'queued'})
+
+    def test_recovery_touches_only_queued_and_grading_rows(self):
+        class Rows(Query):
+            def execute(self):
+                return SimpleNamespace(data=[{'id': '1'}, {'id': '2'}], count=2)
+        self.repo.client.table = lambda name: Rows(self.trace)
+        self.assertEqual(self.repo.pending_count(), 2)
+        self.assertEqual(self.repo.fail_pending('Interrupted'), 2)
+        self.assertEqual([item for item in self.trace if item[0] in ('update', 'in_', 'eq', 'delete')],
+                         [('in_', ('status', ('queued', 'grading')), {}),
+                          ('update', ({'status': 'failed', 'error': 'Interrupted'},), {}),
+                          ('in_', ('status', ('queued', 'grading')), {})])
+
+    def test_saved_recording_downloads_from_the_private_audio_bucket(self):
+        def bucket(name):
+            self.trace.append(('bucket', name))
+            return SimpleNamespace(download=lambda path: self.trace.append(('download', path)) or b'bytes')
+        self.repo.client.storage = SimpleNamespace(from_=bucket)
+        self.assertEqual(self.repo.download('resolved-user/take.wav'), b'bytes')
+        self.assertEqual(self.trace, [('bucket', 'audio'), ('download', 'resolved-user/take.wav')])
+
     def test_both_speech_reads_scope_player_id(self):
         self.repo.speech('some-id', 'resolved-user')
         self.assertIn(('eq', ('player_id', 'resolved-user'), {}), self.trace)
