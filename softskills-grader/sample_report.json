@@ -55,12 +55,28 @@
           "type": "vivid_imagery"
         }
       ],
+      "extracted_stance": "yes",
       "fallacies": [],
       "on_topic": "yes",
-      "position_read": "",
+      "position_read": "Pace the frontier of AI.",
       "rebuttal_found": true,
       "side_chosen": "yes",
       "stance_argued": "yes",
+      "stance_verification": {
+        "confirmation": null,
+        "message": "Your speech matches the chosen side.",
+        "primary": {
+          "evidence_quote": "I believe the frontier of AI should be paced.",
+          "explanation": "The speaker supports pacing AI, answering Yes to the question.",
+          "model": "gemini-3.5-flash-lite",
+          "position": "Pace the frontier of AI.",
+          "quote_verified": true,
+          "stance": "yes"
+        },
+        "result": "matches",
+        "stance": "yes",
+        "status": "checked"
+      },
       "thesis_found": true
     },
     "diction": {
@@ -300,7 +316,7 @@
           "metric": "stance_mismatch",
           "reason": "Argued the opposite side from the one chosen.",
           "triggered": false,
-          "value": 0.0
+          "value": 0
         },
         {
           "cap": 50.0,
@@ -348,7 +364,7 @@
           "metric": "stance_mismatch",
           "points_each": 40,
           "points_lost": 0.0,
-          "value": 0.0
+          "value": 0
         },
         {
           "free": 0,
@@ -357,7 +373,7 @@
           "metric": "stance_unclear",
           "points_each": 15,
           "points_lost": 0.0,
-          "value": 0.0
+          "value": 0
         },
         {
           "free": 0,
@@ -560,8 +576,8 @@
   "inputs": {
     "audio_sha256": "2cddba80d48dab93157b892daa4612c51cc24bb38814f5d38133a69732cbcf62",
     "side": "yes",
-    "standards_id": "fb601bca6093cfa7",
-    "standards_version": "2026-10-11.1-critical",
+    "standards_id": "e2216d316b1b8740",
+    "standards_version": "2026-10-11.2-stance-verification",
     "topic": "Should the frontier of AI be paced?",
     "word_count": 155
   },
@@ -586,8 +602,8 @@
     "pitch_variation_semitones": 2.04,
     "reasoning_fallacy_count": 0.0,
     "repeated_word_count": 0.0,
-    "stance_mismatch": 0.0,
-    "stance_unclear": 0.0,
+    "stance_mismatch": 0,
+    "stance_unclear": 0,
     "structure_points": 2.0,
     "supported_arguments": 3.0,
     "time_used_pct": 98.13,

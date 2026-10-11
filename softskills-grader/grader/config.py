@@ -72,6 +72,15 @@ def validate(standards: dict, lexicons: dict) -> None:
     for section in ("session", "analysis", "apis", "grades", "factors"):
         if section not in standards:
             raise StandardsError(f"standards.yaml is missing the '{section}' section")
+    checker = standards["apis"].get("stance_checker", {})
+    fields = {"model", "thinking_level", "confirmation_model", "confirmation_thinking_level"}
+    if not isinstance(checker, dict) or set(checker) - fields:
+        raise StandardsError("apis.stance_checker: expected model/thinking_level and confirmation_model/confirmation_thinking_level")
+    for key, value in checker.items():
+        if not isinstance(value, str) or not value.strip():
+            raise StandardsError(f"apis.stance_checker.{key}: expected a non-empty string")
+        if key.endswith("thinking_level") and value not in ("minimal", "low", "medium", "high"):
+            raise StandardsError(f"apis.stance_checker.{key}: expected minimal, low, medium or high")
     factors = standards["factors"]
     if not isinstance(factors, dict) or not factors:
         raise StandardsError("standards.yaml: 'factors' is empty")

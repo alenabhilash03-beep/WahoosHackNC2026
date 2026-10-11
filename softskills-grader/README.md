@@ -13,7 +13,8 @@ pip install -r requirements.txt      # numpy, scipy, pyyaml, requests
 # Without it, WAV files work everywhere and m4a/mp3 work on a Mac.
 
 python demo.py                       # no API keys needed: synthetic recording + canned API responses
-python tests/test_pipeline.py        # 22 checks, no network
+python tests/test_pipeline.py        # pipeline checks, no network
+python tests/test_stance.py          # stance verification checks, no network
 
 cp .env.example .env                 # then add ELEVENLABS_API_KEY and GEMINI_API_KEY
 python grade.py speech.webm --topic "Should the frontier of AI be paced?" --side yes --out report.json
@@ -38,22 +39,67 @@ report["evidence"]           # quotes, pauses, fillers ... for the feedback scre
 | 1 | Transcribe | **ElevenLabs Scribe** (`grader/transcribe.py`) | every word with start time, end time, confidence; fillers kept |
 | 2 | Listen | **our code** (`grader/audio.py`) | pitch and loudness track from the raw audio |
 | 3 | Annotate | **Gemini** (`grader/extract.py`) | thesis, claims, support, counterargument, fallacies, emotional appeals, each as a verbatim quote |
-| 4 | Measure | **our code** (`grader/features.py`) | discards any Gemini item whose quote is not in the transcript, then counts and measures 28 numbers |
-| 5 | Score | **our code** (`grader/scoring.py`) | buckets, deductions and weights from `standards.yaml` -> five sub-grades and a main grade |
+| 4 | Verify stance | **Gemini Flash-Lite**, with **Flash** confirmation (`grader/stance.py`) | independent Yes/No interpretation, verified transcript quotes, and a match/contradiction/unclear decision |
+| 5 | Measure | **our code** (`grader/features.py`, `grader/stance.py`) | verifies quotes, counts and measures; uses the focused verification for side penalties |
+| 6 | Score | **our code** (`grader/scoring.py`) | buckets, deductions and weights from `standards.yaml` -> five sub-grades and a main grade |
 
 Neither model ever produces a score. Gemini cannot raise a grade by inventing
 material: unverifiable quotes are dropped and listed in
 `report["evidence"]["argument"]["discarded_from_gemini"]`.
 
+## Stance verification
+
+The broad argument extractor no longer decides the side penalty by itself. A
+separate `gemini-3.5-flash-lite` call identifies the speaker's own position relative
+to the exact question. It receives neither the selected side nor the broad
+extractor's answer, and distinguishes negation and rebutted counterarguments.
+Both calls run alongside each other after transcription.
+
+If Flash-Lite's stance matches the selection and its quote appears in the
+transcript, no confirmation call is needed. A suspected mismatch requires a
+second independent `gemini-3.8-flash` call. The existing 40-point logic deduction
+and overall cap of 40 apply only when both calls identify the same opposite side
+and both quotes are verified. This verifies quote presence, not semantic truth;
+both models can still misread a real quote or an incorrect transcript.
+
+An unclear result, disagreement, rejected quote or provider failure withholds
+both side deductions and the opposite-side cap. Other grading rules still apply.
+The speech card shows the decision and grounded evidence; reports retain both
+checks under `evidence.argument.stance_verification` and the original broad label
+under `evidence.argument.extracted_stance`.
+
+Configure the checker independently under `apis` in `config/standards.yaml`:
+
+```yaml
+stance_checker:
+  model: gemini-3.5-flash-lite
+  thinking_level: minimal
+  confirmation_model: gemini-3.8-flash
+  confirmation_thinking_level: medium
+```
+
+The verifier uses the same `GEMINI_API_KEY` / `GEMINI_API_KEYS` credentials as the
+extractor. It adds one call on a fresh matching speech and a second for suspected
+mismatches. Each response is cached separately in `cache/stances/` by transcript,
+question, model, thinking level and prompt version. The selected side is compared
+in code on every grade. Failed calls are not cached and can recover on retry.
+Existing saved reports are unchanged until the recording is graded again.
+
+For offline grading, pass `stance_checks={"primary": ..., "confirmation": ...}`
+along with canned `transcript` and `extraction` responses. Each raw check contains
+`position`, `stance`, `evidence_quote`, and `explanation`; the same grounding and
+confirmation rules still apply. `demo.py` supplies all three provider fixtures.
+
 ## Why the grade is repeatable
 
-- Steps 2, 4 and 5 are plain code: same inputs, same numbers.
-- Steps 1 and 3 run once per recording and are saved in `cache/` (keyed by the
+- Steps 2, 5 and 6 are plain code: same inputs, same numbers.
+- Successful provider responses in steps 1, 3 and 4 are saved in `cache/` (keyed by the
   audio's SHA-256, and by transcript + topic + model + prompt version). Grading
-  the same recording again never calls an API and returns the identical report.
+  the same recording again reuses those responses and returns the identical report.
+  A failed stance check is retried on a later grade and may then change side penalties.
 - Change the rubric and old recordings re-grade from the cache for free. Every
   report carries `standards_id`, a hash of the rubric that produced it.
-- Both APIs are also sent a fixed seed. Their docs call seeded output best-effort,
+- Transcription and broad extraction are also sent a fixed seed. Seeded output is best-effort,
   so the cache, not the seed, is the guarantee. Two *different* recordings of the
   same words are separate inputs and may differ slightly.
 

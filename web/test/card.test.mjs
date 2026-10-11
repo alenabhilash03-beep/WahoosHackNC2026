@@ -1,9 +1,23 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { metricRows, sectionScores, transcriptModel, evidenceForMetric, quoteTime, retryHref, safeAudioUrl } from '../js/card-model.js';
+import { metricRows, sectionScores, transcriptModel, evidenceForMetric, stanceEvidence, quoteTime, retryHref, safeAudioUrl } from '../js/card-model.js';
 
 const sample = JSON.parse(readFileSync(new URL('../../softskills-grader/sample_report.json', import.meta.url)));
+
+test('stance evidence displays only grounded quotes and preserves the decision explanation', () => {
+  const check={quote_verified:true,evidence_quote:'Homework should not be banned.'};
+  const report={evidence:{argument:{side_chosen:'no',stance_argued:'no',stance_verification:{
+    message:'Your speech matches the chosen side.',primary:check,confirmation:{...check},
+  }}}};
+  assert.equal(stanceEvidence(report).length,1);
+  assert.equal(stanceEvidence(report)[0].text,check.evidence_quote);
+  assert.ok(evidenceForMetric(report,'stance_mismatch').some(e=>e.text===check.evidence_quote && e.quote));
+  report.evidence.argument.stance_verification.primary.quote_verified=false;
+  report.evidence.argument.stance_verification.confirmation=null;
+  assert.deepEqual(stanceEvidence(report),[]);
+  assert.deepEqual(stanceEvidence({}),[]);
+});
 
 test('the card keeps every metric and deduction, including zero penalties', () => {
   const rows = metricRows(sample);

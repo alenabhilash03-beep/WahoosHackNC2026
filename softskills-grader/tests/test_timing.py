@@ -35,6 +35,7 @@ class TimingTests(unittest.TestCase):
     def report(self, scribe=None):
         return grade(self.fx["audio"], self.fx["topic"], "yes",
                      transcript=scribe or self.fx["scribe"], extraction=self.fx["annotations"],
+                     stance_checks=self.fx["stance_checks"],
                      cache_dir=self.folder.name)
 
     def test_gradable_report_keeps_true_word_timings_and_full_transcript(self):
