@@ -96,21 +96,20 @@ def test_decoding_without_ffmpeg():
             assert "ffmpeg" in str(error) and "conda install" in str(error)
         else:
             raise AssertionError("expected a RuntimeError")
-        # On a Mac without ffmpeg, the built-in converter is used. A stand-in script
-        # checks that we call it with the arguments afconvert expects.
+        # On a Mac without ffmpeg, the built-in converter is used. Validate its
+        # command, then use real ffmpeg as a stand-in on any host (including Windows).
         if real_ffmpeg:
             real_m4a = os.path.join(TMP, "real.m4a")
             subprocess.run([real_ffmpeg, "-v", "error", "-y", "-i", FX["audio"], "-c:a", "aac", real_m4a], check=True)
-            stand_in = os.path.join(TMP, "afconvert")
-            open(stand_in, "w").write(
-                "#!/bin/sh\n[ \"$1\" = -f ] && [ \"$2\" = WAVE ] && [ \"$3\" = -d ] && "
-                "[ \"$4\" = LEI16@16000 ] && [ \"$5\" = -c ] && [ \"$6\" = 1 ] || exit 2\n"
-                f"exec {real_ffmpeg} -v error -y -i \"$7\" -ac 1 -ar 16000 \"$8\"\n")
-            os.chmod(stand_in, 0o755)
-            audio.shutil.which = lambda name: stand_in if name == "afconvert" else None
+            audio.shutil.which = lambda name: "afconvert" if name == "afconvert" else None
             audio.sys.platform = "darwin"
             real_run = audio.subprocess.run
-            audio.subprocess.run = lambda cmd, **kw: real_run([stand_in] + cmd[1:], **kw)
+            def afconvert(cmd, **kwargs):
+                assert cmd[:7] == ["afconvert", "-f", "WAVE", "-d", "LEI16@16000", "-c", "1"]
+                assert len(cmd) == 9
+                return real_run([real_ffmpeg, "-v", "error", "-y", "-i", cmd[7],
+                                 "-ac", "1", "-ar", "16000", cmd[8]], **kwargs)
+            audio.subprocess.run = afconvert
             try:
                 samples = audio.decode(real_m4a)
             finally:
