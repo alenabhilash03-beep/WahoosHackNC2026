@@ -28,10 +28,11 @@
   padding: 8px 9px; text-decoration: none; cursor: pointer; white-space: nowrap; }
 .account-control:hover { color: #f4ead2; }
 .account-nav .sound-toggle { position: static; flex-shrink: 0; box-shadow: none; border: 1px solid #3b2030; padding: 8px 9px; }
-/* Pages with a curtain header make room for the strip inside the curtain, so the
-   strip sits on velvet. (Padding the body instead left a band at the top where the
-   3D stage behind the practice page showed through.) */
-body:has(.account-nav:not([hidden])) .valance { padding-top: 66px; }
+/* The fixed account strip overlays the curtain on desktop. Narrow screens keep
+   room inside the curtain so the strip cannot cover the heading. */
+@media (max-width: 1100px) {
+  body:has(.account-nav:not([hidden])) .valance { padding-top: 66px; }
+}
 /* During a round the question owns the top of the screen. */
 body[data-arena="stage"]:not([data-phase="setup"]) .account-nav { opacity: 0; pointer-events: none; transition: opacity 300ms; }
 @media (max-width: 480px) { .account-label { max-width: 14ch; } }
