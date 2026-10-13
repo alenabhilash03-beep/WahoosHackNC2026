@@ -27,9 +27,11 @@ export function createApiClient({config = {}, fetchImpl = globalThis.fetch,
   }
   return async function request(path, options = {}) {
     if (!path.startsWith('/api/')) throw new Error('API paths must start with /api/.');
+    if (options.signal?.aborted) throw new Error('The request was interrupted or took too long. Please retry.');
     const send = async (refresh = false) => {
       const headers = new Headers(options.headers);
       headers.set('Authorization', `Bearer ${await token(refresh)}`);
+      if (options.signal?.aborted) throw new Error('The request was interrupted or took too long. Please retry.');
       if (config.DEMO_MODE) headers.set('X-Demo-Mode','true');
       let body = options.body;
       if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof Blob)) {

@@ -49,3 +49,30 @@ test('sign-in errors are readable and abort interrupts requests',async()=>{
   const slow=createApiClient({config:{DEMO_MODE:true},hostname:'localhost',timeoutMs:5,fetchImpl:async(url,{signal})=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('Aborted'))))});
   await assert.rejects(slow('/api/me'),/took too long/);
 });
+test('an already-aborted request skips authentication and fetch', async () => {
+  const controller = new AbortController(); controller.abort();
+  let loads = 0, fetches = 0;
+  const client = createApiClient({
+    config: {SUPABASE_URL: 'https://db.example', SUPABASE_ANON_KEY: 'public'},
+    loadAuth: async () => { loads++; return {auth: {getSession: async () => ({data: {session: {access_token: 'token', user: {is_anonymous: false}}}})}}; },
+    fetchImpl: async (url, {signal}) => { fetches++; signal.throwIfAborted(); return json({}); },
+  });
+  await assert.rejects(client('/api/me', {signal: controller.signal}), {message: 'The request was interrupted or took too long. Please retry.'});
+  assert.equal(loads, 0); assert.equal(fetches, 0);
+});
+test('cancellation during session lookup skips fetch after lookup settles', async () => {
+  let finishSession, markStarted;
+  const started = new Promise(resolve => { markStarted = resolve; });
+  const sessionResult = new Promise(resolve => { finishSession = resolve; });
+  const controller = new AbortController(); let fetches = 0;
+  const client = createApiClient({
+    config: {SUPABASE_URL: 'https://db.example', SUPABASE_ANON_KEY: 'public'},
+    loadAuth: async () => ({auth: {getSession: () => { markStarted(); return sessionResult; }}}),
+    fetchImpl: async (url, {signal}) => { fetches++; signal.throwIfAborted(); return json({}); },
+  });
+  const pending = client('/api/me', {signal: controller.signal});
+  const rejection = assert.rejects(pending, {message: 'The request was interrupted or took too long. Please retry.'});
+  await started; controller.abort();
+  finishSession({data: {session: {access_token: 'token', user: {is_anonymous: false}}}});
+  await rejection; assert.equal(fetches, 0);
+});
